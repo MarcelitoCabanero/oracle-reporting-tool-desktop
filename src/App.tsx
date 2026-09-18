@@ -9,6 +9,7 @@ import MaintenancePage from './pages/MaintenancePage'
 import SettingsPage from './pages/SettingsPage'
 import RofPage from './pages/RofPage'
 import DepositPage from './pages/DepositPage'
+import PosJournalPage from './pages/PosJournalPage.tsx'
 
 import {
   useAuth,
@@ -95,12 +96,7 @@ function App() {
         )
 
       case 'pos-journal':
-        return (
-          <PlaceholderPage
-            title="POS Journal"
-            description="POS journal transaction viewer."
-          />
-        )
+        return <PosJournalPage />
 
       case 'rof':
         return <RofPage />

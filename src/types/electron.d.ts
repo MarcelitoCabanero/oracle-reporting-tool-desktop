@@ -231,6 +231,20 @@ interface DepositAttachmentReplaceResult {
   message: string
 }
 
+interface PosJournalRecord {
+  posJournalLogId: number
+  journalId: number
+  checkNum: number
+  transDateTime: string
+  chkOpenDateTime: string
+  journalText: string
+}
+
+interface PosJournalExportResult {
+  success: boolean
+  message: string
+}
+
 
 declare global {
   interface Window {
@@ -328,6 +342,20 @@ replaceAttachment: (
   fileName: string,
 ) => Promise<DepositAttachmentReplaceResult>
 
+}
+
+posJournal: {
+  load: (
+    businessDate: string,
+  ) => Promise<PosJournalRecord[]>
+
+  loadByCheckNumber: (
+    checkNumber: string,
+  ) => Promise<PosJournalRecord[]>
+
+  exportPdf: (
+    checkNumber: string,
+  ) => Promise<PosJournalExportResult>
 }
 
     }

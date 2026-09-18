@@ -1795,3 +1795,453 @@ body {
 .deposit-page-size {
   width: 75px;
 }
+
+
+/* =========================================================
+   POS JOURNAL — minimal
+   ========================================================= */
+
+.pos-journal-page {
+  display: flex;
+  flex-direction: column;
+
+  height: calc(100vh - 120px);
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.pos-journal-workspace {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+
+  flex: 1;
+  min-height: 0;
+
+  gap: 16px;
+}
+
+/* -----------------------------
+   FILTER RAIL (compact, non-scrolling)
+------------------------------ */
+
+.pos-journal-filter-rail {
+  align-self: start;
+
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  padding: 14px;
+
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.pos-journal-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pos-journal-filter-label {
+  color: var(--text-secondary);
+
+  font-size: 10px;
+  font-weight: 600;
+
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pos-journal-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pos-journal-filter-row .form-control {
+  min-height: 32px;
+  padding: 6px 9px;
+
+  font-size: 12.5px;
+
+  border-radius: 7px;
+}
+
+.pos-journal-date-wrap {
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 0 9px;
+
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+}
+
+.pos-journal-date-wrap svg {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.pos-journal-date-wrap .form-control {
+  border: none;
+  padding: 6px 0;
+}
+
+.pos-journal-date-wrap .form-control:focus {
+  box-shadow: none;
+}
+
+.pos-journal-icon-btn {
+  flex-shrink: 0;
+
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+
+  background: #fafafa;
+  color: var(--text-secondary);
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.pos-journal-icon-btn:hover {
+  background: var(--brand-orange-soft);
+  color: var(--brand-orange-dark);
+  border-color: #ffd5bb;
+}
+
+.pos-journal-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pos-journal-find-next-btn {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 6px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  background: #fafafa;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pos-journal-action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pos-journal-find-next-btn:hover:not(:disabled) {
+  background: var(--brand-orange-soft);
+  border-color: #ffd5bb;
+  color: var(--brand-orange-dark);
+}
+
+.pos-journal-find-next-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pos-journal-match-count {
+  color: var(--brand-orange-dark);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.pos-journal-filter-divider {
+  height: 1px;
+  background: var(--border-color);
+}
+
+.pos-journal-export-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 7px 10px;
+
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+
+  background: #fafafa;
+  color: var(--text-secondary);
+
+  font-size: 12px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.pos-journal-export-btn:hover:not(:disabled) {
+  background: var(--brand-orange-soft);
+  color: var(--brand-orange-dark);
+  border-color: #ffd5bb;
+}
+
+.pos-journal-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pos-journal-status-text {
+  margin: 0;
+
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* -----------------------------
+   RECEIPT VIEWER — only scrollable part
+------------------------------ */
+
+.pos-journal-viewer {
+  min-width: 0;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+
+  overflow: hidden;
+}
+
+.pos-journal-viewer-toolbar {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  padding: 12px 16px;
+
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pos-journal-viewer-toolbar h2 {
+  margin: 0;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pos-journal-count-badge {
+  padding: 3px 8px;
+
+  border-radius: 999px;
+
+  background: var(--app-bg);
+  color: var(--text-secondary);
+
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.pos-journal-list {
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+
+  padding: 14px 16px;
+
+  display: grid;
+  gap: 12px;
+}
+
+.pos-journal-receipt {
+  padding: 16px;
+
+  background: var(--app-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.pos-journal-match {
+  padding: 0 2px;
+  background: #ffd8a8;
+  color: inherit;
+}
+
+.pos-journal-match.active {
+  background: #f28b2e;
+  color: #ffffff;
+}
+
+.pos-journal-receipt pre {
+  margin: 0;
+  overflow-x: auto;
+  color: var(--text-primary);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+}
+
+@media (max-width: 1050px) {
+  .pos-journal-workspace {
+    grid-template-columns: 1fr;
+
+    height: auto;
+  }
+
+  .pos-journal-page {
+    height: auto;
+  }
+
+  .pos-journal-filter-rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .pos-journal-filter-group {
+    flex: 1 1 160px;
+  }
+
+  .pos-journal-filter-divider {
+    display: none;
+  }
+
+  .pos-journal-viewer {
+    min-height: 480px;
+  }
+}
+
+@media (max-width: 640px) {
+  .pos-journal-filter-rail {
+    flex-direction: column;
+  }
+
+  .pos-journal-viewer-toolbar {
+    padding: 10px 12px;
+  }
+
+  .pos-journal-list {
+    padding: 10px 12px;
+  }
+}
+
+@media print {
+  body { background: #ffffff; }
+
+  body * { visibility: hidden !important; }
+
+  #pos-journal-print-area,
+  #pos-journal-print-area * { visibility: visible !important; }
+
+  #pos-journal-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .app-layout,
+  .app-main,
+  .main-content {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .pos-journal-page,
+  .pos-journal-workspace,
+  .pos-journal-viewer,
+  .pos-journal-list {
+    max-width: none;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .pos-journal-viewer {
+    display: block;
+  }
+
+  .pos-journal-receipt {
+    position: relative;
+    break-inside: avoid;
+    border: 0;
+    box-shadow: none;
+    padding: 0 0 18px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #dddddd;
+  }
+
+  .pos-journal-receipt:not(.pos-journal-export-target) {
+    display: none !important;
+  }
+
+  .pos-journal-receipt pre {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 9pt;
+    font-weight: 400;
+    line-height: 1.25;
+  }
+
+  .pos-journal-receipt {
+    padding: 0;
+    margin: 0;
+    border-bottom: 0;
+  }
+
+  .pos-journal-export-target::before {
+    content: "RE-PRINT";
+    position: absolute;
+    top: 40%;
+    left: 20.5%;
+    z-index: 0;
+    transform: translate(-50%, -50%) rotate(-38deg);
+    color: #777777;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 45pt;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    opacity: 0.1;
+    white-space: nowrap;
+  }
+
+  .pos-journal-export-target pre {
+    position: relative;
+    z-index: 1;
+  }
+}

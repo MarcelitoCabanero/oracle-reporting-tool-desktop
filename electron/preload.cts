@@ -156,6 +156,26 @@ replaceAttachment: (fileName: string) =>
 
 
 },
+
+posJournal: {
+  load: (businessDate: string) =>
+    ipcRenderer.invoke(
+      'pos-journal:load',
+      businessDate,
+    ),
+
+  loadByCheckNumber: (checkNumber: string) =>
+    ipcRenderer.invoke(
+      'pos-journal:load-by-check-number',
+      checkNumber,
+    ),
+
+  exportPdf: (checkNumber: string) =>
+    ipcRenderer.invoke(
+      'pos-journal:export-pdf',
+      checkNumber,
+    ),
+},
 })
 
 console.log('Electron preload loaded')
