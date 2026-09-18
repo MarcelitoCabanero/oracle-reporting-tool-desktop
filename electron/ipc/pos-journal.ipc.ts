@@ -5,7 +5,7 @@ import {
 import {
   loadPosJournalByCheckNumber,
   loadPosJournals,
-} from '../rof/pos-journal.service.js'
+} from '../posjournal/pos-journal.service.js'
 
 export function registerPosJournalIpc() {
   ipcMain.handle(
