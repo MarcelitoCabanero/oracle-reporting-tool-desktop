@@ -1805,14 +1805,15 @@ body {
   display: flex;
   flex-direction: column;
 
-  height: calc(100vh - 120px);
-  max-width: 1240px;
-  margin: 0 auto;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .pos-journal-workspace {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  grid-template-columns: clamp(280px, 24vw, 380px) minmax(0, 1fr);
 
   flex: 1;
   min-height: 0;
@@ -1829,9 +1830,9 @@ body {
 
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 
-  padding: 14px;
+  padding: 20px;
 
   background: #ffffff;
   border: 1px solid var(--border-color);
@@ -1841,13 +1842,13 @@ body {
 .pos-journal-filter-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 9px;
 }
 
 .pos-journal-filter-label {
   color: var(--text-secondary);
 
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
 
   letter-spacing: 0.04em;
@@ -1857,14 +1858,14 @@ body {
 .pos-journal-filter-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .pos-journal-filter-row .form-control {
-  min-height: 32px;
-  padding: 6px 9px;
+  min-height: 40px;
+  padding: 8px 11px;
 
-  font-size: 12.5px;
+  font-size: 13px;
 
   border-radius: 7px;
 }
@@ -1901,8 +1902,8 @@ body {
 .pos-journal-icon-btn {
   flex-shrink: 0;
 
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
 
   display: flex;
   align-items: center;
@@ -1934,13 +1935,13 @@ body {
 }
 
 .pos-journal-find-next-btn {
-  min-height: 32px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
   flex-shrink: 0;
-  padding: 6px 9px;
+  padding: 8px 11px;
   border: 1px solid var(--border-color);
   border-radius: 7px;
   background: #fafafa;
@@ -1984,7 +1985,8 @@ body {
   justify-content: center;
   gap: 6px;
 
-  padding: 7px 10px;
+  min-height: 40px;
+  padding: 8px 11px;
 
   border: 1px solid var(--border-color);
   border-radius: 7px;
@@ -1992,7 +1994,7 @@ body {
   background: #fafafa;
   color: var(--text-secondary);
 
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 
   cursor: pointer;

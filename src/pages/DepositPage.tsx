@@ -3372,67 +3372,14 @@ function BusyOverlay({
   message: string
 }) {
   return (
-    <div
-      className="
-        position-fixed
-        top-0
-        start-0
-        w-100
-        h-100
-        d-flex
-        align-items-center
-        justify-content-center
-      "
-      style={{
-        background:
-          'rgba(255, 255, 255, 0.78)',
-        backdropFilter:
-          'blur(2px)',
-        zIndex: 1100,
-      }}
-      aria-live="assertive"
-      aria-busy="true"
-    >
-      <div
-        className="
-          bg-white
-          border
-          rounded-4
-          shadow
-          px-5
-          py-4
-          text-center
-        "
-        style={{
-          minWidth: 260,
-        }}
-      >
-        <div
-          className="
-            spinner-border
-            text-primary
-            mb-3
-          "
-          style={{
-            width: '2.75rem',
-            height: '2.75rem',
-          }}
-          role="status"
-        >
-          <span className="visually-hidden">
-            Loading...
-          </span>
-        </div>
-
-        <div className="fw-semibold">
-          {message}
-        </div>
-
-        <div className="small text-secondary mt-1">
-          Please wait while the operation completes.
-        </div>
-      </div>
-    </div>
+    <ConfirmDialog
+      open
+      loading
+      title="Please wait"
+      message={message}
+      onConfirm={() => undefined}
+      onCancel={() => undefined}
+    />
   )
 }
 

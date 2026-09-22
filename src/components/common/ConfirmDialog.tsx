@@ -5,6 +5,7 @@ interface ConfirmDialogProps {
   confirmText?: string
   cancelText?: string
   variant?: 'default' | 'danger'
+  loading?: boolean
   onConfirm: () => void | Promise<void>
   onCancel: () => void
 }
@@ -16,6 +17,7 @@ function ConfirmDialog({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   variant = 'default',
+  loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -41,7 +43,11 @@ function ConfirmDialog({
       style={{
         zIndex: 1055,
       }}
-      onClick={onCancel}
+      onClick={
+        loading
+          ? undefined
+          : onCancel
+      }
     >
       <div
         className="
@@ -73,39 +79,51 @@ function ConfirmDialog({
           <p className="text-secondary mb-0">
             {message}
           </p>
+
+          {loading && (
+            <div className="d-flex justify-content-center mt-4">
+              <div
+                className="spinner-border text-primary"
+                role="status"
+                aria-label="Loading"
+              />
+            </div>
+          )}
         </div>
 
-        <div
-          className="
-            border-top
-            bg-light
-            px-4
-            py-3
-            d-flex
-            justify-content-end
-            gap-2
-          "
-        >
-          <button
-            type="button"
-            className="btn btn-outline-secondary"
-            onClick={onCancel}
+        {!loading && (
+          <div
+            className="
+              border-top
+              bg-light
+              px-4
+              py-3
+              d-flex
+              justify-content-end
+              gap-2
+            "
           >
-            {cancelText}
-          </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={onCancel}
+            >
+              {cancelText}
+            </button>
 
-          <button
-            type="button"
-            className={
-              variant === 'danger'
-                ? 'btn btn-danger'
-                : 'btn btn-primary'
-            }
-            onClick={onConfirm}
-          >
-            {confirmText}
-          </button>
-        </div>
+            <button
+              type="button"
+              className={
+                variant === 'danger'
+                  ? 'btn btn-danger'
+                  : 'btn btn-primary'
+              }
+              onClick={onConfirm}
+            >
+              {confirmText}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
