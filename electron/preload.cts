@@ -13,6 +13,11 @@ import type {
   MenuItemDateRangeInput,
 } from './menuitem/menuitem.types.js'
 
+import type {
+  FtpConfig,
+  MissingMenuItem,
+} from './maintenance/maintenance.types.js'
+
 
 contextBridge.exposeInMainWorld('api', {
   app: {
@@ -208,6 +213,19 @@ posJournal: {
       checkNumber,
     ),
 },
+
+  maintenance: {
+    getFtpConfig: () =>
+      ipcRenderer.invoke('maintenance:ftp-config') as Promise<FtpConfig>,
+    testFtp: (config: FtpConfig) =>
+      ipcRenderer.invoke('maintenance:ftp-test', config),
+    saveFtp: (config: FtpConfig) =>
+      ipcRenderer.invoke('maintenance:ftp-save', config),
+    loadMissingItems: () =>
+      ipcRenderer.invoke('maintenance:missing-items') as Promise<MissingMenuItem[]>,
+    syncItems: (rows: MissingMenuItem[]) =>
+      ipcRenderer.invoke('maintenance:sync-items', rows),
+  },
 })
 
 console.log('Electron preload loaded')

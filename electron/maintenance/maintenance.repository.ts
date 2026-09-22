@@ -8,6 +8,10 @@ import type { MissingMenuItem } from './maintenance.types.js'
 const menuItemColumns =
   'itemnumber, itemname, transtype, majorgroup, familygroup'
 
+function asSqlString(value: unknown): string {
+  return value == null ? '' : String(value)
+}
+
 export async function getMissingMenuItems(): Promise<MissingMenuItem[]> {
   const hqPool = await getHqDbPool()
   const localPool = await getLocalDbPool()
@@ -38,12 +42,18 @@ export async function insertMissingMenuItems(
 
   try {
     for (const row of rows) {
+      const itemnumber = asSqlString(row.itemnumber).trim()
+
+      if (!itemnumber) {
+        throw new Error('Cannot sync a menu item with an empty item number.')
+      }
+
       await new sql.Request(transaction)
-        .input('itemnumber', sql.VarChar, row.itemnumber)
-        .input('itemname', sql.VarChar, row.itemname)
-        .input('transtype', sql.VarChar, row.transtype)
-        .input('majorgroup', sql.VarChar, row.majorgroup)
-        .input('familygroup', sql.VarChar, row.familygroup)
+        .input('itemnumber', sql.VarChar, itemnumber)
+        .input('itemname', sql.VarChar, asSqlString(row.itemname))
+        .input('transtype', sql.VarChar, asSqlString(row.transtype))
+        .input('majorgroup', sql.VarChar, asSqlString(row.majorgroup))
+        .input('familygroup', sql.VarChar, asSqlString(row.familygroup))
         .query(`
           IF NOT EXISTS (SELECT 1 FROM dts_object WHERE itemnumber = @itemnumber)
           BEGIN
