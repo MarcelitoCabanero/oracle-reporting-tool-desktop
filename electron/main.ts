@@ -6,6 +6,7 @@ import { registerAuthIpc } from './ipc/auth.ipc.js'
 import {registerSystemIpc} from './ipc/system.ipc.js'
 import { registerRofIpc } from './ipc/rof.ipc.js'
 import {registerDepositIpc} from './ipc/deposit.ipc.js'
+import {registerMenuItemIpc} from './ipc/menuitem.ipc.js'
 import { registerPosJournalIpc } from './ipc/pos-journal.ipc.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -42,6 +43,7 @@ registerAuthIpc()
 registerSystemIpc()
 registerRofIpc()
 registerDepositIpc()
+registerMenuItemIpc()
 registerPosJournalIpc()
 
 ipcMain.handle('pos-journal:export-pdf', async (_event, checkNumber: string) => {

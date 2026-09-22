@@ -9,6 +9,7 @@ import MaintenancePage from './pages/MaintenancePage'
 import SettingsPage from './pages/SettingsPage'
 import RofPage from './pages/RofPage'
 import DepositPage from './pages/DepositPage'
+import MenuItemPage from './pages/MenuItemPage.tsx'
 import PosJournalPage from './pages/PosJournalPage.tsx'
 
 import {
@@ -87,13 +88,8 @@ function App() {
           />
         )
 
-      case 'menu-item':
-        return (
-          <PlaceholderPage
-            title="Menu Item"
-            description="Menu item reporting and analysis."
-          />
-        )
+     case 'menu-item':
+  return <MenuItemPage />
 
       case 'pos-journal':
         return <PosJournalPage />

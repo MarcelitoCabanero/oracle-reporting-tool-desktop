@@ -231,6 +231,60 @@ interface DepositAttachmentReplaceResult {
   message: string
 }
 
+interface MenuItemDateRangeInput {
+  dateFrom: string
+  dateTo: string
+}
+
+interface MenuItemBySalesTypeRow {
+  itemNumber: string
+  itemName: string
+  qty: number
+  grossAmount: number
+  itemDiscount: number
+  netSales: number
+  salesType: string
+}
+
+interface MenuItemSummaryRow {
+  itemNumber: string
+  itemName: string
+  qty: number
+  grossAmount: number
+  itemDiscount: number
+  netSales: number
+  majorGroup: string
+  familyGroup: string
+}
+
+interface MenuItemTotals {
+  qty: number
+  grossAmount: number
+  itemDiscount: number
+  netSales: number
+}
+
+interface MenuItemBySalesTypeResult {
+  success: boolean
+  message: string
+  rows: MenuItemBySalesTypeRow[]
+  totals: MenuItemTotals
+}
+
+interface MenuItemSummaryResult {
+  success: boolean
+  message: string
+  rows: MenuItemSummaryRow[]
+  totals: MenuItemTotals
+  majorGroups: string[]
+}
+interface MenuItemExportResult {
+  success: boolean
+  canceled: boolean
+  message: string
+  filePath?: string
+}
+
 interface PosJournalRecord {
   posJournalLogId: number
   journalId: number
@@ -244,7 +298,6 @@ interface PosJournalExportResult {
   success: boolean
   message: string
 }
-
 
 declare global {
   interface Window {
@@ -341,6 +394,36 @@ downloadAttachment: (
 replaceAttachment: (
   fileName: string,
 ) => Promise<DepositAttachmentReplaceResult>
+
+}
+
+menuItem: {
+  getBySalesType: (
+    input: MenuItemDateRangeInput,
+  ) => Promise<MenuItemBySalesTypeResult>
+
+  getSummary: (
+    input: MenuItemDateRangeInput,
+  ) => Promise<MenuItemSummaryResult>
+
+  exportBySalesType: (
+  input: {
+    dateFrom: string
+    dateTo: string
+    rows: MenuItemBySalesTypeRow[]
+    salesTypeFilter?: string
+  },
+) => Promise<MenuItemExportResult>
+
+exportSummary: (
+  input: {
+    dateFrom: string
+    dateTo: string
+    rows: MenuItemSummaryRow[]
+    majorGroupFilter?: string
+  },
+) => Promise<MenuItemExportResult>
+
 
 }
 

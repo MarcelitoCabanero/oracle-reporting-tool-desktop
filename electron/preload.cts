@@ -9,7 +9,9 @@ import type {
   UpdateDepositInput,
 } from './deposit/deposit.types.js'
 
-
+import type {
+  MenuItemDateRangeInput,
+} from './menuitem/menuitem.types.js'
 
 
 contextBridge.exposeInMainWorld('api', {
@@ -155,6 +157,36 @@ replaceAttachment: (fileName: string) =>
   ),
 
 
+},
+
+menuItem: {
+  getBySalesType: (
+    input: MenuItemDateRangeInput,
+  ) =>
+    ipcRenderer.invoke(
+      'menuitem:by-sales-type',
+      input,
+    ),
+
+  getSummary: (
+    input: MenuItemDateRangeInput,
+  ) =>
+    ipcRenderer.invoke(
+      'menuitem:summary',
+      input,
+    ),
+
+    exportBySalesType: (input: unknown) =>
+  ipcRenderer.invoke(
+    'menuitem:export-by-sales-type',
+    input,
+  ),
+
+exportSummary: (input: unknown) =>
+  ipcRenderer.invoke(
+    'menuitem:export-summary',
+    input,
+  ),
 },
 
 posJournal: {
