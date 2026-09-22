@@ -9,6 +9,8 @@ import {
   UploadCloud,
 } from 'lucide-react'
 
+import ConfirmDialog from '../components/common/ConfirmDialog'
+
 interface MissingMenuItem {
   itemnumber: string
   itemname: string
@@ -21,6 +23,7 @@ function MaintenancePage() {
   const [missingItems, setMissingItems] = useState<MissingMenuItem[]>([])
   const [loadingItems, setLoadingItems] = useState(false)
   const [syncingItems, setSyncingItems] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [syncMessage, setSyncMessage] = useState(
     'Ready - load missing items to compare HQ with the local POS database.',
   )
@@ -51,10 +54,10 @@ function MaintenancePage() {
       return
     }
 
-    if (!window.confirm(`Insert ${missingItems.length} missing item(s) into the POS database?`)) {
-      return
-    }
+    setShowConfirmDialog(true)
+  }
 
+  async function handleSyncConfirm() {
     setSyncingItems(true)
     setSyncMessage('Syncing items to the local POS database...')
 
@@ -66,49 +69,127 @@ function MaintenancePage() {
       setSyncMessage(error instanceof Error ? error.message : 'Unable to sync menu items.')
     } finally {
       setSyncingItems(false)
+      setShowConfirmDialog(false)
     }
   }
 
+  // =========================================================
+  // BUSY OVERLAY
+  // =========================================================
+
+  const isBusy = loadingItems || syncingItems
+
+  const busyMessage = syncingItems
+    ? 'Syncing items...'
+    : loadingItems
+      ? 'Loading missing items...'
+      : ''
+
   return (
-    <section className="maintenance-page">
-      <div className="maintenance-grid">
-        <article className="maintenance-panel maintenance-sync-panel">
-          <div className="maintenance-panel-heading">
-            <div className="maintenance-icon"><Database size={19} /></div>
-            <div className="maintenance-heading-text">
-              <h2>Synchronize menu items</h2>
-              <p>Find HQ items missing from the local POS database.</p>
-            </div>
-            <div className="maintenance-actions">
-              <button className="btn btn-primary" type="button" onClick={() => void loadMissingItems()} disabled={loadingItems || syncingItems}>
-                {loadingItems ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
-                Load missing items
-              </button>
-              <button className="btn btn-outline-primary" type="button" onClick={() => void syncItems()} disabled={loadingItems || syncingItems || missingItems.length === 0}>
-                {syncingItems ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />}
-                Sync to POS
-              </button>
-            </div>
-          </div>
+    <div className="position-relative">
+      {isBusy && (
+        <div
+          className="
+            position-absolute
+            top-0
+            start-0
+            w-100
+            h-100
+            d-flex
+            align-items-center
+            justify-content-center
+            bg-white
+            bg-opacity-75
+            rounded-4
+          "
+          style={{
+            zIndex: 100,
+            minHeight: '100%',
+          }}
+        >
+          <div
+            className="
+              bg-white
+              border
+              rounded-4
+              shadow-sm
+              text-center
+              px-5
+              py-4
+            "
+          >
+            <div
+              className="
+                spinner-border
+                text-primary
+                mb-3
+              "
+              role="status"
+            />
 
-          <div className="maintenance-status">{syncMessage}</div>
+            <div className="fw-semibold mb-1">
+              {busyMessage}
+            </div>
 
-          <div className="maintenance-table-wrap">
-            <table className="table maintenance-table align-middle mb-0">
-              <thead><tr><th>Item number</th><th>Item name</th><th>Trans type</th><th>Major group</th><th>Family group</th></tr></thead>
-              <tbody>
-                {missingItems.length === 0 ? (
-                  <tr><td className="maintenance-empty" colSpan={5}>No missing items loaded.</td></tr>
-                ) : missingItems.map((item) => (
-                  <tr key={item.itemnumber}><td>{item.itemnumber}</td><td>{item.itemname}</td><td>{item.transtype}</td><td>{item.majorgroup}</td><td>{item.familygroup}</td></tr>
-                ))}
-              </tbody>
-            </table>
+            <small className="text-secondary">
+              Please wait while the transaction
+              is being processed.
+            </small>
           </div>
-          <div className="maintenance-count">{missingItems.length} missing item{missingItems.length === 1 ? '' : 's'}</div>
-        </article>
-      </div>
-    </section>
+        </div>
+      )}
+
+      <section className="maintenance-page">
+        <div className="maintenance-grid">
+          <article className="maintenance-panel maintenance-sync-panel">
+            <div className="maintenance-panel-heading">
+              <div className="maintenance-icon"><Database size={19} /></div>
+              <div className="maintenance-heading-text">
+                <h2>Synchronize menu items</h2>
+                <p>Find HQ items missing from the local POS database.</p>
+              </div>
+              <div className="maintenance-actions">
+                <button className="btn btn-primary" type="button" onClick={() => void loadMissingItems()} disabled={loadingItems || syncingItems}>
+                  {loadingItems ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
+                  Load missing items
+                </button>
+                <button className="btn btn-outline-primary" type="button" onClick={() => void syncItems()} disabled={loadingItems || syncingItems || missingItems.length === 0}>
+                  {syncingItems ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />}
+                  Sync to POS
+                </button>
+              </div>
+            </div>
+
+            <div className="maintenance-status">{syncMessage}</div>
+
+            <div className="maintenance-table-wrap">
+              <table className="table maintenance-table align-middle mb-0">
+                <thead><tr><th>Item number</th><th>Item name</th><th>Trans type</th><th>Major group</th><th>Family group</th></tr></thead>
+                <tbody>
+                  {missingItems.length === 0 ? (
+                    <tr><td className="maintenance-empty" colSpan={5}>No missing items loaded.</td></tr>
+                  ) : missingItems.map((item) => (
+                    <tr key={item.itemnumber}><td>{item.itemnumber}</td><td>{item.itemname}</td><td>{item.transtype}</td><td>{item.majorgroup}</td><td>{item.familygroup}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="maintenance-count">{missingItems.length} missing item{missingItems.length === 1 ? '' : 's'}</div>
+          </article>
+        </div>
+      </section>
+
+      <ConfirmDialog
+        open={showConfirmDialog}
+        title="Sync to POS"
+        message={`Insert ${missingItems.length} missing item(s) into the POS database?`}
+        confirmText="Sync"
+        cancelText="Cancel"
+        loading={syncingItems}
+        onConfirm={handleSyncConfirm}
+        onCancel={() => setShowConfirmDialog(false)}
+      />
+    </div>
   )
 }
 

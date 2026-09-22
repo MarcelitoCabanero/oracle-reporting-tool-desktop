@@ -184,128 +184,192 @@ function PosJournalPage() {
 
   let matchOffset = 0
 
+  const isBusy = loading || exporting
+
+  const busyMessage = loading
+    ? message !== 'Select a date or check number to load a receipt.'
+      ? message
+      : 'Loading...'
+    : exporting
+      ? 'Exporting...'
+      : ''
+
   return (
-    <section className="pos-journal-page">
-      <div className="pos-journal-workspace">
-        <aside className="pos-journal-filter-rail">
-          <div className="pos-journal-filter-group">
-            <span className="pos-journal-filter-label">Check number</span>
-            <div className="pos-journal-filter-row">
-              <input
-                id="pos-journal-check-number"
-                className="form-control"
-                type="text"
-                inputMode="numeric"
-                placeholder="202046"
-                value={checkNumber}
-                onChange={(event) => setCheckNumber(event.target.value)}
-              />
-              <button className="pos-journal-icon-btn" type="button" onClick={loadByCheckNumber} disabled={loading} title="Load reprint">
-                <Search size={14} />
-              </button>
+    <div className="position-relative">
+      {isBusy && (
+        <div
+          className="
+            position-absolute
+            top-0
+            start-0
+            w-100
+            h-100
+            d-flex
+            align-items-center
+            justify-content-center
+            bg-white
+            bg-opacity-75
+            rounded-4
+          "
+          style={{
+            zIndex: 100,
+            minHeight: '100%',
+          }}
+        >
+          <div
+            className="
+              bg-white
+              border
+              rounded-4
+              shadow-sm
+              text-center
+              px-5
+              py-4
+            "
+          >
+            <div
+              className="
+                spinner-border
+                text-primary
+                mb-3
+              "
+              role="status"
+            />
+
+            <div className="fw-semibold mb-1">
+              {busyMessage}
             </div>
+
+            <small className="text-secondary">
+              Please wait while the transaction
+              is being processed.
+            </small>
           </div>
+        </div>
+      )}
 
-          <div className="pos-journal-filter-divider" />
-
-          <div className="pos-journal-filter-group">
-            <span className="pos-journal-filter-label">Date</span>
-            <div className="pos-journal-filter-row">
-              <div className="pos-journal-date-wrap">
-                <CalendarDays size={13} />
+      <section className="pos-journal-page">
+        <div className="pos-journal-workspace">
+          <aside className="pos-journal-filter-rail">
+            <div className="pos-journal-filter-group">
+              <span className="pos-journal-filter-label">Check number</span>
+              <div className="pos-journal-filter-row">
                 <input
-                  id="pos-journal-date"
+                  id="pos-journal-check-number"
                   className="form-control"
-                  type="date"
-                  value={businessDate}
-                  onChange={(event) => setBusinessDate(event.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="202046"
+                  value={checkNumber}
+                  onChange={(event) => setCheckNumber(event.target.value)}
+                />
+                <button className="pos-journal-icon-btn" type="button" onClick={loadByCheckNumber} disabled={loading} title="Load reprint">
+                  <Search size={14} />
+                </button>
+              </div>
+            </div>
+
+            <div className="pos-journal-filter-divider" />
+
+            <div className="pos-journal-filter-group">
+              <span className="pos-journal-filter-label">Date</span>
+              <div className="pos-journal-filter-row">
+                <div className="pos-journal-date-wrap">
+                  <CalendarDays size={13} />
+                  <input
+                    id="pos-journal-date"
+                    className="form-control"
+                    type="date"
+                    value={businessDate}
+                    onChange={(event) => setBusinessDate(event.target.value)}
+                  />
+                </div>
+                <button className="pos-journal-icon-btn" type="button" onClick={loadByDate} disabled={loading} title="Load receipts">
+                  <Search size={14} />
+                </button>
+              </div>
+            </div>
+
+            <div className="pos-journal-filter-divider" />
+
+            <div className="pos-journal-filter-group">
+              <span className="pos-journal-filter-label">Find in receipt</span>
+              <div className="pos-journal-filter-row">
+                <input
+                  id="pos-journal-search"
+                  className="form-control"
+                  type="search"
+                  placeholder="Search text..."
+                  value={searchText}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      findNext()
+                    }
+                  }}
+                  onChange={(event) => {
+                    setSearchText(event.target.value)
+                    setActiveMatch(-1)
+                  }}
                 />
               </div>
-              <button className="pos-journal-icon-btn" type="button" onClick={loadByDate} disabled={loading} title="Load receipts">
+              {totalMatches > 0 && (
+                <span className="pos-journal-match-count">{totalMatches} match{totalMatches === 1 ? '' : 'es'}</span>
+              )}
+            </div>
+
+            <div className="pos-journal-action-row">
+              
+              <button className="pos-journal-export-btn" type="button" onClick={exportPdf} disabled={exporting || loading || rows.length === 0}>
+                <Download size={14} />
+                {exporting ? 'Exporting...' : 'Export'}
+              </button>
+              <button className="pos-journal-find-next-btn" type="button" onClick={findNext} disabled={rows.length === 0}>
                 <Search size={14} />
+                <span>Find Next</span>
               </button>
             </div>
-          </div>
 
-          <div className="pos-journal-filter-divider" />
+            <p className="pos-journal-status-text">{message}</p>
+          </aside>
 
-          <div className="pos-journal-filter-group">
-            <span className="pos-journal-filter-label">Find in receipt</span>
-            <div className="pos-journal-filter-row">
-              <input
-                id="pos-journal-search"
-                className="form-control"
-                type="search"
-                placeholder="Search text..."
-                value={searchText}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    findNext()
-                  }
-                }}
-                onChange={(event) => {
-                  setSearchText(event.target.value)
-                  setActiveMatch(-1)
-                }}
-              />
+          <main className="pos-journal-viewer">
+            <div className="pos-journal-viewer-toolbar">
+              <h2>Receipt</h2>
+              {rows.length > 0 && <span className="pos-journal-count-badge">{rows.length} receipt{rows.length === 1 ? '' : 's'}</span>}
             </div>
-            {totalMatches > 0 && (
-              <span className="pos-journal-match-count">{totalMatches} match{totalMatches === 1 ? '' : 'es'}</span>
-            )}
-          </div>
 
-          <div className="pos-journal-action-row">
-            
-            <button className="pos-journal-export-btn" type="button" onClick={exportPdf} disabled={exporting || loading || rows.length === 0}>
-              <Download size={14} />
-              {exporting ? 'Exporting...' : 'Export'}
-            </button>
-            <button className="pos-journal-find-next-btn" type="button" onClick={findNext} disabled={rows.length === 0}>
-              <Search size={14} />
-              <span>Find Next</span>
-            </button>
-          </div>
+            <div id="pos-journal-print-area" className="pos-journal-list">
+              {rows.map((row) => {
+                const rowOffset = matchOffset
+                matchOffset += countMatches(row.journalText, searchText)
 
-          <p className="pos-journal-status-text">{message}</p>
-        </aside>
-
-        <main className="pos-journal-viewer">
-          <div className="pos-journal-viewer-toolbar">
-            <h2>Receipt</h2>
-            {rows.length > 0 && <span className="pos-journal-count-badge">{rows.length} receipt{rows.length === 1 ? '' : 's'}</span>}
-          </div>
-
-          <div id="pos-journal-print-area" className="pos-journal-list">
-            {rows.map((row) => {
-              const rowOffset = matchOffset
-              matchOffset += countMatches(row.journalText, searchText)
-
-              return (
-                <article
-                  className={row.posJournalLogId === exportReceiptId
-                    ? 'pos-journal-receipt pos-journal-export-target'
-                    : 'pos-journal-receipt'}
-                  key={row.posJournalLogId}
-                >
-                  <pre>
-                    <HighlightedJournalText
-                      text={row.journalText}
-                      search={searchText}
-                      activeMatch={activeMatch}
-                      matchOffset={rowOffset}
-                      onActiveMatch={(element) => {
-                        activeMatchRef.current = element
-                      }}
-                    />
-                  </pre>
-                </article>
-              )
-            })}
-          </div>
-        </main>
-      </div>
-    </section>
+                return (
+                  <article
+                    className={row.posJournalLogId === exportReceiptId
+                      ? 'pos-journal-receipt pos-journal-export-target'
+                      : 'pos-journal-receipt'}
+                    key={row.posJournalLogId}
+                  >
+                    <pre>
+                      <HighlightedJournalText
+                        text={row.journalText}
+                        search={searchText}
+                        activeMatch={activeMatch}
+                        matchOffset={rowOffset}
+                        onActiveMatch={(element) => {
+                          activeMatchRef.current = element
+                        }}
+                      />
+                    </pre>
+                  </article>
+                )
+              })}
+            </div>
+          </main>
+        </div>
+      </section>
+    </div>
   )
 }
 
