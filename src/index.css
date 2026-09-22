@@ -2230,7 +2230,8 @@ body {
 
 .maintenance-panel-heading {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -2254,11 +2255,15 @@ body {
   line-height: 1.45;
 }
 
+.maintenance-heading-text {
+  flex: 1;
+  min-width: 0;
+}
+
 .maintenance-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
-  margin-top: 20px;
 }
 
 .maintenance-actions .btn {
@@ -2266,7 +2271,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 38px;
+  min-height: 34px;
   font-size: 12px;
   font-weight: 600;
 }

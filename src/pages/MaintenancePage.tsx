@@ -75,21 +75,20 @@ function MaintenancePage() {
         <article className="maintenance-panel maintenance-sync-panel">
           <div className="maintenance-panel-heading">
             <div className="maintenance-icon"><Database size={19} /></div>
-            <div>
+            <div className="maintenance-heading-text">
               <h2>Synchronize menu items</h2>
               <p>Find HQ items missing from the local POS database.</p>
             </div>
-          </div>
-
-          <div className="maintenance-actions">
-            <button className="btn btn-primary" type="button" onClick={() => void loadMissingItems()} disabled={loadingItems || syncingItems}>
-              {loadingItems ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
-              Load missing items
-            </button>
-            <button className="btn btn-outline-primary" type="button" onClick={() => void syncItems()} disabled={loadingItems || syncingItems || missingItems.length === 0}>
-              {syncingItems ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />}
-              Sync to POS
-            </button>
+            <div className="maintenance-actions">
+              <button className="btn btn-primary" type="button" onClick={() => void loadMissingItems()} disabled={loadingItems || syncingItems}>
+                {loadingItems ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
+                Load missing items
+              </button>
+              <button className="btn btn-outline-primary" type="button" onClick={() => void syncItems()} disabled={loadingItems || syncingItems || missingItems.length === 0}>
+                {syncingItems ? <LoaderCircle className="spin" size={16} /> : <UploadCloud size={16} />}
+                Sync to POS
+              </button>
+            </div>
           </div>
 
           <div className="maintenance-status">{syncMessage}</div>
