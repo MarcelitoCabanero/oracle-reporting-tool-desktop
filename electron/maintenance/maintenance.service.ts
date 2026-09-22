@@ -34,7 +34,7 @@ async function testFtpConnection(config: FtpConfig) {
 
   const client = new Client()
   client.ftp.verbose = false
-
+//-test
   try {
     await client.access({
       host: config.host.trim(),
