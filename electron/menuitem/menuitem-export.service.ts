@@ -1,5 +1,5 @@
 import { dialog } from 'electron'
-import ExcelJS from 'exceljs'
+import ExcelJS, { Cell } from 'exceljs'
 
 import type {
   MenuItemBySalesTypeRow,
@@ -32,7 +32,7 @@ function safeDate(value: string) {
 }
 
 function styleBorder(row: ExcelJS.Row) {
-  row.eachCell((cell) => {
+  row.eachCell((cell: Cell) => {
     cell.border = {
       top: { style: 'thin' },
       left: { style: 'thin' },

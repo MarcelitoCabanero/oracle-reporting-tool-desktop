@@ -299,6 +299,25 @@ interface PosJournalExportResult {
   message: string
 }
 
+interface FtpConfig {
+  host: string
+  username: string
+  password: string
+}
+
+interface MissingMenuItem {
+  itemnumber: string
+  itemname: string
+  transtype: string
+  majorgroup: string
+  familygroup: string
+}
+
+interface MaintenanceResult {
+  success: boolean
+  message: string
+}
+
 declare global {
   interface Window {
     api: {
@@ -439,6 +458,14 @@ posJournal: {
   exportPdf: (
     checkNumber: string,
   ) => Promise<PosJournalExportResult>
+}
+
+maintenance: {
+  getFtpConfig: () => Promise<FtpConfig>
+  testFtp: (config: FtpConfig) => Promise<MaintenanceResult>
+  saveFtp: (config: FtpConfig) => Promise<MaintenanceResult>
+  loadMissingItems: () => Promise<MissingMenuItem[]>
+  syncItems: (rows: MissingMenuItem[]) => Promise<MaintenanceResult>
 }
 
     }
