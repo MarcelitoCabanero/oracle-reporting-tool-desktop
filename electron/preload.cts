@@ -226,6 +226,19 @@ posJournal: {
     syncItems: (rows: MissingMenuItem[]) =>
       ipcRenderer.invoke('maintenance:sync-items', rows),
   },
+
+  systemSales: {
+  generate: (
+    input: {
+      dateFrom: string
+      dateTo: string
+    },
+  ) =>
+    ipcRenderer.invoke(
+      'system-sales:generate',
+      input,
+    ),
+},
 })
 
 console.log('Electron preload loaded')

@@ -1,3 +1,8 @@
+import type {
+  SystemSalesDateRangeInput,
+  SystemSalesResult,
+} from './system-sales'
+
 export {}
 
 interface LoginUser {
@@ -318,6 +323,7 @@ interface MaintenanceResult {
   message: string
 }
 
+
 declare global {
   interface Window {
     api: {
@@ -466,6 +472,12 @@ maintenance: {
   saveFtp: (config: FtpConfig) => Promise<MaintenanceResult>
   loadMissingItems: () => Promise<MissingMenuItem[]>
   syncItems: (rows: MissingMenuItem[]) => Promise<MaintenanceResult>
+}
+
+systemSales: {
+  generate: (
+    input: SystemSalesDateRangeInput,
+  ) => Promise<SystemSalesResult>
 }
 
     }
