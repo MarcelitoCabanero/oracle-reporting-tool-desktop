@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from 'react'
 
@@ -19,6 +20,16 @@ import {
 import type {
   Page,
 } from './types/navigation'
+
+export type Theme = 'light' | 'dark'
+
+const themeStorageKey = 'oracle-reporting-tool-theme'
+
+function getInitialTheme(): Theme {
+  const savedTheme = window.localStorage.getItem(themeStorageKey)
+
+  return savedTheme === 'dark' ? 'dark' : 'light'
+}
 
 function PlaceholderPage({
   title,
@@ -49,9 +60,20 @@ function App() {
       'dashboard',
     )
 
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+
   const {
     isAuthenticated,
   } = useAuth()
+
+  function changeTheme(nextTheme: Theme) {
+    setTheme(nextTheme)
+    window.localStorage.setItem(themeStorageKey, nextTheme)
+  }
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
 
   function renderPage() {
     switch (activePage) {
@@ -107,7 +129,10 @@ case 'deposit':
 
       case 'settings':
         return (
-          <SettingsPage />
+          <SettingsPage
+            theme={theme}
+            onThemeChange={changeTheme}
+          />
         )
 
       default:
