@@ -947,100 +947,38 @@ function RofPage() {
 
       {/* PAGE HEADER */}
 
-      <div
-        className="
-          d-flex
-          flex-column
-          flex-lg-row
-          align-items-lg-start
-          justify-content-between
-          gap-3
-          mb-4
-        "
-      >
-        <div>
-          <h1 className="h4 fw-bold mb-2">
-            Remittance of Fund
-          </h1>
-
-          <p className="text-secondary mb-0">
-            Cash and non-cash remittance monitoring
-            per business date.
-          </p>
-        </div>
-
-        <span
-          className="
-            badge
-            rounded-pill
-            px-3
-            py-2
-            rof-location-badge
-            align-self-start
-          "
-        >
-          {user?.locationName ??
-            'Unknown location'}
-        </span>
-      </div>
+      
 
       {/* VIEW TABS */}
 
-      <div className="mb-4">
-        <div
-          className="
-            btn-group
-            bg-light
-            border
-            rounded-3
-            p-1
-          "
-          role="group"
+      <div className="rof-view-tabs">
+        <button
+          type="button"
+          className={`rof-view-tab ${
+            activeView === 'summary' ? 'active' : ''
+          }`}
+          disabled={isBusy}
+          onClick={() =>
+            setActiveView('summary')
+          }
         >
-          <button
-            type="button"
-            className={`btn d-flex align-items-center gap-2 ${
-              activeView ===
-              'summary'
-                ? 'btn-primary'
-                : 'btn-light'
-            }`}
-            disabled={isBusy}
-            onClick={() =>
-              setActiveView(
-                'summary',
-              )
-            }
-          >
-            <BarChart3
-              size={16}
-            />
+          <BarChart3 size={14} />
+          Summary ROF
+        </button>
 
-            Summary ROF
-          </button>
-
-          <button
-            type="button"
-            className={`btn d-flex align-items-center gap-2 ${
-              activeView ===
-              'details'
-                ? 'btn-primary'
-                : 'btn-light'
-            }`}
-            disabled={isBusy}
-            onClick={() =>
-              setActiveView(
-                'details',
-              )
-            }
-          >
-            <CalendarDays
-              size={16}
-            />
-
-            Details ROF
-          </button>
-        </div>
+        <button
+          type="button"
+          className={`rof-view-tab ${
+            activeView === 'details' ? 'active' : ''
+          }`}
+          disabled={isBusy}
+          onClick={() =>
+            setActiveView('details')
+          }
+        >
+          <CalendarDays size={14} />
+          Details ROF
+        </button>
       </div>
 
       {activeView ===
@@ -1053,13 +991,13 @@ function RofPage() {
               card
               border
               rounded-4
-              mb-3
+              mb-3 bg-white
             "
           >
-            <div className="card-body">
-              <div className="row g-3 align-items-end">
+            <div className="card-body ">
+              <div className="row g-3 align-items-end ">
 
-                <div className="col-12 col-md-4 col-xl-3">
+                <div className="col-12 col-md-4 col-xl-3 ">
                   <label
                     htmlFor="rof-date-from"
                     className="
@@ -1506,10 +1444,10 @@ function RofPage() {
               card
               border
               rounded-4
-              mb-3
+              mb-3 bg-white
             "
           >
-            <div className="card-body">
+            <div className="card-body ">
               <div className="row g-3 align-items-end">
 
                 <div className="col-12 col-md-4 col-xl-3">
