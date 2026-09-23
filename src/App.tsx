@@ -11,6 +11,7 @@ import RofPage from './pages/RofPage'
 import DepositPage from './pages/DepositPage'
 import MenuItemPage from './pages/MenuItemPage.tsx'
 import PosJournalPage from './pages/PosJournalPage.tsx'
+import SystemSalesPage from './pages/SystemSalesPage'
 
 import {
   useAuth,
@@ -80,13 +81,8 @@ function App() {
           />
         )
 
-      case 'system-sales':
-        return (
-          <PlaceholderPage
-            title="System Sales"
-            description="System sales reporting and analysis."
-          />
-        )
+    case 'system-sales':
+  return <SystemSalesPage />
 
      case 'menu-item':
   return <MenuItemPage />

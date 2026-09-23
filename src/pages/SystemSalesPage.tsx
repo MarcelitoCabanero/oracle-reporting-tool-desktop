@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from 'react'
 import {
   AlertTriangle,
@@ -10,6 +11,7 @@ import {
   RefreshCw,
   TrendingUp,
 } from 'lucide-react'
+
 
 interface SystemSalesSummary {
   netSales: number

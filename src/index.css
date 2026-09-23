@@ -77,7 +77,7 @@ body {
 
 .app-content {
   min-width: 0;
-  background: var(--app-bg);
+   background: #f7f8fa;
 }
 
 /* ========================================
@@ -1536,8 +1536,7 @@ body {
 .app-content {
   min-width: 0;
 
-  background:
-    var(--app-bg);
+   background: #f7f8fa;
 }
 
 /* Sidebar */
@@ -2456,8 +2455,720 @@ body {
     white-space: nowrap;
   }
 
-  .pos-journal-export-target pre {
-    position: relative;
-    z-index: 1;
+ .pos-journal-export-target pre {
+  position: relative;
+  z-index: 1;
+}
+
+/* CLOSE POS JOURNAL @media print */
+}
+  /* =====================================================
+   SYSTEM SALES REPORT
+   ===================================================== */
+
+.system-sales-page {
+  --report-blue: #2563eb;
+  --report-green: #16803c;
+  --report-red: #c93434;
+  --report-amber: #b76e00;
+
+  --report-blue-soft: #eff6ff;
+  --report-green-soft: #f0fdf4;
+  --report-red-soft: #fff5f5;
+  --report-amber-soft: #fff8e6;
+
+  --report-surface: #ffffff;
+  --report-background: #f7f8fa;
+  --report-border: #e7e9ed;
+
+  padding-bottom: 1rem;
+}
+
+
+/* PAGE HEADER */
+
+.system-sales-page-header {
+  min-height: 58px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+  margin-bottom: 12px;
+}
+
+.system-sales-page-icon {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 10px;
+
+  background: var(--brand-orange-soft);
+  color: var(--brand-orange);
+}
+
+.system-sales-page-title {
+  margin: 0;
+
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.system-sales-page-subtitle {
+  margin-top: 3px;
+
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
+.system-sales-export-btn {
+  min-height: 32px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
+/* PARAMETER TOOLBAR */
+
+.system-sales-toolbar {
+  padding: 12px 16px;
+  margin-bottom: 12px;
+
+  background: var(--report-surface);
+
+  border: 1px solid var(--report-border);
+  border-radius: 12px;
+
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.system-sales-toolbar-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  margin-bottom: 9px;
+
+  color: var(--text-primary);
+
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.system-sales-toolbar-controls {
+  display: flex;
+  align-items: end;
+
+  gap: 9px;
+}
+
+.system-sales-date-field {
+  width: 205px;
+}
+
+.system-sales-date-field label {
+  display: block;
+
+  margin-bottom: 4px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.system-sales-date-field .form-control {
+  height: 34px;
+
+  font-size: 0.78rem;
+}
+
+.system-sales-date-arrow {
+  padding-bottom: 7px;
+
+  color: var(--text-muted);
+}
+
+.system-sales-generate-btn {
+  height: 34px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 6px;
+
+  padding-left: 16px;
+  padding-right: 16px;
+
+  font-weight: 600;
+
+  white-space: nowrap;
+}
+
+.system-sales-period {
+  min-width: 145px;
+
+  margin-left: auto;
+  padding-left: 16px;
+
+  border-left: 1px solid
+    var(--report-border);
+
+  line-height: 1.25;
+}
+
+.system-sales-period div {
+  color: var(--text-secondary);
+
+  font-size: 0.68rem;
+}
+
+.system-sales-period strong {
+  display: block;
+
+  margin-top: 3px;
+
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+
+/* REPORT SECTION */
+
+.system-sales-section {
+  margin-bottom: 12px;
+
+  overflow: hidden;
+
+  background:
+    var(--report-surface);
+
+  border:
+    1px solid
+    var(--report-border);
+
+  border-radius: 12px;
+
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.system-sales-section-heading {
+  min-height: 48px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 9px 16px;
+
+  border-bottom:
+    1px solid
+    var(--report-border);
+}
+
+.system-sales-section-heading h6 {
+  margin: 0;
+
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.system-sales-section-heading span {
+  display: block;
+
+  margin-top: 2px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.68rem;
+}
+
+
+/* KPI STRIP */
+
+.system-sales-kpi-strip {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+}
+
+.system-sales-kpi-item {
+  position: relative;
+
+  min-width: 0;
+  min-height: 110px;
+
+  padding: 16px 18px;
+
+  border-right:
+    1px solid
+    var(--report-border);
+}
+
+.system-sales-kpi-item:last-child {
+  border-right: 0;
+}
+
+.system-sales-kpi-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 8px;
+
+  margin-bottom: 7px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.72rem;
+  font-weight: 600;
+
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.system-sales-kpi-icon {
+  display: flex;
+  align-items: center;
+}
+
+.system-sales-kpi-value {
+  overflow: hidden;
+
+  color: var(--text-primary);
+
+  font-size: clamp(
+    1.2rem,
+    2vw,
+    1.65rem
+  );
+
+  font-weight: 750;
+  line-height: 1.15;
+
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.system-sales-kpi-caption {
+  margin-top: 7px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.7rem;
+}
+
+.system-sales-kpi-primary {
+  box-shadow:
+    inset 3px 0 0
+    var(--brand-orange);
+}
+
+.system-sales-kpi-primary
+.system-sales-kpi-value {
+  color: var(--brand-orange-dark);
+}
+
+.system-sales-kpi-warning {
+  background:
+    var(--report-amber-soft);
+
+  box-shadow:
+    inset 3px 0 0
+    var(--report-amber);
+}
+
+.system-sales-kpi-warning
+.system-sales-kpi-label,
+.system-sales-kpi-warning
+.system-sales-kpi-value {
+  color: var(--report-amber);
+}
+
+
+/* BREAKDOWN */
+
+.system-sales-breakdown {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+}
+
+.system-sales-breakdown-column {
+  min-width: 0;
+
+  padding: 12px 16px 14px;
+
+  border-right:
+    1px solid
+    var(--report-border);
+}
+
+.system-sales-breakdown-column:last-child {
+  border-right: 0;
+}
+
+.system-sales-breakdown-title {
+  position: relative;
+
+  margin-bottom: 7px;
+  padding-bottom: 8px;
+
+  color: var(--text-primary);
+
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.system-sales-breakdown-title::after {
+  content: '';
+
+  position: absolute;
+
+  bottom: 0;
+  left: 0;
+
+  width: 30px;
+  height: 2px;
+
+  border-radius: 20px;
+
+  background: currentColor;
+}
+
+.system-sales-accent-info {
+  color: var(--report-blue);
+}
+
+.system-sales-accent-danger {
+  color: var(--report-red);
+}
+
+.system-sales-accent-warning {
+  color: var(--report-amber);
+}
+
+.system-sales-breakdown-row {
+  min-height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  padding: 5px 0;
+
+  border-bottom:
+    1px dashed
+    #eef0f2;
+
+  font-size: 0.76rem;
+}
+
+.system-sales-breakdown-row:last-child {
+  border-bottom: 0;
+}
+
+.system-sales-breakdown-label {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 5px;
+
+  color: var(--text-secondary);
+}
+
+.system-sales-breakdown-value {
+  flex-shrink: 0;
+
+  color: var(--text-primary);
+
+  font-weight: 650;
+
+  text-align: right;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.system-sales-value-positive {
+  color: var(--report-green);
+}
+
+.system-sales-value-negative {
+  color: var(--report-red);
+}
+
+.system-sales-value-warning {
+  color: var(--report-amber);
+
+  font-weight: 750;
+}
+
+
+/* TENDER TABLE */
+
+.system-sales-tender-section {
+  margin-bottom: 0;
+}
+
+.system-sales-tender-heading {
+  min-height: 50px;
+}
+
+.system-sales-count-badge {
+  display: inline-flex !important;
+  align-items: center;
+
+  margin: 0 !important;
+
+  padding: 4px 8px;
+
+  border:
+    1px solid
+    var(--report-border);
+
+  border-radius: 6px;
+
+  background: #f8f9fa;
+
+  color:
+    var(--text-secondary) !important;
+
+  font-size:
+    0.68rem !important;
+}
+
+.system-sales-table-container {
+  max-height: 310px;
+
+  overflow: auto;
+}
+
+.system-sales-table {
+  font-size: 0.77rem;
+}
+
+.system-sales-table thead {
+  position: sticky;
+
+  top: 0;
+  z-index: 2;
+}
+
+.system-sales-table thead th {
+  padding: 9px 12px;
+
+  background: #f4f6f8;
+
+  color: #4c5561;
+
+  border-bottom:
+    1px solid
+    #dfe3e8;
+
+  font-size: 0.69rem;
+  font-weight: 700;
+
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+
+  white-space: nowrap;
+}
+
+.system-sales-table tbody td {
+  height: 38px;
+
+  padding: 8px 12px;
+
+  vertical-align: middle;
+
+  border-bottom:
+    1px solid
+    #f0f1f3;
+}
+
+.system-sales-table tbody tr {
+  transition:
+    background-color
+    120ms ease;
+}
+
+.system-sales-table tbody tr:hover {
+  background: #fafbfc;
+}
+
+.system-sales-tender-name {
+  font-weight: 600;
+}
+
+.system-sales-number {
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.system-sales-qty-column {
+  width: 18%;
+}
+
+.system-sales-amount-column {
+  width: 25%;
+}
+
+.system-sales-table tfoot {
+  position: sticky;
+
+  bottom: 0;
+  z-index: 2;
+}
+
+.system-sales-table tfoot td {
+  padding: 10px 12px;
+
+  background: #f7f8fa;
+
+  border-top:
+    1px solid
+    #dfe3e8;
+
+  font-weight: 750;
+
+  font-variant-numeric:
+    tabular-nums;
+}
+
+
+/* EMPTY */
+
+.system-sales-empty-state {
+  min-height: 330px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding: 2rem;
+
+  background: #fff;
+
+  border:
+    1px solid
+    var(--report-border);
+
+  border-radius: 12px;
+
+  color: var(--text-secondary);
+
+  text-align: center;
+}
+
+.system-sales-empty-state h6 {
+  margin:
+    12px 0 4px;
+
+  color: var(--text-primary);
+  font-weight: 650;
+}
+
+.system-sales-empty-state p {
+  margin: 0;
+
+  font-size: 0.78rem;
+}
+
+
+/* LOADING */
+
+.system-sales-loading-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 1080;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    rgba(
+      248,
+      249,
+      250,
+      0.72
+    );
+
+  backdrop-filter:
+    blur(2px);
+}
+
+.system-sales-loading-card {
+  min-width: 260px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 24px;
+
+  background: #fff;
+
+  border:
+    1px solid
+    var(--report-border);
+
+  border-radius: 12px;
+
+  box-shadow:
+    0 12px 32px
+    rgba(0, 0, 0, 0.10);
+
+  text-align: center;
+}
+
+.system-sales-loading-card svg {
+  margin-bottom: 10px;
+
+  color: var(--brand-orange);
+}
+
+.system-sales-loading-card strong {
+  font-size: 0.86rem;
+}
+
+.system-sales-loading-card span {
+  margin-top: 4px;
+
+  color: var(--text-secondary);
+
+  font-size: 0.72rem;
+}
+
+
+/* RESPONSIVE */
+
+@media (max-width: 1100px) {
+  .system-sales-date-field {
+    width: 175px;
   }
 }

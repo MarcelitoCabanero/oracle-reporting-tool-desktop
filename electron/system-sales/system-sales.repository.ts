@@ -54,7 +54,7 @@ export async function getSystemSalesSummary(
     HAVING COUNT(DISTINCT CheckNumber) > 1
 ),
 
-GC_Excess AS (
+GCExcess AS (
     SELECT
         FCRInvNumber,
         CheckNumber,
@@ -88,12 +88,12 @@ SELECT
             THEN s.amt
             ELSE 0
         END
-    ) AS gcsales,
+    ) AS gcSales,
 
     ISNULL(
-        (SELECT SUM(GC_excess) FROM GC_Excess),
+        (SELECT SUM(GC_excess) FROM GCExcess),
         0
-    ) AS gcexcess,
+    ) AS gcExcess,
 
     SUM(s.other_disc) AS otherDiscount,
 
@@ -108,7 +108,7 @@ SELECT
     ) AS voidAmount,
 
     (SELECT COUNT(*) FROM VoidedInvoices)
-        AS voidcnt,
+        AS voidCount,
 
     SUM(s.VatableSales)
         AS vatableSales,
@@ -150,68 +150,25 @@ WHERE s.BusinessDate
   const row =
     result.recordset[0]
 
- return {
-  netSales:
-    toNumber(row?.netSales),
-
-  taxCollected:
-    toNumber(row?.taxCollected),
-
-  lessVat:
-    toNumber(row?.lessVat),
-
-  lessSC:
-    toNumber(row?.lessSC),
-
-  lessPWD:
-    toNumber(row?.lessPWD),
-
-  lessEmployee:
-    toNumber(row?.lessEmployee),
-
-  lessNationalAthlete:
-    toNumber(
-      row?.lessNationalAthlete,
-    ),
-
-  lessSoloParent:
-    toNumber(
-      row?.lessSoloParent,
-    ),
-
-  gcSales:
-    toNumber(row?.gcsales),
-
-  gc_excess:
-    toNumber(row?.gcexcess),
-
-  otherDiscount:
-    toNumber(
-      row?.otherDiscount,
-    ),
-
-  voidAmount:
-    toNumber(row?.voidAmount),
-
-  voidCount:
-    toNumber(row?.voidcnt),
-
-  vatableSales:
-    toNumber(row?.vatableSales),
-
-  vatExemptSales:
-    toNumber(
-      row?.vatExemptSales,
-    ),
-
-  vatZeroRatedSales:
-    toNumber(
-      row?.vatZeroRatedSales,
-    ),
-
-  outstanding:
-    toNumber(row?.outstanding),
-}
+  return {
+    netSales: toNumber(row?.netSales),
+    taxCollected: toNumber(row?.taxCollected),
+    lessVat: toNumber(row?.lessVat),
+    lessSC: toNumber(row?.lessSC),
+    lessPWD: toNumber(row?.lessPWD),
+    lessEmployee: toNumber(row?.lessEmployee),
+    lessNationalAthlete: toNumber(row?.lessNationalAthlete),
+    lessSoloParent: toNumber(row?.lessSoloParent),
+    gcSales: toNumber(row?.gcSales),
+    gcExcess: toNumber(row?.gcExcess),
+    otherDiscount: toNumber(row?.otherDiscount),
+    voidAmount: toNumber(row?.voidAmount),
+    voidCount: toNumber(row?.voidCount),
+    vatableSales: toNumber(row?.vatableSales),
+    vatExemptSales: toNumber(row?.vatExemptSales),
+    vatZeroRatedSales: toNumber(row?.vatZeroRatedSales),
+    outstanding: toNumber(row?.outstanding),
+  }
 }
 
 export async function getSystemSalesTenders(
