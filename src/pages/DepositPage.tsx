@@ -1620,78 +1620,6 @@ function DepositPage() {
     <div>
 
       {/* =====================================================
-          PAGE HEADER
-          ===================================================== */}
-
-      <div
-        className="
-          d-flex
-          flex-column
-          flex-lg-row
-          justify-content-between
-          align-items-lg-start
-          gap-3
-          mb-4
-        "
-      >
-        <div>
-          <h1 className="h4 fw-bold mb-2">
-            Deposit Monitoring
-          </h1>
-
-          <p className="text-secondary mb-0">
-            Review deposit history and maintain
-            daily cash deposits.
-          </p>
-        </div>
-
-        <div
-          className="
-            d-flex
-            align-items-center
-            gap-2
-            flex-wrap
-          "
-        >
-          <span
-            className="
-              badge
-              rounded-pill
-              px-3
-              py-2
-              deposit-location-badge
-            "
-          >
-            {user?.locationName ??
-              'Unknown location'}
-          </span>
-
-          <button
-            type="button"
-            className="
-              btn
-              btn-primary
-              d-flex
-              align-items-center
-              gap-2
-            "
-            disabled={
-              formBusy
-            }
-            onClick={
-              openNewDeposit
-            }
-          >
-            <Plus
-              size={18}
-            />
-
-            New Deposit
-          </button>
-        </div>
-      </div>
-
-      {/* =====================================================
           DEPOSIT HISTORY
           ===================================================== */}
 
@@ -1733,22 +1661,28 @@ function DepositPage() {
               </p>
             </div>
 
-            <span
+            <button
+              type="button"
               className="
-                badge
-                rounded-pill
-                deposit-location-badge
-                align-self-start
-                align-self-xl-center
+                btn
+                btn-primary
+                d-flex
+                align-items-center
+                gap-2
               "
+              disabled={
+                formBusy
+              }
+              onClick={
+                openNewDeposit
+              }
             >
-              {totalRecords}{' '}
-              record
-              {totalRecords ===
-              1
-                ? ''
-                : 's'}
-            </span>
+              <Plus
+                size={18}
+              />
+
+              New Deposit
+            </button>
           </div>
 
           <div className="row g-2 mt-2">
@@ -2271,6 +2205,23 @@ function DepositPage() {
                 size={16}
               />
             </button>
+
+            <span
+              className="
+                badge
+                rounded-pill
+                deposit-location-badge
+                small
+                align-self-center
+              "
+            >
+              {totalRecords}{' '}
+              record
+              {totalRecords ===
+              1
+                ? ''
+                : 's'}
+            </span>
           </div>
         </div>
       </section>
