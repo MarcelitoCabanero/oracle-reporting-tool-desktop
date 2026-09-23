@@ -2734,6 +2734,37 @@ html[data-theme='dark'] table td {
   border-color: var(--border-color) !important;
 }
 
+html[data-theme='dark'] .table-light {
+  background-color: var(--app-surface) !important;
+  color: var(--text-primary);
+}
+
+html[data-theme='dark'] .table-light th {
+  background-color: var(--app-surface) !important;
+  color: var(--text-primary);
+  border-color: var(--border-color) !important;
+}
+
+html[data-theme='dark'] .table > thead .table-light {
+  background-color: var(--app-surface) !important;
+}
+
+html[data-theme='dark'] .tr-white {
+  background-color: transparent !important;
+}
+
+html[data-theme='dark'] .alert-light {
+  background-color: var(--app-surface) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .alert-warning {
+  background-color: #3a2e18 !important;
+  border-color: #6b5520 !important;
+  color: #e8cc8a !important;
+}
+
 html[data-theme='dark'] .maintenance-empty,
 html[data-theme='dark'] .pos-journal-status-text,
 html[data-theme='dark'] .maintenance-count {
