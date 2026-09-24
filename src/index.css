@@ -2539,6 +2539,8 @@ body {
 /* PARAMETER TOOLBAR */
 
 .system-sales-toolbar {
+  position: relative;
+
   padding: 12px 16px;
   margin-bottom: 12px;
 
@@ -2569,6 +2571,43 @@ body {
   align-items: end;
 
   gap: 9px;
+}
+
+.system-sales-toolbar-export {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+
+  display: flex;
+  gap: 6px;
+}
+
+.system-sales-toolbar-export .system-sales-export-btn {
+  --bs-btn-color: var(--report-green);
+  --bs-btn-border-color: var(--report-green);
+  --bs-btn-hover-bg: var(--report-green);
+  --bs-btn-hover-border-color: var(--report-green);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--report-green);
+  --bs-btn-active-border-color: var(--report-green);
+  --bs-btn-active-color: #fff;
+  --bs-btn-focus-shadow-rgb: 22, 131, 52;
+}
+
+.system-sales-toolbar-export .system-sales-export-btn.btn-outline-danger {
+  --bs-btn-color: var(--report-red);
+  --bs-btn-border-color: var(--report-red);
+  --bs-btn-hover-bg: var(--report-red);
+  --bs-btn-hover-border-color: var(--report-red);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--report-red);
+  --bs-btn-active-border-color: var(--report-red);
+  --bs-btn-active-color: #fff;
+  --bs-btn-focus-shadow-rgb: 206, 59, 72;
+}
+
+.system-sales-toolbar-export .system-sales-export-btn:disabled {
+  opacity: 0.4;
 }
 
 .system-sales-date-field {
@@ -3162,6 +3201,76 @@ body {
   color: var(--text-secondary);
 
   font-size: 0.72rem;
+}
+
+
+/* DARK MODE */
+
+html[data-theme='dark'] .system-sales-page {
+  --report-surface: var(--app-surface);
+  --report-background: var(--app-bg);
+  --report-border: var(--border-color);
+  --report-amber-soft: #3a2e18;
+}
+
+html[data-theme='dark'] .system-sales-toolbar,
+html[data-theme='dark'] .system-sales-section,
+html[data-theme='dark'] .system-sales-empty-state,
+html[data-theme='dark'] .system-sales-loading-card {
+  background: var(--report-surface) !important;
+  border-color: var(--report-border) !important;
+}
+
+html[data-theme='dark'] .system-sales-toolbar,
+html[data-theme='dark'] .system-sales-section,
+html[data-theme='dark'] .system-sales-loading-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.30);
+}
+
+html[data-theme='dark'] .system-sales-breakdown-row {
+  border-bottom-color: var(--border-color) !important;
+}
+
+html[data-theme='dark'] .system-sales-count-badge {
+  background: #222d37 !important;
+  border-color: var(--border-color) !important;
+}
+
+html[data-theme='dark'] .system-sales-table thead th {
+  background: #222d37 !important;
+  color: #9ca3af !important;
+  border-bottom-color: var(--border-color) !important;
+}
+
+html[data-theme='dark'] .system-sales-table tbody td {
+  border-bottom-color: #2e3a44 !important;
+}
+
+html[data-theme='dark'] .system-sales-table tbody tr:hover {
+  background: #293742 !important;
+}
+
+html[data-theme='dark'] .system-sales-table tfoot td {
+  background: #222d37 !important;
+  border-top-color: var(--border-color) !important;
+}
+
+html[data-theme='dark'] .system-sales-loading-overlay {
+  background: rgba(17, 23, 29, 0.72) !important;
+}
+
+html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-success,
+html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-danger {
+  background: #222d37 !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-success:hover:not(:disabled),
+html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-danger:hover:not(:disabled) {
+  background: #2d3b47 !important;
+  color: #ffffff !important;
+  border-color: var(--brand-orange) !important;
 }
 
 

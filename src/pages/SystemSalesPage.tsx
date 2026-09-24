@@ -5,7 +5,6 @@ import {
   CalendarDays,
   FileSpreadsheet,
   FileText,
-  Gift,
   LoaderCircle,
   ReceiptText,
   RefreshCw,
@@ -198,27 +197,18 @@ export default function SystemSalesPage() {
     <div className="container-fluid px-0 system-sales-page">
 
       {/* =========================
-          PAGE HEADER
-         ========================= */}
-      <div className="system-sales-page-header">
-        <div className="d-flex align-items-center gap-3">
-          <div className="system-sales-page-icon">
-            <ReceiptText size={20} />
-          </div>
+          PARAMETER TOOLBAR
+          ========================= */}
+      <div className="system-sales-toolbar">
+        <div className="system-sales-toolbar-title">
+          <CalendarDays size={16} />
 
-          <div>
-            <h4 className="system-sales-page-title">
-              System Sales Report
-            </h4>
-
-            <div className="system-sales-page-subtitle">
-              Consolidated sales summary
-              with tender breakdown
-            </div>
-          </div>
+          <span>
+            Report Parameters
+          </span>
         </div>
 
-        <div className="d-flex align-items-center gap-2">
+        <div className="system-sales-toolbar-export">
           <button
             type="button"
             className="btn btn-outline-success btn-sm system-sales-export-btn"
@@ -236,19 +226,6 @@ export default function SystemSalesPage() {
             <FileText size={15} />
             PDF
           </button>
-        </div>
-      </div>
-
-      {/* =========================
-          PARAMETER TOOLBAR
-         ========================= */}
-      <div className="system-sales-toolbar">
-        <div className="system-sales-toolbar-title">
-          <CalendarDays size={16} />
-
-          <span>
-            Report Parameters
-          </span>
         </div>
 
         <div className="system-sales-toolbar-controls">
@@ -586,9 +563,7 @@ export default function SystemSalesPage() {
                     summary.gcSales,
                   )}
                   tone="positive"
-                  icon={
-                    <Gift size={13} />
-                  }
+                  
                 />
 
                 <BreakdownRow
@@ -637,14 +612,7 @@ export default function SystemSalesPage() {
                       ? 'warning'
                       : 'default'
                   }
-                  icon={
-                    summary.outstanding !==
-                    0 ? (
-                      <AlertTriangle
-                        size={13}
-                      />
-                    ) : undefined
-                  }
+                 
                 />
               </BreakdownColumn>
             </div>
