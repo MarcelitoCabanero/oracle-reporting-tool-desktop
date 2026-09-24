@@ -76,6 +76,7 @@ function AppLayout({
 }: AppLayoutProps) {
   const [appVersion, setAppVersion] = useState('v1.0.0')
 const { user, logout } = useAuth()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [updateStatus] = useState<UpdateStatus>('idle')
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
@@ -110,6 +111,10 @@ const { user, logout } = useAuth()
     <Sidebar
       activePage={activePage}
       onNavigate={onNavigate}
+        collapsed={sidebarCollapsed}
+        onToggle={() =>
+          setSidebarCollapsed((current) => !current)
+        }
       onLogout={() =>
         setShowLogoutDialog(true)
       }
@@ -119,6 +124,10 @@ const { user, logout } = useAuth()
       <TopHeader
         title={getPageTitle(activePage)}
         version={appVersion}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() =>
+            setSidebarCollapsed((current) => !current)
+          }
         updateStatus={updateStatus}
         userName={user?.displayName}
         userRole={user?.role}
