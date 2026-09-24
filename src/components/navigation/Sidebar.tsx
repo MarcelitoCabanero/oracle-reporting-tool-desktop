@@ -2,8 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   BarChart3, ChevronDown, ChevronRight, Clock3, FileBarChart,
-  LayoutDashboard, LogOut, Menu, NotebookText, PanelLeftClose,
-  PanelLeftOpen, ReceiptText, Settings, ShieldCheck, WalletCards,
+  LayoutDashboard, LogOut, Menu, NotebookText, ReceiptText, Settings, ShieldCheck, WalletCards,
 } from 'lucide-react'
 import logo from '../../assets/jco-logo.png'
 import type { Page } from '../../types/navigation'
@@ -11,7 +10,6 @@ import type { Page } from '../../types/navigation'
 interface SidebarProps {
   activePage: Page
   collapsed: boolean
-  onToggle: () => void
   onNavigate: (page: Page) => void
   onLogout: () => void
 }
@@ -69,7 +67,7 @@ function SidebarSection({ title, collapsed, defaultOpen = true, children }: Side
   )
 }
 
-function Sidebar({ activePage, collapsed, onToggle, onNavigate, onLogout }: SidebarProps) {
+function Sidebar({ activePage, collapsed, onNavigate, onLogout }: SidebarProps) {
   return (
     <aside className={`app-sidebar bg-white border-end d-flex flex-column flex-shrink-0 ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-brand d-flex align-items-center gap-2 px-3 py-3 border-bottom">
@@ -78,7 +76,6 @@ function Sidebar({ activePage, collapsed, onToggle, onNavigate, onLogout }: Side
           <div className="fw-bold">Oracle</div>
           <small className="text-secondary">Reporting Tool</small>
         </div>
-        
       </div>
 
       <nav className="sidebar-nav-current flex-grow-1 overflow-auto py-3 px-2">

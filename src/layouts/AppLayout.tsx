@@ -111,10 +111,7 @@ const { user, logout } = useAuth()
     <Sidebar
       activePage={activePage}
       onNavigate={onNavigate}
-        collapsed={sidebarCollapsed}
-        onToggle={() =>
-          setSidebarCollapsed((current) => !current)
-        }
+      collapsed={sidebarCollapsed}
       onLogout={() =>
         setShowLogoutDialog(true)
       }
