@@ -2920,8 +2920,20 @@ html[data-theme='dark'] table td {
 }
 
 html[data-theme='dark'] .table-light {
+  --bs-table-bg: var(--app-surface) !important;
+  --bs-table-color: var(--text-primary) !important;
   background-color: var(--app-surface) !important;
   color: var(--text-primary);
+}
+
+html[data-theme='dark'] tfoot.table-light,
+html[data-theme='dark'] tr.table-light,
+html[data-theme='dark'] tfoot.table-light > tr > td,
+html[data-theme='dark'] tr.table-light > td {
+  --bs-table-bg: var(--app-surface) !important;
+  --bs-table-color: var(--text-primary) !important;
+  background-color: var(--app-surface) !important;
+  color: var(--text-primary) !important;
 }
 
 html[data-theme='dark'] .rof-view-tabs {
