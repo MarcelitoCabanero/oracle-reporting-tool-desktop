@@ -674,31 +674,16 @@ function MenuItemPage() {
 
   return (
     <div>
-      <div className="mb-3">
-        <h1 className="h5 fw-bold mb-1">
-          Menu Item
-        </h1>
+      
 
-        <p className="small text-secondary mb-0">
-          Menu Item sales analysis and consolidated summary.
-        </p>
-      </div>
-
-      <div
-        className="
-          d-flex
-          flex-wrap
-          gap-2
-          mb-3
-        "
-      >
+      <div className="rof-view-tabs menu-item-view-tabs mb-3">
         <button
           type="button"
-          className={`btn d-flex align-items-center gap-2 px-4 py-2 fw-semibold ${
+          className={`rof-view-tab ${
             activeTab ===
             'sales-type'
-              ? 'btn-primary'
-              : 'btn-outline-secondary'
+              ? 'active'
+              : ''
           }`}
           disabled={
             loading
@@ -718,11 +703,11 @@ function MenuItemPage() {
 
         <button
           type="button"
-          className={`btn d-flex align-items-center gap-2 px-4 py-2 fw-semibold ${
+          className={`rof-view-tab ${
             activeTab ===
             'summary'
-              ? 'btn-primary'
-              : 'btn-outline-secondary'
+              ? 'active'
+              : ''
           }`}
           disabled={
             loading
