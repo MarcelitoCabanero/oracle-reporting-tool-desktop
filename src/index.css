@@ -2995,6 +2995,32 @@ html[data-theme='dark'] .maintenance-count {
   color: var(--text-secondary) !important;
 }
 
+html[data-theme='dark'] .pos-journal-date-wrap {
+  background: #151d25 !important;
+  border-color: #405260 !important;
+}
+
+html[data-theme='dark'] .pos-journal-date-wrap .form-control {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .pos-journal-icon-btn,
+html[data-theme='dark'] .pos-journal-find-next-btn,
+html[data-theme='dark'] .pos-journal-export-btn {
+  background: #222d37 !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .pos-journal-icon-btn:hover,
+html[data-theme='dark'] .pos-journal-find-next-btn:hover:not(:disabled),
+html[data-theme='dark'] .pos-journal-export-btn:hover:not(:disabled) {
+  background: var(--brand-orange-soft) !important;
+  border-color: var(--brand-orange) !important;
+  color: var(--brand-orange-dark) !important;
+}
+
 html[data-theme='dark'] .login-page-bootstrap {
   background: linear-gradient(135deg, #11171d 0%, #2c241f 100%);
 }
