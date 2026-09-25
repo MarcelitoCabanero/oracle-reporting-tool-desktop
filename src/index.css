@@ -1618,6 +1618,12 @@ body {
   margin-left: 0 !important;
 }
 
+.app-sidebar.collapsed .sidebar-nav-item > span:first-child > svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.25;
+}
+
 .sidebar-toggle,
 .header-minimal-icon {
   width: 40px;
