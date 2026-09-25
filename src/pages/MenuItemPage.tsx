@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from 'react'
@@ -50,6 +51,24 @@ const emptyTotals: Totals = {
   itemDiscount: 0,
   netSales: 0,
 }
+
+interface MenuItemPageState {
+  activeTab: MenuItemTab
+  dateFrom: string
+  dateTo: string
+  message: string
+  lastSuccess: boolean
+  salesRows: SalesTypeRow[]
+  summaryRows: SummaryRow[]
+  salesTotals: Totals
+  summaryTotals: Totals
+  majorGroups: string[]
+  selectedMajorGroup: string
+  selectedSalesType: string
+  keyword: string
+}
+
+let menuItemPageCache: MenuItemPageState | null = null
 
 function todayString() {
   const now = new Date()
@@ -125,12 +144,14 @@ function formatQty(
 }
 
 function MenuItemPage() {
+  const savedState = menuItemPageCache
+
   const [
     activeTab,
     setActiveTab,
   ] =
     useState<MenuItemTab>(
-      'sales-type',
+      savedState?.activeTab ?? 'sales-type',
     )
 
   const [
@@ -138,7 +159,7 @@ function MenuItemPage() {
     setDateFrom,
   ] =
     useState(
-      firstDayOfMonthString(),
+      savedState?.dateFrom ?? firstDayOfMonthString(),
     )
 
   const [
@@ -146,7 +167,7 @@ function MenuItemPage() {
     setDateTo,
   ] =
     useState(
-      todayString(),
+      savedState?.dateTo ?? todayString(),
     )
 
   const [
@@ -166,14 +187,16 @@ function MenuItemPage() {
     setMessage,
   ] =
     useState(
-      'Select a date range, then click Generate Report.',
+      savedState?.message ?? 'Select a date range, then click Generate Report.',
     )
 
   const [
     lastSuccess,
     setLastSuccess,
   ] =
-    useState(true)
+    useState(
+      savedState?.lastSuccess ?? true,
+    )
 
   const [
     salesRows,
@@ -181,7 +204,7 @@ function MenuItemPage() {
   ] =
     useState<
       SalesTypeRow[]
-    >([])
+    >(savedState?.salesRows ?? [])
 
   const [
     summaryRows,
@@ -189,14 +212,14 @@ function MenuItemPage() {
   ] =
     useState<
       SummaryRow[]
-    >([])
+    >(savedState?.summaryRows ?? [])
 
   const [
     salesTotals,
     setSalesTotals,
   ] =
     useState<Totals>(
-      emptyTotals,
+      savedState?.salesTotals ?? emptyTotals,
     )
 
   const [
@@ -204,7 +227,7 @@ function MenuItemPage() {
     setSummaryTotals,
   ] =
     useState<Totals>(
-      emptyTotals,
+      savedState?.summaryTotals ?? emptyTotals,
     )
 
   const [
@@ -213,25 +236,25 @@ function MenuItemPage() {
   ] =
     useState<
       string[]
-    >([])
+    >(savedState?.majorGroups ?? [])
 
   const [
     selectedMajorGroup,
     setSelectedMajorGroup,
   ] =
-    useState('')
+    useState(savedState?.selectedMajorGroup ?? '')
 
   const [
     selectedSalesType,
     setSelectedSalesType,
   ] =
-    useState('')
+    useState(savedState?.selectedSalesType ?? '')
 
   const [
     keyword,
     setKeyword,
   ] =
-    useState('')
+    useState(savedState?.keyword ?? '')
 
   const salesTypes =
     useMemo(
@@ -671,6 +694,38 @@ function MenuItemPage() {
         ''
       : selectedMajorGroup !==
         '')
+
+    useEffect(() => {
+      menuItemPageCache = {
+        activeTab,
+        dateFrom,
+        dateTo,
+        message,
+        lastSuccess,
+        salesRows,
+        summaryRows,
+        salesTotals,
+        summaryTotals,
+        majorGroups,
+        selectedMajorGroup,
+        selectedSalesType,
+        keyword,
+      }
+    }, [
+      activeTab,
+      dateFrom,
+      dateTo,
+      keyword,
+      lastSuccess,
+      majorGroups,
+      message,
+      salesRows,
+      salesTotals,
+      selectedMajorGroup,
+      selectedSalesType,
+      summaryRows,
+      summaryTotals,
+    ])
 
   return (
     <div>
