@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from 'react'
@@ -50,6 +51,22 @@ interface SummaryRow {
 type RofView =
   | 'summary'
   | 'details'
+
+interface RofPageState {
+  activeView: RofView
+  dateFrom: string
+  dateTo: string
+  summaryRows: SummaryRow[]
+  summaryMessage: string
+  businessDate: string
+  cashRows: CashRow[]
+  nonCashRows: NonCashRow[]
+  message: string
+  rofExists: boolean
+  showValidation: boolean
+}
+
+let rofPageCache: RofPageState | null = null
 
 function formatMoney(
   value: number,
@@ -109,6 +126,8 @@ function formatBusinessDate(
 }
 
 function RofPage() {
+  const savedState = rofPageCache
+
   const {
     user,
   } = useAuth()
@@ -122,7 +141,7 @@ function RofPage() {
     setActiveView,
   ] =
     useState<RofView>(
-      'summary',
+      savedState?.activeView ?? 'summary',
     )
 
   // =========================================================
@@ -134,7 +153,7 @@ function RofPage() {
     setDateFrom,
   ] =
     useState(
-      todayString(),
+      savedState?.dateFrom ?? todayString(),
     )
 
   const [
@@ -142,7 +161,7 @@ function RofPage() {
     setDateTo,
   ] =
     useState(
-      todayString(),
+      savedState?.dateTo ?? todayString(),
     )
 
   const [
@@ -151,7 +170,7 @@ function RofPage() {
   ] =
     useState<
       SummaryRow[]
-    >([])
+    >(savedState?.summaryRows ?? [])
 
   const [
     summaryLoading,
@@ -164,7 +183,7 @@ function RofPage() {
     setSummaryMessage,
   ] =
     useState(
-      'Select a date range and generate the ROF summary.',
+      savedState?.summaryMessage ?? 'Select a date range and generate the ROF summary.',
     )
 
   // =========================================================
@@ -176,7 +195,7 @@ function RofPage() {
     setBusinessDate,
   ] =
     useState(
-      todayString(),
+      savedState?.businessDate ?? todayString(),
     )
 
   const [
@@ -185,7 +204,7 @@ function RofPage() {
   ] =
     useState<
       CashRow[]
-    >([])
+    >(savedState?.cashRows ?? [])
 
   const [
     nonCashRows,
@@ -193,7 +212,7 @@ function RofPage() {
   ] =
     useState<
       NonCashRow[]
-    >([])
+    >(savedState?.nonCashRows ?? [])
 
   const [
     loading,
@@ -217,7 +236,9 @@ function RofPage() {
     rofExists,
     setRofExists,
   ] =
-    useState(false)
+    useState(
+      savedState?.rofExists ?? false,
+    )
 
   const [
     showDeleteConfirm,
@@ -236,14 +257,16 @@ function RofPage() {
     setMessage,
   ] =
     useState(
-      'Select a business date and load POS data.',
+      savedState?.message ?? 'Select a business date and load POS data.',
     )
 
   const [
     showValidation,
     setShowValidation,
   ] =
-    useState(false)
+    useState(
+      savedState?.showValidation ?? false,
+    )
 
   function isCashModMissing(
     row: CashRow,
@@ -297,6 +320,34 @@ function RofPage() {
         : summaryLoading
           ? 'Generating ROF Summary...'
           : 'Loading ROF data...'
+
+  useEffect(() => {
+    rofPageCache = {
+      activeView,
+      dateFrom,
+      dateTo,
+      summaryRows,
+      summaryMessage,
+      businessDate,
+      cashRows,
+      nonCashRows,
+      message,
+      rofExists,
+      showValidation,
+    }
+  }, [
+    activeView,
+    businessDate,
+    cashRows,
+    dateFrom,
+    dateTo,
+    message,
+    nonCashRows,
+    rofExists,
+    showValidation,
+    summaryMessage,
+    summaryRows,
+  ])
 
   // =========================================================
   // DETAILS TOTALS
