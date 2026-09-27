@@ -12,8 +12,7 @@ import RofPage from './pages/RofPage'
 import DepositPage from './pages/DepositPage'
 import MenuItemPage from './pages/MenuItemPage.tsx'
 import PosJournalPage from './pages/PosJournalPage.tsx'
-import SystemSalesPage from './pages/SystemSalesPage'
-import VarianceCheckingPage from './pages/VarianceCheckingPage'
+import SystemSalesPage from './features/system-sales/SystemSalesPage'
 
 
 import {
@@ -107,10 +106,6 @@ function App() {
 
     case 'system-sales':
   return <SystemSalesPage />
-
-  case 'variance-checking':
-  return <VarianceCheckingPage />
-
 
      case 'menu-item':
   return <MenuItemPage />

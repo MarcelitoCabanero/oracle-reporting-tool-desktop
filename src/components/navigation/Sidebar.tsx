@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   BarChart3, ChevronDown, ChevronRight, Clock3, FileBarChart,
-  LayoutDashboard, LogOut, Menu, NotebookText, ReceiptText, Settings, ShieldCheck, WalletCards,Scale,
+  LayoutDashboard, LogOut, Menu, NotebookText, ReceiptText, Settings, ShieldCheck, WalletCards,
 } from 'lucide-react'
 import logo from '../../assets/jco-logo.png'
 import type { Page } from '../../types/navigation'
@@ -86,7 +86,6 @@ function Sidebar({ activePage, collapsed, onNavigate, onLogout }: SidebarProps) 
         <SidebarSection title="REPORTS" collapsed={collapsed}>
           <NavItem label="Hourly Sales" page="hourly-sales" icon={<Clock3 size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
           <NavItem label="System Sales" page="system-sales" icon={<FileBarChart size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
-          <NavItem label="Variance Checking" page="variance-checking" icon={<Scale size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
           <NavItem label="Menu Item" page="menu-item" icon={<Menu size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
           <NavItem label="POS Journal" page="pos-journal" icon={<NotebookText size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
         </SidebarSection>
