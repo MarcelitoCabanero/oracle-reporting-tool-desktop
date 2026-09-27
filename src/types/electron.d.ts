@@ -1,7 +1,17 @@
 import type {
   SystemSalesDateRangeInput,
+  SystemSalesExportInput,
+  SystemSalesExportResult,
   SystemSalesResult,
 } from './system-sales'
+
+import type {
+  VarianceCheckingInput,
+  VarianceCheckingResult,
+  VarianceReceiptInput,
+  VarianceReceiptResult,
+} from './variance-checking'
+
 
 export {}
 
@@ -478,6 +488,19 @@ systemSales: {
   generate: (
     input: SystemSalesDateRangeInput,
   ) => Promise<SystemSalesResult>
+
+  exportExcel: (
+    input: SystemSalesExportInput,
+  ) => Promise<SystemSalesExportResult>
+
+  exportPdf: (
+    input: SystemSalesExportInput,
+  ) => Promise<SystemSalesExportResult>
+}
+
+varianceChecking: {
+  generate: (input: VarianceCheckingInput) => Promise<VarianceCheckingResult>
+  receipt: (input: VarianceReceiptInput) => Promise<VarianceReceiptResult>
 }
 
     }

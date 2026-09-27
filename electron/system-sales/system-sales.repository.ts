@@ -70,7 +70,21 @@ select  Checknumber, Checkclose , Due
 from CHECKS where  
 checkclose IS NULL
 
+),
+
+VarianceByCheck AS (
+    SELECT BusinessDate, CheckNumber,
+        SUM(CASE WHEN Transtype = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END) AS Gross,
+        SUM(CASE WHEN Transtype = 'Tender' THEN amt ELSE 0 END) AS TotalTender
+    FROM dbo.v_salesdetails
+    WHERE Transtype IN ('Item Sale', 'Tender')
+      AND BusinessDate BETWEEN @dtfrom AND @dtto
+    GROUP BY BusinessDate, CheckNumber
+    HAVING
+        SUM(CASE WHEN Transtype = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
+        - SUM(CASE WHEN Transtype = 'Tender' THEN amt ELSE 0 END) <> 0
 )
+
 
 SELECT
     SUM(s.NetSales) AS netSales,
@@ -135,7 +149,13 @@ SELECT
     ISNULL(
         (SELECT SUM(Due) FROM Outstanding),
         0
-    ) AS outstanding
+    ) AS outstanding,
+
+    ISNULL(
+    (SELECT SUM(Gross - TotalTender) FROM VarianceByCheck),
+    0
+) AS varianceAmount
+
 
 FROM dbo.v_salesdetails s
 
@@ -168,6 +188,7 @@ WHERE s.BusinessDate
     vatExemptSales: toNumber(row?.vatExemptSales),
     vatZeroRatedSales: toNumber(row?.vatZeroRatedSales),
     outstanding: toNumber(row?.outstanding),
+    varianceAmount: toNumber(row?.varianceAmount),
   }
 }
 

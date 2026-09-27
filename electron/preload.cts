@@ -251,6 +251,14 @@ systemSales: {
       input,
     ),
 },
+
+varianceChecking: {
+  generate: (input: { dateFrom: string; dateTo: string }) =>
+    ipcRenderer.invoke('variance-checking:generate', input),
+  receipt: (input: { checkNumber: string }) =>
+    ipcRenderer.invoke('variance-checking:receipt', input),
+},
+
 })
 
 console.log('Electron preload loaded')

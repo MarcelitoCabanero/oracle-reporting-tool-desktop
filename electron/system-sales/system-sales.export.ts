@@ -310,6 +310,7 @@ const save = await showSaveDialog(
     ['Void Amount', s.voidAmount, 'negative'],
     ['Void Count', s.voidCount, 'negative'],
     ['Outstanding', s.outstanding, 'warning'],
+    ['Variance Amount', s.varianceAmount, 'warning'],
   ] as const
 
   vat.forEach(([label, value], i) =>
@@ -598,6 +599,9 @@ function buildPdfHtml(input: SystemSalesExportInput) {
         ${detailRow('Void Amount', money(s.voidAmount), s.voidAmount ? 'negative' : '')}
         ${detailRow('Void Count', number(s.voidCount), s.voidCount ? 'negative' : '')}
         ${detailRow('Outstanding', money(s.outstanding), s.outstanding ? 'warning' : '')}
+        ${detailRow('Variance Amount',money(s.varianceAmount),s.varianceAmount !== 0 ? 'warning' : '',
+)}
+
       </div>
     </div>
   </div>
