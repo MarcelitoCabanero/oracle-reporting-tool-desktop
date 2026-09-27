@@ -227,7 +227,7 @@ posJournal: {
       ipcRenderer.invoke('maintenance:sync-items', rows),
   },
 
-  systemSales: {
+systemSales: {
   generate: (
     input: {
       dateFrom: string
@@ -236,6 +236,18 @@ posJournal: {
   ) =>
     ipcRenderer.invoke(
       'system-sales:generate',
+      input,
+    ),
+
+  exportExcel: (input: unknown) =>
+    ipcRenderer.invoke(
+      'system-sales:export-excel',
+      input,
+    ),
+
+  exportPdf: (input: unknown) =>
+    ipcRenderer.invoke(
+      'system-sales:export-pdf',
       input,
     ),
 },

@@ -6,26 +6,20 @@ export interface SystemSalesDateRangeInput {
 export interface SystemSalesSummary {
   netSales: number
   taxCollected: number
-
   vatableSales: number
   vatExemptSales: number
   vatZeroRatedSales: number
-
   lessVat: number
   lessSC: number
   lessPWD: number
   lessEmployee: number
   lessNationalAthlete: number
   lessSoloParent: number
-
   gcSales: number
   gcExcess: number
-
   otherDiscount: number
-
   voidAmount: number
   voidCount: number
-
   outstanding: number
 }
 
@@ -46,4 +40,17 @@ export interface SystemSalesResult {
   summary: SystemSalesSummary
   tenders: SystemSalesTender[]
   tenderTotal: SystemSalesTenderTotal
+}
+
+export interface SystemSalesExportInput {
+  dateFrom: string
+  dateTo: string
+  report: SystemSalesResult
+}
+
+export interface SystemSalesExportResult {
+  success: boolean
+  canceled: boolean
+  message: string
+  filePath?: string
 }
