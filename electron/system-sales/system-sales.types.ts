@@ -21,6 +21,7 @@ export interface SystemSalesSummary {
   voidAmount: number
   voidCount: number
   outstanding: number
+  varianceAmount: number
 }
 
 export interface SystemSalesTender {

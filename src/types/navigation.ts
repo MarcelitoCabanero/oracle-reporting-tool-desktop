@@ -3,6 +3,7 @@ export type Page =
   | 'finance-insight'
   | 'hourly-sales'
   | 'system-sales'
+  | 'variance-checking'
   | 'menu-item'
   | 'pos-journal'
   | 'rof'

@@ -10,6 +10,7 @@ import {registerMenuItemIpc} from './ipc/menuitem.ipc.js'
 import { registerPosJournalIpc } from './ipc/pos-journal.ipc.js'
 import { registerMaintenanceIpc } from './ipc/maintenance.ipc.js'
 import {registerSystemSalesIpc} from './ipc/system-sales.ipc.js'
+import { registerVarianceCheckingIpc } from './ipc/variance-checking.ipc.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -49,6 +50,7 @@ registerMenuItemIpc()
 registerPosJournalIpc()
 registerMaintenanceIpc()
 registerSystemSalesIpc()
+registerVarianceCheckingIpc()
 
 ipcMain.handle('pos-journal:export-pdf', async (_event, checkNumber: string) => {
   if (!mainWindow) {

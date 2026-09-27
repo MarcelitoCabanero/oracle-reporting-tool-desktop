@@ -421,7 +421,12 @@ export default function SystemSalesPage() {
                   value={formatMoney(summary.outstanding)}
                   tone={summary.outstanding ? 'warning' : 'default'}
                 />
-              </BreakdownColumn>
+              <BreakdownRow
+                 label="Variance Amount"
+                value={formatMoney(summary.varianceAmount)}
+                 tone={summary.varianceAmount ? 'warning' : 'default'}
+                />
+       </BreakdownColumn>
             </div>
           </section>
 

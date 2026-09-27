@@ -46,6 +46,9 @@ function getPageTitle(page: Page): string {
     case 'system-sales':
       return 'System Sales'
 
+      case 'variance-checking':
+  return 'Variance Checking'
+
     case 'menu-item':
       return 'Menu Item'
 
