@@ -16,7 +16,7 @@ import {
 
 import type {
   SystemSalesResult,
-} from '../types/system-sales'
+} from '../../../types/system-sales'
 
 function getToday() {
   const now = new Date()
