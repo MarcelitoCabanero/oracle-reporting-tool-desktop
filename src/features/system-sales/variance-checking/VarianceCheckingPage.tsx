@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { AlertTriangle, CalendarDays, LoaderCircle, ReceiptText, RefreshCw, Scale, X } from 'lucide-react'
 import './VarianceCheckingPage.css'
-import type { VarianceCheckingResult, VarianceReceiptResult } from '../types/variance-checking'
+import type {
+  VarianceCheckingResult,
+  VarianceReceiptResult,
+} from '../../../types/variance-checking'
 
 function todayString(){const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`}
 function money(v:number){return new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0)}
