@@ -239,6 +239,23 @@ posJournal: {
       input,
     ),
 },
+<<<<<<< Updated upstream
+=======
+
+varianceChecking: {
+  generate: (input: { dateFrom: string; dateTo: string }) =>
+    ipcRenderer.invoke('variance-checking:generate', input),
+  receipt: (input: { checkNumber: string }) =>
+    ipcRenderer.invoke('variance-checking:receipt', input),
+},
+
+employeeSales: {
+  employees: () => ipcRenderer.invoke('employee-sales:employees'),
+  generate: (input: { employeeName: string; dateFrom: string; dateTo: string }) =>
+    ipcRenderer.invoke('employee-sales:generate', input),
+},
+
+>>>>>>> Stashed changes
 })
 
 console.log('Electron preload loaded')

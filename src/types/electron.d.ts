@@ -3,6 +3,23 @@ import type {
   SystemSalesResult,
 } from './system-sales'
 
+<<<<<<< Updated upstream
+=======
+import type {
+  VarianceCheckingInput,
+  VarianceCheckingResult,
+  VarianceReceiptInput,
+  VarianceReceiptResult,
+} from './variance-checking'
+
+import type {
+  EmployeeOption,
+  EmployeeSalesInput,
+  EmployeeSalesResult,
+} from './employee-sales'
+
+
+>>>>>>> Stashed changes
 export {}
 
 interface LoginUser {
@@ -479,6 +496,12 @@ systemSales: {
     input: SystemSalesDateRangeInput,
   ) => Promise<SystemSalesResult>
 }
+
+employeeSales: {
+  employees: () => Promise<EmployeeOption[]>
+  generate: (input: EmployeeSalesInput) => Promise<EmployeeSalesResult>
+}
+
 
     }
   }

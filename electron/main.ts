@@ -10,6 +10,11 @@ import {registerMenuItemIpc} from './ipc/menuitem.ipc.js'
 import { registerPosJournalIpc } from './ipc/pos-journal.ipc.js'
 import { registerMaintenanceIpc } from './ipc/maintenance.ipc.js'
 import {registerSystemSalesIpc} from './ipc/system-sales.ipc.js'
+<<<<<<< Updated upstream
+=======
+import { registerVarianceCheckingIpc } from './ipc/variance-checking.ipc.js'
+import { registerEmployeeSalesIpc } from './ipc/employee-sales.ipc.js'
+>>>>>>> Stashed changes
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -49,6 +54,11 @@ registerMenuItemIpc()
 registerPosJournalIpc()
 registerMaintenanceIpc()
 registerSystemSalesIpc()
+<<<<<<< Updated upstream
+=======
+registerVarianceCheckingIpc()
+registerEmployeeSalesIpc()
+>>>>>>> Stashed changes
 
 ipcMain.handle('pos-journal:export-pdf', async (_event, checkNumber: string) => {
   if (!mainWindow) {
