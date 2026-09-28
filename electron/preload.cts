@@ -264,7 +264,6 @@ employeeSales: {
   generate: (input: { employeeName: string; dateFrom: string; dateTo: string }) =>
     ipcRenderer.invoke('employee-sales:generate', input),
 },
->>>>>>> SystemSales
 })
 
 console.log('Electron preload loaded')

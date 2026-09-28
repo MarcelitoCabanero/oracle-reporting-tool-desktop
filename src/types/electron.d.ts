@@ -4,38 +4,17 @@ import type {
   SystemSalesExportResult,
   SystemSalesResult,
 } from './system-sales'
-
-import type {
-  SystemSalesResult,
-} from './system-sales'
-import type {
-  VarianceCheckingInput,
-  VarianceCheckingResult,
-  VarianceReceiptResult,
-} from './variance-checking'
-import type {
-  EmployeeOption,
-  EmployeeSalesInput,
-  EmployeeSalesResult,
-} from './employee-sales'
 import type {
   VarianceCheckingInput,
   VarianceCheckingResult,
   VarianceReceiptInput,
   VarianceReceiptResult,
 } from './variance-checking'
-
-import type {
-  VarianceCheckingInput,
-  VarianceCheckingResult,
-  VarianceReceiptResult,
-} from './variance-checking'
 import type {
   EmployeeOption,
   EmployeeSalesInput,
   EmployeeSalesResult,
 } from './employee-sales'
->>>>>>> SystemSales
 export {}
 
 interface LoginUser {

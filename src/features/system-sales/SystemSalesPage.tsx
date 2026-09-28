@@ -2,10 +2,6 @@ import {
   useState,
 } from 'react'
 
-import {
-  ChartNoAxesCombined,
-} from 'lucide-react'
-
 import SystemSalesNavigation from
   './SystemSalesNavigation'
 
