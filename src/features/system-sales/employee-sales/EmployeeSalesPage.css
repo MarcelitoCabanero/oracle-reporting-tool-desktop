@@ -1,0 +1,11 @@
+/* Employee Sales inherits the System Sales report styles from src/index.css. */
+.employee-sales-page { min-width: 0; }
+.employee-sales-controls { flex-wrap: wrap; }
+.employee-sales-controls .system-sales-date-field { width: 170px; }
+.employee-sales-employee-field { width: 210px; }
+.employee-sales-employee-field label { display: block; margin-bottom: 4px; color: var(--text-secondary); font-size: .7rem; font-weight: 500; }
+.employee-sales-employee-field .form-select { height: 34px; font-size: .78rem; color: var(--text-primary); background-color: var(--report-surface); border-color: var(--report-border); }
+.employee-sales-message { padding: 22px; margin-bottom: 12px; border: 1px solid var(--report-border); border-radius: 12px; color: var(--text-secondary); background: var(--report-surface); }
+.employee-sales-breakdown { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1150px) { .employee-sales-controls .system-sales-period { width: 100%; margin-left: 0; border-left: 0; padding-left: 0; } }
+@media (max-width: 850px) { .employee-sales-breakdown { grid-template-columns: 1fr; } .employee-sales-breakdown .system-sales-breakdown-column { border-right: 0; border-bottom: 1px solid var(--report-border); } .employee-sales-page .system-sales-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

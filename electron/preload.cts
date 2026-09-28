@@ -259,6 +259,12 @@ varianceChecking: {
     ipcRenderer.invoke('variance-checking:receipt', input),
 },
 
+employeeSales: {
+  employees: () => ipcRenderer.invoke('employee-sales:employees'),
+  generate: (input: { employeeName: string; dateFrom: string; dateTo: string }) =>
+    ipcRenderer.invoke('employee-sales:generate', input),
+},
+>>>>>>> SystemSales
 })
 
 console.log('Electron preload loaded')

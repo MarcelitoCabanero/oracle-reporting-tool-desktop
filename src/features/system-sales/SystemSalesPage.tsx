@@ -47,7 +47,6 @@ export default function SystemSalesPage() {
       <div className="system-sales-workspace-header">
         <div className="system-sales-workspace-heading">
          
-          
         </div>
       </div>
 
