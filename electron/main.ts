@@ -12,6 +12,7 @@ import { registerMaintenanceIpc } from './ipc/maintenance.ipc.js'
 import {registerSystemSalesIpc} from './ipc/system-sales.ipc.js'
 import { registerVarianceCheckingIpc } from './ipc/variance-checking.ipc.js'
 import { registerEmployeeSalesIpc } from './ipc/employee-sales.ipc.js'
+import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -53,6 +54,7 @@ registerMaintenanceIpc()
 registerSystemSalesIpc()
 registerVarianceCheckingIpc()
 registerEmployeeSalesIpc()
+registerScPwdIpc()
 
 ipcMain.handle('pos-journal:export-pdf', async (_event, checkNumber: string) => {
   if (!mainWindow) {

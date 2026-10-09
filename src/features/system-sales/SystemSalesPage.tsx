@@ -10,6 +10,7 @@ import SalesSummaryPage from
 
 import EmployeeSalesPage from
   './employee-sales/EmployeeSalesPage'
+import ScPwdPage from './sc-pwd/ScPwdPage'
 
 import type {
   SystemSalesView,
@@ -32,6 +33,12 @@ export default function SystemSalesPage() {
     switch (activeView) {
       case 'employee-sales':
         return <EmployeeSalesPage />
+
+      case 'pos-sales':
+        return <SalesSummaryPage workstationMode />
+
+      case 'sc-pwd-listing':
+        return <ScPwdPage />
 
       case 'sales-summary':
       default:

@@ -228,6 +228,7 @@ posJournal: {
   },
 
 systemSales: {
+  workstations: () => ipcRenderer.invoke('system-sales:workstations'),
   generate: (
     input: {
       dateFrom: string
@@ -268,6 +269,7 @@ employeeSales: {
   exportExcel: (input: unknown) => ipcRenderer.invoke('employee-sales:export-excel', input),
   exportPdf: (input: unknown) => ipcRenderer.invoke('employee-sales:export-pdf', input),
 },
+scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => ipcRenderer.invoke('sc-pwd:generate', input) },
 })
 
 console.log('Electron preload loaded')

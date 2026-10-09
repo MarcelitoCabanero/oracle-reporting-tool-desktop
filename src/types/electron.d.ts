@@ -487,6 +487,7 @@ maintenance: {
 }
 
 systemSales: {
+  workstations: () => Promise<string[]>
   generate: (
     input: SystemSalesDateRangeInput,
   ) => Promise<SystemSalesResult>
@@ -512,6 +513,7 @@ employeeSales: {
   exportExcel: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
   exportPdf: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
 }
+scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => Promise<Array<Record<string, unknown>>> }
 
 
     }

@@ -25,6 +25,7 @@ export async function getVarianceRows(input: VarianceCheckingInput): Promise<Var
     .input('fromDate',sql.Date,input.dateFrom)
     .input('toDate',sql.Date,input.dateTo)
     .input('employeeName',sql.VarChar,input.employeeName ?? null)
+    .input('workstation',sql.VarChar,input.workstation ?? null)
     .query(`
       SELECT CheckNumber AS checkNumber, BusinessDate AS businessDate,
         SUM(CASE WHEN Transtype='Item Sale' THEN NetSales+TaxCollected ELSE 0 END) AS gross,
@@ -35,6 +36,7 @@ export async function getVarianceRows(input: VarianceCheckingInput): Promise<Var
       WHERE Transtype IN ('Item Sale','Tender')
         AND BusinessDate BETWEEN @fromDate AND @toDate
         AND (@employeeName IS NULL OR emp_name = @employeeName)
+        AND (@workstation IS NULL OR Workstation = @workstation)
       GROUP BY BusinessDate, CheckNumber
       HAVING SUM(CASE WHEN Transtype='Item Sale' THEN NetSales+TaxCollected ELSE 0 END)
         - SUM(CASE WHEN Transtype='Tender' THEN amt ELSE 0 END) <> 0

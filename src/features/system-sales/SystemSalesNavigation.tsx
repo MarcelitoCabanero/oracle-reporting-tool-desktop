@@ -1,6 +1,8 @@
 import {
   ReceiptText,
   UsersRound,
+  Monitor,
+  HeartHandshake,
 } from 'lucide-react'
 
 import type {
@@ -37,6 +39,13 @@ SystemSalesNavigationItem[] = [
       'Employee transaction report',
     icon: <UsersRound size={17} />,
   },
+  {
+    id: 'pos-sales',
+    label: 'POS Sales',
+    description: 'Workstation transaction report',
+    icon: <Monitor size={17} />,
+  },
+  { id: 'sc-pwd-listing', label: 'SC / PWD Listing', description: 'Discount transaction details', icon: <HeartHandshake size={17} /> },
 ]
 
 export default function SystemSalesNavigation({

@@ -66,7 +66,7 @@ function formatDate(value: string) {
   }).format(new Date(year, month - 1, day))
 }
 
-export default function SystemSalesPage() {
+export default function SystemSalesPage({ workstationMode = false }: { workstationMode?: boolean }) {
   const savedState = salesSummaryCache
   const today = getToday()
 
@@ -80,6 +80,16 @@ export default function SystemSalesPage() {
   const [error, setError] = useState(savedState?.error ?? '')
   const [status, setStatus] = useState(savedState?.status ?? '')
   const [showVariance, setShowVariance] = useState(false)
+  const [workstations, setWorkstations] = useState<string[]>([])
+  const [workstation, setWorkstation] = useState('')
+
+  useEffect(() => {
+    if (!workstationMode) return
+    void window.api.systemSales.workstations().then(rows => {
+      setWorkstations(rows)
+      setWorkstation(current => current || rows[0] || '')
+    }).catch(() => setError('Unable to load POS workstations.'))
+  }, [workstationMode])
 
   const reportPeriod = useMemo(() => {
     if (!report) return 'Not generated'
@@ -100,6 +110,10 @@ export default function SystemSalesPage() {
       setError('Please select a valid date range.')
       return
     }
+    if (workstationMode && !workstation) {
+      setError('Please select a workstation.')
+      return
+    }
 
     if (dateFrom > dateTo) {
       setError('From date cannot be later than To date.')
@@ -115,6 +129,7 @@ export default function SystemSalesPage() {
         await window.api.systemSales.generate({
           dateFrom,
           dateTo,
+          workstation: workstationMode ? workstation : undefined,
         })
 
       setReport(result)
@@ -238,6 +253,8 @@ export default function SystemSalesPage() {
               }
             />
           </div>
+
+          {workstationMode && <div className="system-sales-date-field"><label htmlFor="pos-workstation">Workstation</label><select id="pos-workstation" className="form-select form-select-sm" value={workstation} disabled={busy} onChange={event => setWorkstation(event.target.value)}>{workstations.map(item => <option key={item} value={item}>{item}</option>)}</select></div>}
 
           <button
             type="button"
@@ -549,7 +566,7 @@ export default function SystemSalesPage() {
         </div>
       )}
 
-      {showVariance && <VarianceCheckingModal dateFrom={dateFrom} dateTo={dateTo} onClose={() => setShowVariance(false)} />}
+      {showVariance && <VarianceCheckingModal dateFrom={dateFrom} dateTo={dateTo} workstation={workstationMode ? workstation : undefined} onClose={() => setShowVariance(false)} />}
     </div>
   )
 }

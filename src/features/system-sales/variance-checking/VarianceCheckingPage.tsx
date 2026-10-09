@@ -14,15 +14,16 @@ interface VarianceCheckingPageProps {
  initialDateFrom?: string
  initialDateTo?: string
  employeeName?: string
+ workstation?: string
  autoGenerate?: boolean
 }
 
-export default function VarianceCheckingPage({ initialDateFrom, initialDateTo, employeeName, autoGenerate = false }: VarianceCheckingPageProps){
+export default function VarianceCheckingPage({ initialDateFrom, initialDateTo, employeeName, workstation, autoGenerate = false }: VarianceCheckingPageProps){
  const today=todayString(); const[dateFrom,setDateFrom]=useState(initialDateFrom ?? today); const[dateTo,setDateTo]=useState(initialDateTo ?? today)
  const[report,setReport]=useState<VarianceCheckingResult|null>(null); const[receipt,setReceipt]=useState<VarianceReceiptResult|null>(null)
  const[loading,setLoading]=useState(false); const[receiptLoading,setReceiptLoading]=useState(false); const[error,setError]=useState('')
  const period=useMemo(()=>dateFrom===dateTo?dateText(dateFrom):`${dateText(dateFrom)} – ${dateText(dateTo)}`,[dateFrom,dateTo])
- async function generate(){if(!dateFrom||!dateTo){setError('Please select a valid date range.');return}if(dateFrom>dateTo){setError('From date cannot be later than To date.');return}setLoading(true);setError('');try{setReport(await window.api.varianceChecking.generate({dateFrom,dateTo,employeeName}))}catch(e){setReport(null);setError(e instanceof Error?e.message:'Unable to generate Variance Checking report.')}finally{setLoading(false)}}
+ async function generate(){if(!dateFrom||!dateTo){setError('Please select a valid date range.');return}if(dateFrom>dateTo){setError('From date cannot be later than To date.');return}setLoading(true);setError('');try{setReport(await window.api.varianceChecking.generate({dateFrom,dateTo,employeeName,workstation}))}catch(e){setReport(null);setError(e instanceof Error?e.message:'Unable to generate Variance Checking report.')}finally{setLoading(false)}}
  useEffect(()=>{if(autoGenerate) void generate()}, [])
  async function openReceipt(checkNumber:string){setReceiptLoading(true);setError('');try{setReceipt(await window.api.varianceChecking.receipt({checkNumber}))}catch(e){setError(e instanceof Error?e.message:'Unable to load variance receipt.')}finally{setReceiptLoading(false)}}
  const busy=loading||receiptLoading
