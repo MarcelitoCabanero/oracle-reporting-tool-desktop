@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from 'react'
@@ -18,6 +19,16 @@ import type {
   SystemSalesResult,
 } from '../../../types/system-sales'
 import VarianceCheckingModal from '../variance-checking/VarianceCheckingModal'
+
+interface SalesSummaryState {
+  dateFrom: string
+  dateTo: string
+  report: SystemSalesResult | null
+  error: string
+  status: string
+}
+
+let salesSummaryCache: SalesSummaryState | null = null
 
 function getToday() {
   const now = new Date()
@@ -56,17 +67,18 @@ function formatDate(value: string) {
 }
 
 export default function SystemSalesPage() {
+  const savedState = salesSummaryCache
   const today = getToday()
 
-  const [dateFrom, setDateFrom] = useState(today)
-  const [dateTo, setDateTo] = useState(today)
+  const [dateFrom, setDateFrom] = useState(savedState?.dateFrom ?? today)
+  const [dateTo, setDateTo] = useState(savedState?.dateTo ?? today)
   const [report, setReport] =
-    useState<SystemSalesResult | null>(null)
+    useState<SystemSalesResult | null>(savedState?.report ?? null)
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] =
     useState<'excel' | 'pdf' | null>(null)
-  const [error, setError] = useState('')
-  const [status, setStatus] = useState('')
+  const [error, setError] = useState(savedState?.error ?? '')
+  const [status, setStatus] = useState(savedState?.status ?? '')
   const [showVariance, setShowVariance] = useState(false)
 
   const reportPeriod = useMemo(() => {
@@ -78,6 +90,10 @@ export default function SystemSalesPage() {
 
     return `${formatDate(dateFrom)} – ${formatDate(dateTo)}`
   }, [report, dateFrom, dateTo])
+
+  useEffect(() => {
+    salesSummaryCache = { dateFrom, dateTo, report, error, status }
+  }, [dateFrom, dateTo, report, error, status])
 
   async function handleGenerate() {
     if (!dateFrom || !dateTo) {

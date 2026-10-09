@@ -15,11 +15,18 @@ import type {
   SystemSalesView,
 } from './system-sales.types'
 
+let systemSalesViewCache: SystemSalesView = 'sales-summary'
+
 export default function SystemSalesPage() {
   const [activeView, setActiveView] =
     useState<SystemSalesView>(
-      'sales-summary',
+      systemSalesViewCache,
     )
+
+  function navigate(view: SystemSalesView) {
+    systemSalesViewCache = view
+    setActiveView(view)
+  }
 
   function renderActiveView() {
     switch (activeView) {
@@ -42,7 +49,7 @@ export default function SystemSalesPage() {
 
       <SystemSalesNavigation
         activeView={activeView}
-        onNavigate={setActiveView}
+        onNavigate={navigate}
       />
 
       <div className="system-sales-workspace-content">

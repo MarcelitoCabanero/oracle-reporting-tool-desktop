@@ -13,18 +13,31 @@ const qty = (n: number) => new Intl.NumberFormat('en-PH').format(n)
 const ALL_EMPLOYEES = '__all_employees__'
 const PAGE_SIZE = 10
 
+interface EmployeeSalesPageState {
+  dateFrom: string
+  dateTo: string
+  employeeName: string
+  report: EmployeeSalesResult | null
+  allReports: EmployeeSalesResult[]
+  page: number
+  error: string
+}
+
+let employeeSalesCache: EmployeeSalesPageState | null = null
+
 export default function EmployeeSalesPage() {
-  const [dateFrom, setDateFrom] = useState(today)
-  const [dateTo, setDateTo] = useState(today)
+  const savedState = employeeSalesCache
+  const [dateFrom, setDateFrom] = useState(savedState?.dateFrom ?? today)
+  const [dateTo, setDateTo] = useState(savedState?.dateTo ?? today)
   const [employees, setEmployees] = useState<EmployeeOption[]>([])
-  const [employeeName, setEmployeeName] = useState('')
+  const [employeeName, setEmployeeName] = useState(savedState?.employeeName ?? '')
   const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
-  const [error, setError] = useState('')
-  const [report, setReport] = useState<EmployeeSalesResult | null>(null)
-  const [allReports, setAllReports] = useState<EmployeeSalesResult[]>([])
-  const [page, setPage] = useState(1)
+  const [error, setError] = useState(savedState?.error ?? '')
+  const [report, setReport] = useState<EmployeeSalesResult | null>(savedState?.report ?? null)
+  const [allReports, setAllReports] = useState<EmployeeSalesResult[]>(savedState?.allReports ?? [])
+  const [page, setPage] = useState(savedState?.page ?? 1)
   const [showVariance, setShowVariance] = useState(false)
   const [varianceEmployee, setVarianceEmployee] = useState('')
 
@@ -36,7 +49,7 @@ export default function EmployeeSalesPage() {
         const rows = await window.api.employeeSales.employees()
         if (!active) return
         setEmployees(rows)
-        setEmployeeName(rows[0]?.checkName ?? '')
+        setEmployeeName(current => current || rows[0]?.checkName || '')
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Unable to load employees.')
       } finally {
@@ -46,6 +59,10 @@ export default function EmployeeSalesPage() {
     void fetchEmployees()
     return () => { active = false }
   }, [])
+
+  useEffect(() => {
+    employeeSalesCache = { dateFrom, dateTo, employeeName, report, allReports, page, error }
+  }, [dateFrom, dateTo, employeeName, report, allReports, page, error])
 
   async function generate() {
     if (!employeeName) { setError('Please select an employee.'); return }
