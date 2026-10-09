@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CalendarDays, LoaderCircle, ReceiptText, RefreshCw, UsersRound } from 'lucide-react'
+import { AlertTriangle, CalendarDays, FileSpreadsheet, FileText, LoaderCircle, ReceiptText, RefreshCw, UsersRound } from 'lucide-react'
 import type { EmployeeOption, EmployeeSalesResult } from '../../../types/employee-sales'
+import VarianceCheckingModal from '../variance-checking/VarianceCheckingModal'
 import './EmployeeSalesPage.css'
 
 function today() {
@@ -9,6 +10,8 @@ function today() {
 }
 const money = (n: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(n)
 const qty = (n: number) => new Intl.NumberFormat('en-PH').format(n)
+const ALL_EMPLOYEES = '__all_employees__'
+const PAGE_SIZE = 10
 
 export default function EmployeeSalesPage() {
   const [dateFrom, setDateFrom] = useState(today)
@@ -17,8 +20,13 @@ export default function EmployeeSalesPage() {
   const [employeeName, setEmployeeName] = useState('')
   const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
   const [error, setError] = useState('')
   const [report, setReport] = useState<EmployeeSalesResult | null>(null)
+  const [allReports, setAllReports] = useState<EmployeeSalesResult[]>([])
+  const [page, setPage] = useState(1)
+  const [showVariance, setShowVariance] = useState(false)
+  const [varianceEmployee, setVarianceEmployee] = useState('')
 
   useEffect(() => {
     let active = true
@@ -44,10 +52,19 @@ export default function EmployeeSalesPage() {
     if (!dateFrom || !dateTo || dateFrom > dateTo) { setError('Please select a valid date range.'); return }
     setError('')
     setReport(null)
+    setAllReports([])
+    setPage(1)
     setLoading(true)
     try {
-      if (!window.api?.employeeSales?.generate) throw new Error('Employee Sales desktop API is unavailable. Check preload wiring and restart Electron.')
-      setReport(await window.api.employeeSales.generate({ employeeName, dateFrom, dateTo }))
+      if (employeeName === ALL_EMPLOYEES) {
+        if (!window.api?.employeeSales?.generateAll) throw new Error('Employee Sales desktop API is unavailable. Check preload wiring and restart Electron.')
+        const results = await window.api.employeeSales.generateAll({ dateFrom, dateTo })
+        setAllReports(results)
+        setReport(results[0] ?? null)
+      } else {
+        if (!window.api?.employeeSales?.generate) throw new Error('Employee Sales desktop API is unavailable. Check preload wiring and restart Electron.')
+        setReport(await window.api.employeeSales.generate({ employeeName, dateFrom, dateTo }))
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to generate Employee Sales.')
     } finally {
@@ -55,21 +72,23 @@ export default function EmployeeSalesPage() {
     }
   }
 
-  const m = report?.metrics
-  const rows = m && report ? [
-    ['Service Charge', m.serviceAmount, 'default'],
-    ['Less VAT', m.lessVat, 'negative'],
-    ['Senior Citizen', m.lessSC, 'negative'],
-    ['PWD', m.lessPWD, 'negative'],
-    ['Employee', m.lessEmp, 'negative'],
-    ['National Athlete', m.lessNationalAth, 'negative'],
-    ['Solo Parent', m.lessSoloParent, 'negative'],
-    ['Other Discount', m.otherDiscount, 'negative'],
-    ['Total Discounts', report.totalDiscounts, 'negative'],
-    ['Void Amount', m.voidAmount, 'negative'],
-    ['Variance Amount', report.variance, report.variance === 0 ? 'default' : 'warning'],
-  ] as const : []
+  async function exportReport(type: 'excel' | 'pdf') {
+    if (!report) return
+    setExporting(type)
+    setError('')
+    try {
+      const result = type === 'excel'
+        ? await window.api.employeeSales.exportExcel({ report })
+        : await window.api.employeeSales.exportPdf({ report })
+      if (!result.canceled && !result.success) setError(result.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Unable to export ${type.toUpperCase()} report.`)
+    } finally { setExporting(null) }
+  }
 
+  const totalPages = Math.max(1, Math.ceil(allReports.length / PAGE_SIZE))
+  const pageReports = allReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const m = report?.metrics
   return <div className="employee-sales-page">
     <div className="system-sales-page-header">
       <div className="d-flex align-items-center gap-3">
@@ -81,6 +100,15 @@ export default function EmployeeSalesPage() {
 
     <div className="system-sales-toolbar">
       <div className="system-sales-toolbar-title"><CalendarDays size={16} /> Report Parameters</div>
+      <div className="system-sales-toolbar-export">
+        <button type="button" className="btn btn-outline-success btn-sm system-sales-export-btn" disabled={!report || loading || exporting !== null} onClick={() => exportReport('excel')}>
+          {exporting === 'excel' ? <LoaderCircle size={15} className="spin" /> : <FileSpreadsheet size={15} />}Excel
+        </button>
+
+        <button type="button" className="btn btn-outline-danger btn-sm system-sales-export-btn" disabled={!report || loading || exporting !== null} onClick={() => exportReport('pdf')}>
+          {exporting === 'pdf' ? <LoaderCircle size={15} className="spin" /> : <FileText size={15} />}PDF
+        </button>
+      </div>
       <div className="system-sales-toolbar-controls employee-sales-controls">
         <div className="system-sales-date-field"><label htmlFor="emp-from">From</label>
           <input id="emp-from" type="date" className="form-control form-control-sm" value={dateFrom} disabled={loading} onChange={e => setDateFrom(e.target.value)} /></div>
@@ -90,6 +118,7 @@ export default function EmployeeSalesPage() {
         <div className="employee-sales-employee-field"><label htmlFor="emp-name">Employee</label>
           <select id="emp-name" className="form-select form-select-sm" value={employeeName} disabled={loading || loadingEmployees} onChange={e => setEmployeeName(e.target.value)}>
             {employees.length === 0 && <option value="">No employees available</option>}
+            {employees.length > 0 && <option value={ALL_EMPLOYEES}>ALL</option>}
             {employees.map((e, index) => <option key={`${e.employeeId}-${index}`} value={e.checkName}>{e.checkName}</option>)}
           </select></div>
         <button type="button" className="btn btn-primary btn-sm system-sales-generate-btn" onClick={generate} disabled={loading || loadingEmployees || !employeeName}>
@@ -103,27 +132,44 @@ export default function EmployeeSalesPage() {
     {loading && <div role="status" className="employee-sales-message">Reading employee sales and tender information...</div>}
     {!report && !loading && !error && <div className="system-sales-empty-state"><ReceiptText size={38} strokeWidth={1.4} /><h6>No report generated</h6><p>Select a date range and employee, then click Generate.</p></div>}
     {report && !report.hasSales && <div className="system-sales-empty-state"><ReceiptText size={38} strokeWidth={1.4} /><h6>No sales found</h6><p>No records for {report.employeeName} in the selected period.</p></div>}
+    {employeeName === ALL_EMPLOYEES && !loading && allReports.length === 0 && <div className="system-sales-empty-state"><ReceiptText size={38} strokeWidth={1.4} /><h6>No sales found</h6><p>No employees have item sales in the selected period.</p></div>}
+
+    {allReports.length > 0 && <div className="employee-sales-pagination"><span>{allReports.length} employee report{allReports.length === 1 ? '' : 's'} found · Page {page} of {totalPages}</span><div><button type="button" className="btn btn-sm btn-outline-secondary" disabled={page === 1} onClick={() => { const next = page - 1; setPage(next); setReport(allReports[(next - 1) * PAGE_SIZE]) }}>Previous</button><button type="button" className="btn btn-sm btn-outline-secondary ms-2" disabled={page === totalPages} onClick={() => { const next = page + 1; setPage(next); setReport(allReports[(next - 1) * PAGE_SIZE]) }}>Next</button></div></div>}
+    {pageReports.length > 1 && <div className="employee-sales-page-list">{pageReports.map((item, index) => <button key={item.employeeName} type="button" className={`btn btn-sm ${report?.employeeName === item.employeeName ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setReport(item)}>{(page - 1) * PAGE_SIZE + index + 1}. {item.employeeName}</button>)}</div>}
 
     {report?.hasSales && m && <>
       <section className="system-sales-section">
         <div className="system-sales-section-heading"><div><h6>Sales Overview</h6><span>Key figures for {report.employeeName}</span></div></div>
         <div className="system-sales-kpi-strip">
           <Kpi label="Net Sales" value={money(m.netSales)} caption="Total net sales" primary />
+          <Kpi label="Revenue" value={money(m.netSales + m.taxCollected)} caption="Total revenue sales" />
           <Kpi label="Tax Collected" value={money(m.taxCollected)} caption="Collected VAT" />
-          <Kpi label="Gross Sales" value={money(report.grossSales)} caption="After report adjustments" />
-          <Kpi label="Tender Total" value={money(report.tenderTotal.amount)} caption="Recorded payments" warning={report.variance !== 0} />
+          <Kpi label="Variance" value={money(m.varianceAmount)} caption="Variance Total" warning={m.outstanding !== 0} onClick={() => { setVarianceEmployee(report.employeeName); setShowVariance(true) }} />
         </div>
       </section>
       <section className="system-sales-section">
         <div className="system-sales-section-heading"><div><h6>Report Breakdown</h6><span>Discounts and adjustments for the selected employee</span></div></div>
         <div className="employee-sales-breakdown">
-          <div className="system-sales-breakdown-column"><div className="system-sales-breakdown-title system-sales-accent-info">Sales &amp; Tax</div>
-            <BreakdownRow label="Net Sales" value={m.netSales} /><BreakdownRow label="Tax Collected" value={m.taxCollected} /><BreakdownRow label="Gross Sales" value={report.grossSales} /></div>
+          <div className="system-sales-breakdown-column"><div className="system-sales-breakdown-title system-sales-accent-info">VAT Breakdown</div>
+            <BreakdownRow label="Vatable Sales" value={m.vatableSales} />
+            <BreakdownRow label="VAT Exempt Sales" value={m.vatExemptSales} />
+            <BreakdownRow label="Zero Rated Sales" value={m.vatZeroRatedSales} />
+            <BreakdownRow label="Tax Collected" value={m.taxCollected} />
+            <BreakdownRow label="Less VAT" value={m.lessVat} tone="negative" /></div>
           <div className="system-sales-breakdown-column"><div className="system-sales-breakdown-title system-sales-accent-danger">Discounts</div>
-            {rows.slice(1, 10).map(([label, value, tone]) => <BreakdownRow key={label} label={label} value={value} tone={tone} />)}</div>
+            <BreakdownRow label="Senior Citizen" value={m.lessSC} tone={m.lessSC !== 0 ? 'negative' : 'default'} />
+            <BreakdownRow label="PWD" value={m.lessPWD} tone={m.lessPWD !== 0 ? 'negative' : 'default'} />
+            <BreakdownRow label="Employee" value={m.lessEmp} tone={m.lessEmp !== 0 ? 'negative' : 'default'} />
+            <BreakdownRow label="National Athlete" value={m.lessNationalAth} tone={m.lessNationalAth !== 0 ? 'negative' : 'default'} />
+            <BreakdownRow label="Solo Parent" value={m.lessSoloParent} tone={m.lessSoloParent !== 0 ? 'negative' : 'default'} />
+            <BreakdownRow label="Other Discount" value={m.otherDiscount} tone={m.otherDiscount !== 0 ? 'negative' : 'default'} /></div>
           <div className="system-sales-breakdown-column"><div className="system-sales-breakdown-title system-sales-accent-warning">Other Sales &amp; Adjustments</div>
-            <BreakdownRow label="Service Charge" value={m.serviceAmount} /><BreakdownRow label="Void Amount" value={m.voidAmount} tone="negative" />
-            <BreakdownRow label="Tender Total" value={report.tenderTotal.amount} /><BreakdownRow label="Variance Amount" value={report.variance} tone={report.variance === 0 ? 'default' : 'warning'} /></div>
+            <BreakdownRow label="GC Sales" value={m.gcSales} tone={m.gcSales !== 0 ? 'positive' : 'default'} />
+            <BreakdownRow label="GC Excess" value={m.gcExcess} tone={m.gcExcess !== 0 ? 'positive' : 'default'} />
+            <BreakdownRow label="Void Amount" value={m.voidAmount} tone={m.voidAmount !== 0 ? 'negative' : 'default'} />
+            <BreakdownRow label="Void Count" value={m.voidCount} format="count" tone={m.voidCount !== 0 ? 'negative' : 'default'} />
+            <BreakdownRow label="Outstanding" value={m.outstanding} tone={m.outstanding !== 0 ? 'warning' : 'default'} />
+            <BreakdownRow label="Variance Amount" value={m.varianceAmount} tone={m.varianceAmount !== 0 ? 'warning' : 'default'} /></div>
         </div>
       </section>
       <section className="system-sales-section system-sales-tender-section">
@@ -134,14 +180,25 @@ export default function EmployeeSalesPage() {
           <tfoot><tr><td>TOTAL</td><td className="text-end">{qty(report.tenderTotal.qty)}</td><td className="text-end">{money(report.tenderTotal.amount)}</td></tr></tfoot></table></div>
       </section>
     </>}
+
+    {loading && <div className="system-sales-loading-overlay" role="status" aria-live="polite">
+      <div className="system-sales-loading-card">
+        <LoaderCircle size={30} className="spin" />
+        <strong>Generating report</strong>
+        <span>Reading employee sales and tender information...</span>
+      </div>
+    </div>}
+    {showVariance && <VarianceCheckingModal dateFrom={dateFrom} dateTo={dateTo} employeeName={varianceEmployee} onClose={() => setShowVariance(false)} />}
   </div>
 }
 
-function Kpi({ label, value, caption, primary = false, warning = false }: { label: string; value: string; caption: string; primary?: boolean; warning?: boolean }) {
-  return <div className={`system-sales-kpi-item${primary ? ' system-sales-kpi-primary' : ''}${warning ? ' system-sales-kpi-warning' : ''}`}>
+function Kpi({ label, value, caption, primary = false, warning = false, onClick }: { label: string; value: string; caption: string; primary?: boolean; warning?: boolean; onClick?: () => void }) {
+  const className = `system-sales-kpi-item${primary ? ' system-sales-kpi-primary' : ''}${warning ? ' system-sales-kpi-warning' : ''}${onClick ? ' system-sales-kpi-button' : ''}`
+  const content = <>
     <div className="system-sales-kpi-label">{label}</div><div className="system-sales-kpi-value" title={value}>{value}</div><div className="system-sales-kpi-caption">{caption}</div>
-  </div>
+  </>
+  return onClick ? <button type="button" className={className} onClick={onClick} aria-label="View variance checking">{content}</button> : <div className={className}>{content}</div>
 }
-function BreakdownRow({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'negative' | 'warning' }) {
-  return <div className="system-sales-breakdown-row"><span className="system-sales-breakdown-label">{label}</span><span className={`system-sales-breakdown-value system-sales-value-${tone}`}>{money(value)}</span></div>
+function BreakdownRow({ label, value, tone = 'default', format = 'money' }: { label: string; value: number; tone?: 'default' | 'positive' | 'negative' | 'warning'; format?: 'money' | 'count' }) {
+  return <div className="system-sales-breakdown-row"><span className="system-sales-breakdown-label">{label}</span><span className={`system-sales-breakdown-value system-sales-value-${tone}`}>{format === 'count' ? qty(value) : money(value)}</span></div>
 }

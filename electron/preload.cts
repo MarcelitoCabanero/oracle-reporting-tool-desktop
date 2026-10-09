@@ -253,7 +253,7 @@ systemSales: {
 },
 
 varianceChecking: {
-  generate: (input: { dateFrom: string; dateTo: string }) =>
+  generate: (input: { dateFrom: string; dateTo: string; employeeName?: string }) =>
     ipcRenderer.invoke('variance-checking:generate', input),
   receipt: (input: { checkNumber: string }) =>
     ipcRenderer.invoke('variance-checking:receipt', input),
@@ -263,6 +263,10 @@ employeeSales: {
   employees: () => ipcRenderer.invoke('employee-sales:employees'),
   generate: (input: { employeeName: string; dateFrom: string; dateTo: string }) =>
     ipcRenderer.invoke('employee-sales:generate', input),
+  generateAll: (input: { dateFrom: string; dateTo: string }) =>
+    ipcRenderer.invoke('employee-sales:generate-all', input),
+  exportExcel: (input: unknown) => ipcRenderer.invoke('employee-sales:export-excel', input),
+  exportPdf: (input: unknown) => ipcRenderer.invoke('employee-sales:export-pdf', input),
 },
 })
 

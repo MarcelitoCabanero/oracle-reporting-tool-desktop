@@ -17,6 +17,7 @@ import {
 import type {
   SystemSalesResult,
 } from '../../../types/system-sales'
+import VarianceCheckingModal from '../variance-checking/VarianceCheckingModal'
 
 function getToday() {
   const now = new Date()
@@ -66,6 +67,7 @@ export default function SystemSalesPage() {
     useState<'excel' | 'pdf' | null>(null)
   const [error, setError] = useState('')
   const [status, setStatus] = useState('')
+  const [showVariance, setShowVariance] = useState(false)
 
   const reportPeriod = useMemo(() => {
     if (!report) return 'Not generated'
@@ -285,9 +287,9 @@ export default function SystemSalesPage() {
               />
 
               <KpiItem
-                label="Vatable Sales"
-                value={formatMoney(summary.vatableSales)}
-                caption="VAT applicable sales"
+                label="Revenue"
+                value={formatMoney(summary.netSales + summary.taxCollected)}
+                caption="Total Revenue"
               />
 
               <KpiItem
@@ -297,11 +299,12 @@ export default function SystemSalesPage() {
               />
 
               <KpiItem
-                label="Outstanding"
-                value={formatMoney(summary.outstanding)}
-                caption="Open check balance"
+                label="Variance"
+                value={formatMoney(summary.varianceAmount)}
+                caption="Variance Amount"
                 icon={<AlertTriangle size={17} />}
-                warning={summary.outstanding !== 0}
+                warning={summary.varianceAmount !== 0}
+                onClick={() => setShowVariance(true)}
               />
             </div>
           </section>
@@ -529,6 +532,8 @@ export default function SystemSalesPage() {
           </div>
         </div>
       )}
+
+      {showVariance && <VarianceCheckingModal dateFrom={dateFrom} dateTo={dateTo} onClose={() => setShowVariance(false)} />}
     </div>
   )
 }
@@ -540,6 +545,7 @@ interface KpiItemProps {
   icon?: React.ReactNode
   emphasis?: boolean
   warning?: boolean
+  onClick?: () => void
 }
 
 function KpiItem({
@@ -549,30 +555,35 @@ function KpiItem({
   icon,
   emphasis = false,
   warning = false,
+  onClick,
 }: KpiItemProps) {
-  return (
-    <div
-      className={[
-        'system-sales-kpi-item',
-        emphasis ? 'system-sales-kpi-primary' : '',
-        warning ? 'system-sales-kpi-warning' : '',
-      ].filter(Boolean).join(' ')}
-    >
-      <div className="system-sales-kpi-label">
-        <span>{label}</span>
-        {icon && (
-          <span className="system-sales-kpi-icon">
-            {icon}
-          </span>
-        )}
-      </div>
-      <div className="system-sales-kpi-value">
-        {value}
-      </div>
-      <div className="system-sales-kpi-caption">
-        {caption}
-      </div>
+  const content = <>
+    <div className="system-sales-kpi-label">
+      <span>{label}</span>
+      {icon && (
+        <span className="system-sales-kpi-icon">
+          {icon}
+        </span>
+      )}
     </div>
+    <div className="system-sales-kpi-value">
+      {value}
+    </div>
+    <div className="system-sales-kpi-caption">
+      {caption}
+    </div>
+  </>
+  const className = [
+    'system-sales-kpi-item',
+    emphasis ? 'system-sales-kpi-primary' : '',
+    warning ? 'system-sales-kpi-warning' : '',
+    onClick ? 'system-sales-kpi-button' : '',
+  ].filter(Boolean).join(' ')
+
+  if (onClick) return <button type="button" className={className} onClick={onClick} aria-label="View variance checking">{content}</button>
+
+  return (
+    <div className={className}>{content}</div>
   )
 }
 

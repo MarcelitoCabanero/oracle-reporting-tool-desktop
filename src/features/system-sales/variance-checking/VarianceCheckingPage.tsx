@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CalendarDays, LoaderCircle, ReceiptText, RefreshCw, Scale, X } from 'lucide-react'
 import './VarianceCheckingPage.css'
 import type {
@@ -10,12 +10,20 @@ function todayString(){const n=new Date();return `${n.getFullYear()}-${String(n.
 function money(v:number){return new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP',minimumFractionDigits:2,maximumFractionDigits:2}).format(v||0)}
 function dateText(v:string){if(!v)return'';const[y,m,d]=v.split('-').map(Number);return new Intl.DateTimeFormat('en-PH',{month:'short',day:'2-digit',year:'numeric'}).format(new Date(y,m-1,d))}
 
-export default function VarianceCheckingPage(){
- const today=todayString(); const[dateFrom,setDateFrom]=useState(today); const[dateTo,setDateTo]=useState(today)
+interface VarianceCheckingPageProps {
+ initialDateFrom?: string
+ initialDateTo?: string
+ employeeName?: string
+ autoGenerate?: boolean
+}
+
+export default function VarianceCheckingPage({ initialDateFrom, initialDateTo, employeeName, autoGenerate = false }: VarianceCheckingPageProps){
+ const today=todayString(); const[dateFrom,setDateFrom]=useState(initialDateFrom ?? today); const[dateTo,setDateTo]=useState(initialDateTo ?? today)
  const[report,setReport]=useState<VarianceCheckingResult|null>(null); const[receipt,setReceipt]=useState<VarianceReceiptResult|null>(null)
  const[loading,setLoading]=useState(false); const[receiptLoading,setReceiptLoading]=useState(false); const[error,setError]=useState('')
  const period=useMemo(()=>dateFrom===dateTo?dateText(dateFrom):`${dateText(dateFrom)} – ${dateText(dateTo)}`,[dateFrom,dateTo])
- async function generate(){if(!dateFrom||!dateTo){setError('Please select a valid date range.');return}if(dateFrom>dateTo){setError('From date cannot be later than To date.');return}setLoading(true);setError('');try{setReport(await window.api.varianceChecking.generate({dateFrom,dateTo}))}catch(e){setReport(null);setError(e instanceof Error?e.message:'Unable to generate Variance Checking report.')}finally{setLoading(false)}}
+ async function generate(){if(!dateFrom||!dateTo){setError('Please select a valid date range.');return}if(dateFrom>dateTo){setError('From date cannot be later than To date.');return}setLoading(true);setError('');try{setReport(await window.api.varianceChecking.generate({dateFrom,dateTo,employeeName}))}catch(e){setReport(null);setError(e instanceof Error?e.message:'Unable to generate Variance Checking report.')}finally{setLoading(false)}}
+ useEffect(()=>{if(autoGenerate) void generate()}, [])
  async function openReceipt(checkNumber:string){setReceiptLoading(true);setError('');try{setReceipt(await window.api.varianceChecking.receipt({checkNumber}))}catch(e){setError(e instanceof Error?e.message:'Unable to load variance receipt.')}finally{setReceiptLoading(false)}}
  const busy=loading||receiptLoading
  return <div className="container-fluid px-0 variance-checking-page">

@@ -508,6 +508,9 @@ varianceChecking: {
 employeeSales: {
   employees: () => Promise<EmployeeOption[]>
   generate: (input: EmployeeSalesInput) => Promise<EmployeeSalesResult>
+  generateAll: (input: { dateFrom: string; dateTo: string }) => Promise<EmployeeSalesResult[]>
+  exportExcel: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
+  exportPdf: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
 }
 
 

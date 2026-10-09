@@ -8,9 +8,6 @@ import SystemSalesNavigation from
 import SalesSummaryPage from
   './sales-summary/SalesSummaryPage'
 
-import VarianceCheckingPage from
-  './variance-checking/VarianceCheckingPage'
-
 import EmployeeSalesPage from
   './employee-sales/EmployeeSalesPage'
 
@@ -26,9 +23,6 @@ export default function SystemSalesPage() {
 
   function renderActiveView() {
     switch (activeView) {
-      case 'variance-checking':
-        return <VarianceCheckingPage />
-
       case 'employee-sales':
         return <EmployeeSalesPage />
 

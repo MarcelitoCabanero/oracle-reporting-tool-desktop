@@ -3288,9 +3288,9 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
 .system-sales-toolbar-export .system-sales-export-btn {
   --bs-btn-color: var(--report-green);
   --bs-btn-border-color: var(--report-green);
-  --bs-btn-hover-bg: var(--report-green);
+  --bs-btn-hover-bg: #eaf7ee;
   --bs-btn-hover-border-color: var(--report-green);
-  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-color: var(--report-green);
   --bs-btn-active-bg: var(--report-green);
   --bs-btn-active-border-color: var(--report-green);
   --bs-btn-active-color: #fff;
@@ -3300,9 +3300,9 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
 .system-sales-toolbar-export .system-sales-export-btn.btn-outline-danger {
   --bs-btn-color: var(--report-red);
   --bs-btn-border-color: var(--report-red);
-  --bs-btn-hover-bg: var(--report-red);
+  --bs-btn-hover-bg: #fff0f0;
   --bs-btn-hover-border-color: var(--report-red);
-  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-color: var(--report-red);
   --bs-btn-active-bg: var(--report-red);
   --bs-btn-active-border-color: var(--report-red);
   --bs-btn-active-color: #fff;
@@ -3458,6 +3458,7 @@ html[data-theme='dark'] ::-webkit-scrollbar-thumb:hover {
     1px solid
     var(--report-border);
 }
+.system-sales-kpi-button{width:100%;border:0;text-align:left;cursor:pointer}.system-sales-kpi-button:hover{filter:brightness(.98);transform:translateY(-1px)}.system-sales-kpi-button:focus-visible{outline:2px solid var(--brand-orange);outline-offset:2px}
 
 .system-sales-kpi-item:last-child {
   border-right: 0;

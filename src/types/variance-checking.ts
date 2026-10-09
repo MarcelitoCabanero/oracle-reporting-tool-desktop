@@ -1,6 +1,7 @@
 export interface VarianceCheckingInput {
   dateFrom: string
   dateTo: string
+  employeeName?: string
 }
 
 export interface VarianceCheckingRow {

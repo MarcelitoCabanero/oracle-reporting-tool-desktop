@@ -1,5 +1,4 @@
 import {
-  BadgeCheck,
   ReceiptText,
   UsersRound,
 } from 'lucide-react'
@@ -30,13 +29,6 @@ SystemSalesNavigationItem[] = [
     description:
       'Consolidated sales and tenders',
     icon: <ReceiptText size={17} />,
-  },
-  {
-    id: 'variance-checking',
-    label: 'Variance Checking',
-    description:
-      'Compare and validate sales',
-    icon: <BadgeCheck size={17} />,
   },
   {
     id: 'employee-sales',
