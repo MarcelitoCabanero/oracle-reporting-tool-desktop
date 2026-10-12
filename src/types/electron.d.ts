@@ -311,6 +311,19 @@ interface PosJournalRecord {
   journalText: string
 }
 
+interface TenderListingInput {
+  dateFrom: string
+  dateTo: string
+}
+
+interface TenderListingRow {
+  checkNumber: string
+  tenderType: string
+  amount: number
+  reference: string
+  businessDate: string
+}
+
 interface PosJournalExportResult {
   success: boolean
   message: string
@@ -476,6 +489,10 @@ posJournal: {
   exportPdf: (
     checkNumber: string,
   ) => Promise<PosJournalExportResult>
+}
+
+tenderListing: {
+  generate: (input: TenderListingInput) => Promise<TenderListingRow[]>
 }
 
 maintenance: {

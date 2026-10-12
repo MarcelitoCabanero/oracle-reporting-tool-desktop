@@ -4,6 +4,7 @@ export type Page =
   | 'hourly-sales'
   | 'system-sales'
   | 'menu-item'
+  | 'tender-listing'
   | 'pos-journal'
   | 'rof'
   | 'deposit'

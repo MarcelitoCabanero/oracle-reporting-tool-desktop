@@ -18,6 +18,10 @@ import type {
   MissingMenuItem,
 } from './maintenance/maintenance.types.js'
 
+import type {
+  TenderListingInput,
+} from './tender-listing/tender-listing.repository.js'
+
 
 contextBridge.exposeInMainWorld('api', {
   app: {
@@ -212,6 +216,11 @@ posJournal: {
       'pos-journal:export-pdf',
       checkNumber,
     ),
+},
+
+tenderListing: {
+  generate: (input: TenderListingInput) =>
+    ipcRenderer.invoke('tender-listing:generate', input),
 },
 
   maintenance: {

@@ -8,6 +8,7 @@ import { registerRofIpc } from './ipc/rof.ipc.js'
 import {registerDepositIpc} from './ipc/deposit.ipc.js'
 import {registerMenuItemIpc} from './ipc/menuitem.ipc.js'
 import { registerPosJournalIpc } from './ipc/pos-journal.ipc.js'
+import { registerTenderListingIpc } from './ipc/tender-listing.ipc.js'
 import { registerMaintenanceIpc } from './ipc/maintenance.ipc.js'
 import {registerSystemSalesIpc} from './ipc/system-sales.ipc.js'
 import { registerVarianceCheckingIpc } from './ipc/variance-checking.ipc.js'
@@ -50,6 +51,7 @@ registerRofIpc()
 registerDepositIpc()
 registerMenuItemIpc()
 registerPosJournalIpc()
+registerTenderListingIpc()
 registerMaintenanceIpc()
 registerSystemSalesIpc()
 registerVarianceCheckingIpc()

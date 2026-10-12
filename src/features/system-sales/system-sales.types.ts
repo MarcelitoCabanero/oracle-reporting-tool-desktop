@@ -3,3 +3,4 @@ export type SystemSalesView =
   | 'employee-sales'
   | 'pos-sales'
   | 'sc-pwd-listing'
+  | 'tender-listing'

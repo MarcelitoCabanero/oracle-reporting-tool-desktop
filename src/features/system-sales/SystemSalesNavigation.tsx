@@ -3,6 +3,7 @@ import {
   UsersRound,
   Monitor,
   HeartHandshake,
+  CreditCard,
 } from 'lucide-react'
 
 import type {
@@ -46,6 +47,7 @@ SystemSalesNavigationItem[] = [
     icon: <Monitor size={17} />,
   },
   { id: 'sc-pwd-listing', label: 'SC / PWD Listing', description: 'Discount transaction details', icon: <HeartHandshake size={17} /> },
+  { id: 'tender-listing', label: 'Tender Listing', description: 'Tender reference details', icon: <CreditCard size={17} /> },
 ]
 
 export default function SystemSalesNavigation({
@@ -79,6 +81,7 @@ export default function SystemSalesNavigation({
             onClick={() =>
               onNavigate(item.id)
             }
+            title={item.description}
           >
             <span className="system-sales-navigation-icon">
               {item.icon}
@@ -86,10 +89,6 @@ export default function SystemSalesNavigation({
 
             <span className="system-sales-navigation-text">
               <strong>{item.label}</strong>
-
-              <small>
-                {item.description}
-              </small>
             </span>
           </button>
         )

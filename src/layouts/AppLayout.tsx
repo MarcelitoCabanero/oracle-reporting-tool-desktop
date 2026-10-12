@@ -52,6 +52,9 @@ function getPageTitle(page: Page): string {
     case 'pos-journal':
       return 'POS Journal'
 
+    case 'tender-listing':
+      return 'Tender Listing'
+
     case 'rof':
       return 'ROF'
 
