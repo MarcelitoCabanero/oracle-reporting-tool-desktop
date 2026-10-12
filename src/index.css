@@ -4051,9 +4051,9 @@ html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-danger:hover:n
 .system-sales-navigation {
   display: flex;
   align-items: flex-end;
+  flex-wrap: wrap;
   gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  overflow: visible;
   padding: 0 8px;
   margin-bottom: 12px;
   border-bottom: 1px solid var(--border-color);
