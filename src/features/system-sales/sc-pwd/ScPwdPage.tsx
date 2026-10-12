@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { LoaderCircle, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FileSpreadsheet, FileText, LoaderCircle, RefreshCw } from 'lucide-react'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const n = (v: unknown) => Number(v ?? 0)
@@ -22,13 +22,25 @@ const formatDate = (v: unknown) => {
   return `${mm}/${dd}/${d.getFullYear()}`
 }
 
+interface ScPwdPageState {
+  from: string
+  to: string
+  type: string
+  rows: Array<Record<string, unknown>>
+  error: string
+}
+
+let scPwdPageCache: ScPwdPageState | null = null
+
 export default function ScPwdPage() {
-  const [from, setFrom] = useState(today)
-  const [to, setTo] = useState(today)
-  const [type, setType] = useState('ALL')
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([])
+  const savedState = scPwdPageCache
+  const [from, setFrom] = useState(savedState?.from ?? today)
+  const [to, setTo] = useState(savedState?.to ?? today)
+  const [type, setType] = useState(savedState?.type ?? 'ALL')
+  const [rows, setRows] = useState<Array<Record<string, unknown>>>(savedState?.rows ?? [])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(savedState?.error ?? '')
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
 
   const generate = async () => {
     setLoading(true)
@@ -47,6 +59,10 @@ export default function ScPwdPage() {
   )
   const total = (items: Array<Record<string, unknown>>, field: string) =>
     items.reduce((s, r) => s + n(r[field]), 0)
+  useEffect(() => {
+    scPwdPageCache = { from, to, type, rows, error }
+  }, [from, to, type, rows, error])
+  const exportReport = async (format: 'excel' | 'pdf') => { setExporting(format); try { const input = { dateFrom: from, dateTo: to, type, rows }; const response = format === 'excel' ? await window.api.scPwd.exportExcel(input) : await window.api.scPwd.exportPdf(input); if (!response.canceled && !response.success) setError(response.message) } catch (e) { setError(e instanceof Error ? e.message : 'Export failed.') } finally { setExporting(null) } }
 
   return (
     <div className="system-sales-page">
@@ -59,6 +75,7 @@ export default function ScPwdPage() {
         </div>
       </div>
       <div className="system-sales-toolbar">
+        <div className="system-sales-toolbar-export"><button className="btn btn-outline-success btn-sm system-sales-export-btn" disabled={!rows.length || loading || exporting !== null} onClick={() => exportReport('excel')}>{exporting === 'excel' ? <LoaderCircle className="spin" size={15} /> : <FileSpreadsheet size={15} />}Excel</button><button className="btn btn-outline-danger btn-sm system-sales-export-btn" disabled={!rows.length || loading || exporting !== null} onClick={() => exportReport('pdf')}>{exporting === 'pdf' ? <LoaderCircle className="spin" size={15} /> : <FileText size={15} />}PDF</button></div>
         <div className="system-sales-toolbar-controls">
           <div className="system-sales-date-field">
             <label>From</label>

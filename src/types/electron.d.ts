@@ -513,7 +513,7 @@ employeeSales: {
   exportExcel: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
   exportPdf: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
 }
-scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => Promise<Array<Record<string, unknown>>> }
+scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => Promise<Array<Record<string, unknown>>>; exportExcel: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }>; exportPdf: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }> }
 
 
     }
