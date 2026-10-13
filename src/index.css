@@ -1612,6 +1612,21 @@ body {
   padding-left: 0.25rem !important;
 }
 
+.app-sidebar.collapsed .sidebar-theme-control {
+  justify-content: center !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+}
+
+.app-sidebar.collapsed .sidebar-theme-label {
+  display: none;
+}
+
+.app-sidebar.collapsed .sidebar-theme-switch {
+  transform: scale(0.75);
+  transform-origin: center;
+}
+
 .app-sidebar.collapsed .sidebar-nav-item > span:first-child,
 .app-sidebar.collapsed .sidebar-logout > svg {
   margin-right: 0 !important;
@@ -2549,31 +2564,8 @@ body {
 }
 
 /* =========================================================
-   SETTINGS / THEME
+   SIDEBAR THEME CONTROL
    ========================================================= */
-
-.settings-page {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  width: 100%;
-  position: relative;
-}
-
-.settings-header {
-  position: absolute;
-  top: 0;
-  right: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.settings-header h1 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-}
 
 .theme-switch {
   background: none;
@@ -2639,62 +2631,9 @@ body {
   transform: translateX(28px);
 }
 
-.settings-section {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 28px;
-  padding: 24px;
-  background: var(--app-surface);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  box-shadow: 0 5px 18px rgba(38, 28, 20, 0.035);
-}
-
-.settings-section-copy {
-  min-width: 180px;
-}
-
-.settings-section-copy h2 {
-  margin: 0 0 5px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.settings-section-copy p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.settings-kicker {
-  margin: 0 0 5px;
-  color: var(--brand-orange-dark);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-}
-
-.settings-heading h1 {
-  margin: 0 0 6px;
-}
-
-.theme-option:focus-visible {
+.sidebar-theme-switch:focus-visible {
   outline: 3px solid rgba(255, 107, 26, 0.22);
   outline-offset: 2px;
-}
-
-@media (max-width: 700px) {
-  .settings-section {
-    flex-direction: column;
-  }
-
-  .theme-toggle {
-    width: 100%;
-    min-width: 0;
-  }
 }
 
 /* =========================================================
@@ -2743,7 +2682,6 @@ html[data-theme='dark'] header,
 html[data-theme='dark'] .top-header,
 html[data-theme='dark'] .card,
 html[data-theme='dark'] .maintenance-panel,
-html[data-theme='dark'] .settings-section,
 html[data-theme='dark'] .pos-journal-viewer,
 html[data-theme='dark'] .pos-journal-receipt,
 html[data-theme='dark'] .deposit-form-card,
