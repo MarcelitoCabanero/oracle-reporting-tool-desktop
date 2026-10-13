@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { FileSpreadsheet, FileText, LoaderCircle, RefreshCw } from 'lucide-react'
+import { CalendarDays, FileSpreadsheet, FileText, LoaderCircle, RefreshCw } from 'lucide-react'
 
 const today = () => new Date().toISOString().slice(0, 10)
 const n = (v: unknown) => Number(v ?? 0)
@@ -40,6 +40,7 @@ export default function ScPwdPage() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>(savedState?.rows ?? [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(savedState?.error ?? '')
+  const report = rows.length ? { dateFrom: from, dateTo: to, type } : null
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null)
 
   const generate = async () => {
@@ -66,38 +67,20 @@ export default function ScPwdPage() {
 
   return (
     <div className="system-sales-page">
-      <div className="system-sales-page-header">
-        <div>
-          <h4 className="system-sales-page-title">SC / PWD Listing</h4>
-          <div className="system-sales-page-subtitle">
-            Senior Citizen and PWD discount transaction details grouped by type
-          </div>
-        </div>
-      </div>
       <div className="system-sales-toolbar">
+        <div className="system-sales-toolbar-title"><CalendarDays size={16} /> Report Parameters</div>
         <div className="system-sales-toolbar-export"><button className="btn btn-outline-success btn-sm system-sales-export-btn" disabled={!rows.length || loading || exporting !== null} onClick={() => exportReport('excel')}>{exporting === 'excel' ? <LoaderCircle className="spin" size={15} /> : <FileSpreadsheet size={15} />}Excel</button><button className="btn btn-outline-danger btn-sm system-sales-export-btn" disabled={!rows.length || loading || exporting !== null} onClick={() => exportReport('pdf')}>{exporting === 'pdf' ? <LoaderCircle className="spin" size={15} /> : <FileText size={15} />}PDF</button></div>
         <div className="system-sales-toolbar-controls">
+          <div className="system-sales-date-field"><label htmlFor="emp-from">From</label>
+          <input id="emp-from" type="date" className="form-control form-control-sm" value={from} disabled={loading} onChange={e => setFrom(e.target.value)} /></div>
+
+          <div className="system-sales-date-field"><label htmlFor="emp-to">To</label>
+          <input id="emp-to" type="date" className="form-control form-control-sm" value={to} disabled={loading} onChange={e => setTo(e.target.value)} /></div>
           <div className="system-sales-date-field">
-            <label>From</label>
-            <input
-              type="date"
-              value={from}
-              disabled={loading}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-          </div>
-          <div className="system-sales-date-field">
-            <label>To</label>
-            <input
-              type="date"
-              value={to}
-              disabled={loading}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </div>
-          <div className="system-sales-date-field">
-            <label>Type</label>
+            <label htmlFor="emp-type">Type</label>
             <select
+              id="emp-type"
+              className="form-control form-control-sm"
               value={type}
               disabled={loading}
               onChange={(e) => setType(e.target.value)}
@@ -107,9 +90,10 @@ export default function ScPwdPage() {
               <option>PWD</option>
             </select>
           </div>
-          <button className="btn btn-primary" onClick={generate} disabled={loading}>
+          <button className="btn btn-primary btn-sm system-sales-generate-btn" onClick={generate} disabled={loading}>
             {loading ? <RefreshCw className="spin" size={16} /> : null} Generate
           </button>
+          <div className="system-sales-period"><div>Report Period</div><strong>{report ? `${report.dateFrom} – ${report.dateTo}` : 'Not generated'}</strong></div>
         </div>
       </div>
       {error && <div className="alert alert-danger">{error}</div>}

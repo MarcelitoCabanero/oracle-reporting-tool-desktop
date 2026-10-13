@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CalendarDays, FileSpreadsheet, FileText, LoaderCircle, ReceiptText, RefreshCw, UsersRound } from 'lucide-react'
+import { AlertTriangle, CalendarDays, FileSpreadsheet, FileText, LoaderCircle, ReceiptText, RefreshCw } from 'lucide-react'
 import type { EmployeeOption, EmployeeSalesResult } from '../../../types/employee-sales'
 import VarianceCheckingModal from '../variance-checking/VarianceCheckingModal'
 import './EmployeeSalesPage.css'
@@ -107,15 +107,8 @@ export default function EmployeeSalesPage() {
   const pageReports = allReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const m = report?.metrics
   return <div className="employee-sales-page">
-    <div className="system-sales-page-header">
-      <div className="d-flex align-items-center gap-3">
-        <div className="system-sales-page-icon"><UsersRound size={20} /></div>
-        <div><h4 className="system-sales-page-title">Employee Sales Report</h4>
-          <div className="system-sales-page-subtitle">Sales metrics and tender breakdown filtered by employee</div></div>
-      </div>
-    </div>
 
-    <div className="system-sales-toolbar">
+    <div className="system-sales-toolbar bg-white">
       <div className="system-sales-toolbar-title"><CalendarDays size={16} /> Report Parameters</div>
       <div className="system-sales-toolbar-export">
         <button type="button" className="btn btn-outline-success btn-sm system-sales-export-btn" disabled={!report || loading || exporting !== null} onClick={() => exportReport('excel')}>
