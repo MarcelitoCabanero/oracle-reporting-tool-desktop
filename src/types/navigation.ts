@@ -9,4 +9,3 @@ export type Page =
   | 'rof'
   | 'deposit'
   | 'maintenance'
-  | 'settings'
