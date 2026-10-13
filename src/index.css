@@ -3939,8 +3939,8 @@ html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-danger:hover:n
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
+  gap: 10px;
+  margin-bottom: 2px;
 }
 
 .system-sales-workspace-heading {
@@ -3993,7 +3993,7 @@ html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-danger:hover:n
   gap: 4px;
   overflow: visible;
   padding: 0 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -4136,11 +4136,11 @@ html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-danger:hover:n
 
 @media (max-width: 900px) {
   .system-sales-navigation {
-    gap: 2px;
+    gap: 1px;
   }
 
   .system-sales-navigation-item {
-    padding: 8px 11px 9px;
+    padding: 7px 8px 8px;
   }
 
 }
@@ -4148,5 +4148,9 @@ html[data-theme='dark'] .system-sales-toolbar-export .btn-outline-danger:hover:n
 @media (max-width: 700px) {
   .system-sales-navigation {
     margin-bottom: 12px;
+  }
+
+  .system-sales-navigation-item {
+    flex: 0 0 auto;
   }
 }
