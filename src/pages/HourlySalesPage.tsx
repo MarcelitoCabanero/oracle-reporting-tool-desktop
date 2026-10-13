@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useRef,
   useState,
 } from 'react'
 
@@ -33,6 +34,17 @@ interface EntryDraft {
   jpopsQty: string
   remarks: string
 }
+
+type EntryField = keyof Omit<EntryDraft, 'id'>
+
+const entryFieldOrder: EntryField[] = [
+  'time',
+  'entryDate',
+  'shellQty',
+  'ringQty',
+  'jpopsQty',
+  'remarks',
+]
 
 const timeSlots = Array.from({ length: 24 }, (_, hour) => {
   function formatHour(value: number) {
@@ -87,6 +99,8 @@ function HourlyEntryForm({
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
+  const fieldRefs = useRef(new Map<string, HTMLInputElement | HTMLSelectElement>())
+  const addButtonRef = useRef<HTMLButtonElement>(null)
 
   const rows = kind === 'produce' ? produceRows : wasteRows
   const setRows = kind === 'produce' ? setProduceRows : setWasteRows
@@ -96,14 +110,34 @@ function HourlyEntryForm({
   const timeOptions = kind === 'produce'
     ? ['Retarding', ...timeSlots]
     : timeSlots
-  const totalQuantity = rows.reduce((total, row) =>
-    total + Number(row.shellQty || 0) + Number(row.ringQty || 0) + Number(row.jpopsQty || 0),
-  0)
+  const shellQuantity = rows.reduce((total, row) => total + Number(row.shellQty || 0), 0)
+  const ringQuantity = rows.reduce((total, row) => total + Number(row.ringQty || 0), 0)
+  const jpopsQuantity = rows.reduce((total, row) => total + Number(row.jpopsQty || 0), 0)
 
   function updateRow(id: string, field: keyof Omit<EntryDraft, 'id'>, value: string) {
     setRows((currentRows) => currentRows.map((row) =>
       row.id === id ? { ...row, [field]: value } : row,
     ))
+    if (messageType === 'error') setMessage('')
+  }
+
+  function focusNextField(rowId: string, field: EntryField) {
+    const rowIndex = rows.findIndex((row) => row.id === rowId)
+    const fieldIndex = entryFieldOrder.indexOf(field)
+    const nextField = entryFieldOrder[fieldIndex + 1]
+
+    if (nextField) {
+      fieldRefs.current.get(`${rowId}:${nextField}`)?.focus()
+      return
+    }
+
+    const nextRow = rows[rowIndex + 1]
+    if (nextRow) {
+      fieldRefs.current.get(`${nextRow.id}:time`)?.focus()
+      return
+    }
+
+    addButtonRef.current?.focus()
   }
 
   function normalizeJpopsQuantity(id: string, value: string) {
@@ -141,6 +175,53 @@ function HourlyEntryForm({
       return
     }
 
+    for (const [index, row] of rows.entries()) {
+      const requiredField = entryFieldOrder.find((field) =>
+        ['time', 'entryDate', 'remarks'].includes(field) && !row[field].trim(),
+      )
+
+      if (requiredField) {
+        setMessageType('error')
+        setMessage(`Entry ${index + 1} is missing ${requiredField === 'entryDate' ? 'an entry date' : requiredField === 'time' ? 'a time duration' : 'remarks'}.`)
+        fieldRefs.current.get(`${row.id}:${requiredField}`)?.focus()
+        return
+      }
+
+      const quantityFields = ['shellQty', 'ringQty', 'jpopsQty'] as const
+      const invalidField = quantityFields.find((field) =>
+        row[field] !== '' &&
+        (!Number.isSafeInteger(Number(row[field])) || Number(row[field]) < 0),
+      )
+
+      if (invalidField) {
+        setMessageType('error')
+        setMessage(`Entry ${index + 1} quantities must be non-negative whole numbers.`)
+        fieldRefs.current.get(`${row.id}:${invalidField}`)?.focus()
+        return
+      }
+
+      if (quantityFields.every((field) => Number(row[field] || 0) === 0)) {
+        setMessageType('error')
+        setMessage(`Entry ${index + 1} needs at least one quantity greater than zero.`)
+        fieldRefs.current.get(`${row.id}:shellQty`)?.focus()
+        return
+      }
+    }
+
+    const seenTimes = new Set<string>()
+    for (const [index, row] of rows.entries()) {
+      const normalizedTime = row.time.trim().toUpperCase()
+      if (normalizedTime === 'RETARDING') continue
+
+      if (seenTimes.has(normalizedTime)) {
+        setMessageType('error')
+        setMessage(`Entry ${index + 1} repeats the ${row.time} time duration. Each duration can only be entered once.`)
+        fieldRefs.current.get(`${row.id}:time`)?.focus()
+        return
+      }
+      seenTimes.add(normalizedTime)
+    }
+
     const preparedRows = rows.map((row) => ({
       time: row.time,
       entryDate: row.entryDate,
@@ -149,14 +230,6 @@ function HourlyEntryForm({
       jpopsQty: Number(row.jpopsQty || 0),
       remarks: row.remarks,
     }))
-
-    if (preparedRows.some((row) =>
-      row.shellQty === 0 && row.ringQty === 0 && row.jpopsQty === 0,
-    )) {
-      setMessageType('error')
-      setMessage('Every entry needs at least one quantity greater than zero.')
-      return
-    }
 
     setSaving(true)
 
@@ -210,15 +283,23 @@ function HourlyEntryForm({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="hourly-sales-summary">
             <div>
               <span>{kind === 'produce' ? 'Produce entries' : 'Waste entries'}</span>
               <strong>{rows.length}</strong>
             </div>
             <div>
-              <span>Total quantity</span>
-              <strong>{totalQuantity.toLocaleString()}</strong>
+              <span>Shell qty</span>
+              <strong>{shellQuantity.toLocaleString()}</strong>
+            </div>
+            <div>
+              <span>Ring qty</span>
+              <strong>{ringQuantity.toLocaleString()}</strong>
+            </div>
+            <div>
+              <span>JPops qty</span>
+              <strong>{jpopsQuantity.toLocaleString()}</strong>
             </div>
             <div className="hourly-sales-kind-label">
               <Clock3 size={17} aria-hidden="true" />
@@ -246,13 +327,29 @@ function HourlyEntryForm({
                       <select
                         aria-label={`Entry ${index + 1} time`}
                         value={row.time}
-                        onChange={(event) => updateRow(row.id, 'time', event.target.value)}
-                        required
+                        ref={(element) => {
+                          if (element) fieldRefs.current.set(`${row.id}:time`, element)
+                          else fieldRefs.current.delete(`${row.id}:time`)
+                        }}
+                        onChange={(event) => {
+                          updateRow(row.id, 'time', event.target.value)
+                          if (event.target.value) focusNextField(row.id, 'time')
+                        }}
                       >
                         <option value="">Select hour</option>
-                        {timeOptions.map((timeOption) => (
-                          <option key={timeOption} value={timeOption}>{timeOption}</option>
-                        ))}
+                        {timeOptions.map((timeOption) => {
+                          const selectedElsewhere = rows.some((otherRow) =>
+                            otherRow.id !== row.id &&
+                            timeOption.toUpperCase() !== 'RETARDING' &&
+                            otherRow.time.trim().toUpperCase() === timeOption.toUpperCase(),
+                          )
+
+                          return (
+                            <option key={timeOption} value={timeOption} disabled={selectedElsewhere}>
+                              {timeOption}
+                            </option>
+                          )
+                        })}
                       </select>
                     </td>
                     <td>
@@ -260,8 +357,14 @@ function HourlyEntryForm({
                         aria-label={`Entry ${index + 1} date`}
                         type="date"
                         value={row.entryDate}
-                        onChange={(event) => updateRow(row.id, 'entryDate', event.target.value)}
-                        required
+                        ref={(element) => {
+                          if (element) fieldRefs.current.set(`${row.id}:entryDate`, element)
+                          else fieldRefs.current.delete(`${row.id}:entryDate`)
+                        }}
+                        onChange={(event) => {
+                          updateRow(row.id, 'entryDate', event.target.value)
+                          if (event.target.value) focusNextField(row.id, 'entryDate')
+                        }}
                       />
                     </td>
                     {(['shellQty', 'ringQty', 'jpopsQty'] as const).map((field) => (
@@ -273,7 +376,17 @@ function HourlyEntryForm({
                           step="1"
                           inputMode="numeric"
                           value={row[field]}
+                          ref={(element) => {
+                            if (element) fieldRefs.current.set(`${row.id}:${field}`, element)
+                            else fieldRefs.current.delete(`${row.id}:${field}`)
+                          }}
                           onChange={(event) => updateRow(row.id, field, event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter') {
+                              event.preventDefault()
+                              focusNextField(row.id, field)
+                            }
+                          }}
                           onBlur={field === 'jpopsQty'
                             ? (event) => normalizeJpopsQuantity(row.id, event.target.value)
                             : undefined}
@@ -285,8 +398,14 @@ function HourlyEntryForm({
                       <select
                         aria-label={`Entry ${index + 1} remarks`}
                         value={row.remarks}
-                        onChange={(event) => updateRow(row.id, 'remarks', event.target.value)}
-                        required
+                        ref={(element) => {
+                          if (element) fieldRefs.current.set(`${row.id}:remarks`, element)
+                          else fieldRefs.current.delete(`${row.id}:remarks`)
+                        }}
+                        onChange={(event) => {
+                          updateRow(row.id, 'remarks', event.target.value)
+                          if (event.target.value) focusNextField(row.id, 'remarks')
+                        }}
                       >
                         <option value="">Select remark</option>
                         {remarksOptions.map((remark) => <option key={remark} value={remark}>{remark}</option>)}
@@ -315,7 +434,7 @@ function HourlyEntryForm({
           </div>
 
           <div className="hourly-sales-actions">
-            <button className="hourly-sales-add" type="button" onClick={addRow}>
+            <button ref={addButtonRef} className="hourly-sales-add" type="button" onClick={addRow}>
               <Plus size={16} aria-hidden="true" />
               Add entry
             </button>
@@ -447,7 +566,7 @@ function HourlySalesPage() {
           onClick={() => setView('entry')}
         >
           <PenLine size={16} aria-hidden="true" />
-          Enter produce / waste
+          Transactions
         </button>
       </div>
 

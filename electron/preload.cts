@@ -17,6 +17,10 @@ import type {
   FtpConfig,
   MissingMenuItem,
 } from './maintenance/maintenance.types.js'
+import type {
+  CreateHourlyEntriesInput,
+  HourlyDailyReportInput,
+} from './hourly-sales/hourly-sales.types.js'
 
 
 contextBridge.exposeInMainWorld('api', {
@@ -248,6 +252,19 @@ systemSales: {
   exportPdf: (input: unknown) =>
     ipcRenderer.invoke(
       'system-sales:export-pdf',
+      input,
+    ),
+},
+
+hourlySales: {
+  getDailyReport: (input: HourlyDailyReportInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:get-daily-report',
+      input,
+    ),
+  createEntries: (input: CreateHourlyEntriesInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:create-entries',
       input,
     ),
 },

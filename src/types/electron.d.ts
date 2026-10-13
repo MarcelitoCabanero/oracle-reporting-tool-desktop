@@ -335,6 +335,87 @@ interface MaintenanceResult {
   message: string
 }
 
+interface HourlyEntryRow {
+  time: string
+  entryDate: string
+  shellQty: number
+  ringQty: number
+  jpopsQty: number
+  remarks: string
+}
+
+interface CreateHourlyEntriesInput {
+  kind: 'produce' | 'waste'
+  businessDate: string
+  locationName: string
+  rows: HourlyEntryRow[]
+}
+
+interface CreateHourlyEntriesResult {
+  success: boolean
+  insertedCount: number
+  message: string
+}
+
+interface HourlyQuantityTotals {
+  ring: number
+  shell: number
+  jpops: number
+  total: number
+}
+
+interface HourlyDailyRow {
+  hourRange: string
+  opening: HourlyQuantityTotals
+  received: HourlyQuantityTotals
+  produced: HourlyQuantityTotals
+  proofingWaste: HourlyQuantityTotals
+  proofingGood: HourlyQuantityTotals
+  proofingWasteRate: number
+  fryingWaste: HourlyQuantityTotals
+  fryingGood: HourlyQuantityTotals
+  fryingWasteRate: number
+  toppingWaste: HourlyQuantityTotals
+  toppingGood: HourlyQuantityTotals
+  toppingWasteRate: number
+  sold: HourlyQuantityTotals
+  ending: HourlyQuantityTotals
+}
+
+interface HourlyDailySummary {
+  produced: HourlyQuantityTotals
+  received: HourlyQuantityTotals
+  sold: HourlyQuantityTotals
+  netProducedSales: HourlyQuantityTotals
+  variance: HourlyQuantityTotals
+  tolerableVariance: number
+  proofingWaste: HourlyQuantityTotals
+  fryingWaste: HourlyQuantityTotals
+  toppingWaste: HourlyQuantityTotals
+  totalWaste: HourlyQuantityTotals
+  tolerableWaste: number
+  excessWaste: number
+  excessWasteEquivalent: number
+  endingInventory: HourlyQuantityTotals
+  salesAllocation: number
+  wasteAllocation: number
+  varianceAllocation: number
+}
+
+interface HourlyDailyReport {
+  businessDate: string
+  locationName: string
+  retardingProduced: HourlyQuantityTotals
+  retardingReceived: HourlyQuantityTotals
+  rows: HourlyDailyRow[]
+  summary: HourlyDailySummary
+}
+
+interface HourlyDailyReportInput {
+  businessDate: string
+  locationName: string
+}
+
 
 declare global {
   interface Window {
@@ -498,6 +579,15 @@ systemSales: {
   exportPdf: (
     input: SystemSalesExportInput,
   ) => Promise<SystemSalesExportResult>
+}
+
+hourlySales: {
+  getDailyReport: (
+    input: HourlyDailyReportInput,
+  ) => Promise<HourlyDailyReport>
+  createEntries: (
+    input: CreateHourlyEntriesInput,
+  ) => Promise<CreateHourlyEntriesResult>
 }
 
 varianceChecking: {

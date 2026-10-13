@@ -307,10 +307,17 @@ export async function createHourlyEntries(
     throw new Error('Submit between 1 and 100 entries at a time.')
   }
 
+  const seenTimes = new Set<string>()
   for (const [index, row] of input.rows.entries()) {
     if (!row.time.trim() || row.time.length > 50) {
       throw new Error(`Entry ${index + 1} needs a valid time.`)
     }
+
+    const normalizedTime = row.time.trim().toUpperCase()
+    if (normalizedTime !== 'RETARDING' && seenTimes.has(normalizedTime)) {
+      throw new Error(`Entry ${index + 1} repeats the ${row.time} time duration. Each duration can only be entered once.`)
+    }
+    if (normalizedTime !== 'RETARDING') seenTimes.add(normalizedTime)
 
     if (!isValidDate(row.entryDate)) {
       throw new Error(`Entry ${index + 1} needs a valid date.`)
