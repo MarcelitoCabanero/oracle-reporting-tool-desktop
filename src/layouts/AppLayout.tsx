@@ -59,7 +59,7 @@ function getPageTitle(page: Page): string {
       return 'Tender Listing'
 
     case 'rof':
-      return 'ROF'
+      return 'Remittance of Funds'
 
     case 'deposit':
       return 'Deposit Monitoring'
