@@ -5,6 +5,7 @@ const today = () => new Date().toISOString().slice(0, 10)
 const n = (v: unknown) => Number(v ?? 0)
 const money = (v: unknown) =>
   n(v).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const scPwdColumnWidths = ['11%', '11%', '11%', '12%', '12%', '10%', '8%', '8%', '9%', '8%']
 
 const formatDate = (v: unknown) => {
   if (!v) return ''
@@ -97,38 +98,53 @@ export default function ScPwdPage() {
         </div>
       </div>
       {error && <div className="alert alert-danger">{error}</div>}
-      <div className="system-sales-table-container">
-        <table className="table system-sales-table">
-          <thead>
-            <tr>
-              <th>Check Number</th>
-              <th>Business Date</th>
-              <th>Discount Type</th>
-              <th>SC/PWD ID</th>
-              <th>SC/PWD Name</th>
-              <th>Gross Sale</th>
-              <th>Less VAT</th>
-              <th>Less Disc.</th>
-              <th>Net Sales</th>
-              <th>Workstation</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                <td>{String(r.checkNumber ?? '')}</td>
-                <td>{formatDate(r.businessDate)}</td>
-                <td>{String(r.discountType ?? '')}</td>
-                <td>{String(r.discountId ?? '')}</td>
-                <td>{String(r.discountName ?? '')}</td>
-                <td>{money(r.grossSale)}</td>
-                <td>{money(r.lessVat)}</td>
-                <td>{money(r.lessDisc)}</td>
-                <td>{money(r.netSales)}</td>
-                <td>{String(r.workstation ?? '')}</td>
+     <div className="system-sales-sc-pwd-table-frame">
+        <div className="system-sales-table-container system-sales-sc-pwd-table-container">
+          <table className="table system-sales-table system-sales-sc-pwd-table mb-0">
+            <colgroup>
+              {scPwdColumnWidths.map((width, i) => (
+                <col key={i} style={{ width }} />
+              ))}
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Check Number</th>
+                <th>Business Date</th>
+                <th>Discount Type</th>
+                <th>SC/PWD ID</th>
+                <th>SC/PWD Name</th>
+                <th>Gross Sale</th>
+                <th>Less VAT</th>
+                <th>Less Disc.</th>
+                <th>Net Sales</th>
+                <th>Workstation</th>
               </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i}>
+                  <td>{String(r.checkNumber ?? '')}</td>
+                  <td>{formatDate(r.businessDate)}</td>
+                  <td>{String(r.discountType ?? '')}</td>
+                  <td>{String(r.discountId ?? '')}</td>
+                  <td>{String(r.discountName ?? '')}</td>
+                  <td>{money(r.grossSale)}</td>
+                  <td>{money(r.lessVat)}</td>
+                  <td>{money(r.lessDisc)}</td>
+                  <td>{money(r.netSales)}</td>
+                  <td>{String(r.workstation ?? '')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <table className="table system-sales-table system-sales-sc-pwd-table system-sales-summary-table mb-0">
+          <caption className="visually-hidden">SC/PWD summary totals</caption>
+          <colgroup>
+            {scPwdColumnWidths.map((width, i) => (
+              <col key={i} style={{ width }} />
             ))}
-          </tbody>
+          </colgroup>
           <tfoot>
             {groups
               .filter(([, items]) => items.length)
