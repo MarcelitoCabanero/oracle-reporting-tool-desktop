@@ -1,0 +1,219 @@
+.hourly-report {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hourly-report-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.hourly-report-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 100px;
+  padding: 14px 16px;
+  border: 1px solid #e8e2d8;
+  border-left: 3px solid #a94a23;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.hourly-report-kpi.sold {
+  border-left-color: #35796a;
+}
+
+.hourly-report-kpi.variance {
+  border-left-color: #a98230;
+}
+
+.hourly-report-kpi.waste {
+  border-left-color: #b44938;
+}
+
+.hourly-report-kpi span,
+.hourly-report-retarding span,
+.hourly-report-summary span {
+  color: #716a62;
+  font-size: 11px;
+}
+
+.hourly-report-kpi strong {
+  color: #292520;
+  font-size: 23px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hourly-report-kpi small,
+.hourly-report-retarding small,
+.hourly-report-summary small {
+  color: #898178;
+  font-size: 10px;
+}
+
+.hourly-report-retarding {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(5, minmax(110px, 1fr));
+  gap: 12px;
+  padding: 12px 15px;
+  border: 1px solid #e8e2d8;
+  border-radius: 5px;
+  background: #fbf8f2;
+}
+
+.hourly-report-retarding > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hourly-report-retarding strong {
+  color: #39332c;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hourly-report-manual-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e9dfc6;
+  border-radius: 4px;
+  background: #fffaf0;
+  color: #6f6145;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.hourly-report-manual-note svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: #a47c2a;
+}
+
+.hourly-report-table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 430px);
+  min-height: 300px;
+  border: 1px solid #e8e2d8;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.hourly-report-table {
+  width: 100%;
+  min-width: 1760px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #37322c;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hourly-report-table th,
+.hourly-report-table td {
+  padding: 7px 9px;
+  border-right: 1px solid #f0ede8;
+  border-bottom: 1px solid #f0ede8;
+  text-align: right;
+}
+
+.hourly-report-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.hourly-report-table thead th {
+  background: #f6f0e6;
+  color: #5f564a;
+  font-weight: 700;
+  text-align: center;
+}
+
+.hourly-report-table thead .hourly-report-groups th {
+  background: #eee3d1;
+  color: #463d32;
+  font-size: 10px;
+}
+
+.hourly-report-table thead th:first-child,
+.hourly-report-table tbody th,
+.hourly-report-table tfoot th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #faf8f4;
+  text-align: left;
+}
+
+.hourly-report-table thead th:first-child {
+  z-index: 3;
+}
+
+.hourly-report-table tbody tr:nth-child(even) td {
+  background: #fcfbf9;
+}
+
+.hourly-report-table tbody th {
+  color: #5b5146;
+  font-weight: 650;
+}
+
+.hourly-report-table tfoot th,
+.hourly-report-table tfoot td {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  border-top: 2px solid #c7a87b;
+  background: #f6f0e6;
+  color: #39332c;
+  font-weight: 750;
+}
+
+.hourly-report-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 9px;
+}
+
+.hourly-report-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 13px;
+  border: 1px solid #e8e2d8;
+  border-radius: 5px;
+  background: #fff;
+}
+
+.hourly-report-summary strong {
+  color: #302a25;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .hourly-report-kpis {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .hourly-report-retarding {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .hourly-report-summary {
+    grid-template-columns: repeat(2, minmax(130px, 1fr));
+  }
+
+  .hourly-report-table-wrap {
+    max-height: 60vh;
+  }
+}
