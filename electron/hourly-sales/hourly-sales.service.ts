@@ -9,10 +9,10 @@ import type {
   HourlyDailyReport,
   HourlyDailyReportInput,
   HourlyDailyRow,
+  HourlyPosSalesRow,
   HourlyQuantityTotals,
   HourlyReportSourceRow,
   HourlyReportSources,
-  HourlySalesSourceRow,
 } from './hourly-sales.types.js'
 
 const emptyTotals = (): HourlyQuantityTotals => ({
@@ -96,11 +96,11 @@ function rollupHourlyReport(
 ): HourlyDailyReport {
   const retardingProducedRows = sources.produce.filter((row) =>
     row.time.trim().toUpperCase() === 'RETARDING' &&
-    row.remarks.trim().toLowerCase() !== 'received donuts',
+    row.remarks !== 'Received Donuts',
   )
   const retardingReceivedRows = sources.produce.filter((row) =>
     row.time.trim().toUpperCase() === 'RETARDING' &&
-    row.remarks.trim().toLowerCase() === 'received donuts',
+    row.remarks === 'Received Donuts',
   )
   const retardingProduced = sourceTotals(retardingProducedRows)
   const retardingReceived = sourceTotals(retardingReceivedRows)
@@ -120,7 +120,7 @@ function rollupHourlyReport(
     }
     const totals = sourceTotals([row])
 
-    if (row.remarks.trim().toLowerCase() === 'received donuts') {
+    if (row.remarks === 'Received Donuts') {
       entry.received = addTotals(entry.received, totals)
     } else {
       entry.produced = addTotals(entry.produced, totals)
@@ -225,13 +225,13 @@ function rollupHourlyReport(
     return row
   })
 
-  const produced = rows.reduce((total, row) => addTotals(total, row.produced), retardingProduced)
-  const received = rows.reduce((total, row) => addTotals(total, row.received), retardingReceived)
+  const produced = sourceTotals(sources.produce.filter((row) => row.remarks !== 'Received Donuts'))
+  const received = sourceTotals(sources.produce.filter((row) => row.remarks === 'Received Donuts'))
   const sold = rows.reduce((total, row) => addTotals(total, row.sold), emptyTotals())
   const proofingWaste = rows.reduce((total, row) => addTotals(total, row.proofingWaste), emptyTotals())
   const fryingWaste = rows.reduce((total, row) => addTotals(total, row.fryingWaste), emptyTotals())
   const toppingWaste = rows.reduce((total, row) => addTotals(total, row.toppingWaste), emptyTotals())
-  const totalWaste = addTotals(addTotals(proofingWaste, fryingWaste), toppingWaste)
+  const totalWaste = sourceTotals(sources.waste)
   const netProducedSales: HourlyQuantityTotals = {
     ring: sold.ring - received.ring,
     shell: sold.shell + sold.jpops - received.shell - received.jpops,
@@ -254,6 +254,14 @@ function rollupHourlyReport(
     locationName: input.locationName,
     retardingProduced,
     retardingReceived,
+    posSales: sources.sales.map((row): HourlyPosSalesRow => ({
+      businessDate: input.businessDate,
+      hourRange: row.hourRange,
+      ringSold: row.ringSold,
+      shellSold: row.shellSold,
+      jpopsSold: row.jpopsSold,
+    })),
+    posWaste: sources.posWaste,
     rows,
     summary: {
       produced,

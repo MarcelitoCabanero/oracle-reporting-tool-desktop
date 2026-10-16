@@ -400,6 +400,19 @@
   margin: 0;
 }
 
+.hourly-sales-day-report {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hourly-sales-day-report > h2 {
+  margin: 0;
+  color: #514b44;
+  font-size: 16px;
+  font-weight: 700;
+}
+
 @media (max-width: 720px) {
   .hourly-sales-report-controls {
     align-items: stretch;

@@ -5,6 +5,7 @@ import {
 } from 'react'
 
 import {
+  BarChart3,
   CalendarDays,
   ClipboardList,
   Clock3,
@@ -19,7 +20,7 @@ import {
   useAuth,
 } from '../auth/useAuth'
 
-import HourlyDailyReport from './HourlyDailyReport'
+import HourlyDailyReport, { HourlyProductionSummary } from './HourlyDailyReport'
 
 import './HourlySalesPage.css'
 
@@ -65,6 +66,86 @@ function todayString() {
   const day = String(now.getDate()).padStart(2, '0')
 
   return `${year}-${month}-${day}`
+}
+
+function getDatesInRange(startDate: string, endDate: string): string[] {
+  const dates: string[] = []
+  const current = new Date(`${startDate}T00:00:00.000Z`)
+  const end = new Date(`${endDate}T00:00:00.000Z`)
+
+  while (current <= end) {
+    dates.push(current.toISOString().slice(0, 10))
+    current.setUTCDate(current.getUTCDate() + 1)
+  }
+
+  return dates
+}
+
+function aggregateDailyReports(
+  reports: HourlyDailyReportData[],
+): HourlyDailyReportData | null {
+  const first = reports[0]
+  const last = reports.at(-1)
+  if (!first || !last) return null
+
+  function sumTotals(
+    key: 'produced' | 'received' | 'sold' | 'netProducedSales' | 'variance' |
+      'proofingWaste' | 'fryingWaste' | 'toppingWaste' | 'totalWaste',
+  ) {
+    return reports.reduce((total, report) => {
+      const daily = report.summary[key]
+      return {
+        ring: total.ring + daily.ring,
+        shell: total.shell + daily.shell,
+        jpops: total.jpops + daily.jpops,
+        total: total.total + daily.total,
+      }
+    }, { ring: 0, shell: 0, jpops: 0, total: 0 })
+  }
+
+  const produced = sumTotals('produced')
+  const received = sumTotals('received')
+  const sold = sumTotals('sold')
+  const netProducedSales = sumTotals('netProducedSales')
+  const variance = sumTotals('variance')
+  const proofingWaste = sumTotals('proofingWaste')
+  const fryingWaste = sumTotals('fryingWaste')
+  const toppingWaste = sumTotals('toppingWaste')
+  const totalWaste = sumTotals('totalWaste')
+  const posWaste = reports.reduce((total, report) => ({
+    ring: total.ring + (report.posWaste?.ring ?? 0),
+    shell: total.shell + (report.posWaste?.shell ?? 0),
+    jpops: total.jpops + (report.posWaste?.jpops ?? 0),
+  }), { ring: 0, shell: 0, jpops: 0 })
+  const tolerableVariance = produced.total * 0.03
+  const tolerableWaste = produced.total * 0.01
+  const excessWaste = Math.max(0, totalWaste.total - tolerableWaste)
+
+  return {
+    ...last,
+    businessDate: `${first.businessDate} – ${last.businessDate}`,
+    posSales: reports.flatMap((report) => report.posSales ?? []),
+    posWaste,
+    summary: {
+      ...last.summary,
+      produced,
+      received,
+      sold,
+      netProducedSales,
+      variance,
+      tolerableVariance,
+      proofingWaste,
+      fryingWaste,
+      toppingWaste,
+      totalWaste,
+      tolerableWaste,
+      excessWaste,
+      excessWasteEquivalent: excessWaste * 27,
+      salesAllocation: produced.total === 0 ? 0 : netProducedSales.total / produced.total,
+      wasteAllocation: produced.total === 0 ? 0 : totalWaste.total / produced.total,
+      varianceAllocation: produced.total === 0 ? 0 : variance.total / produced.total,
+    },
+  }
 }
 
 function createDraft(date: string): EntryDraft {
@@ -464,51 +545,77 @@ type HourlyDailyReportData = Awaited<
 
 function HourlySalesPage() {
   const { user } = useAuth()
-  const [view, setView] = useState<'report' | 'entry'>('report')
-  const [businessDate, setBusinessDate] = useState(todayString)
-  const [report, setReport] = useState<HourlyDailyReportData | null>(null)
+  const [view, setView] = useState<'daily' | 'summary' | 'entry'>('daily')
+  const [startDate, setStartDate] = useState(todayString)
+  const [endDate, setEndDate] = useState(todayString)
+  const [reports, setReports] = useState<HourlyDailyReportData[]>([])
   const [reportLoading, setReportLoading] = useState(false)
-  const [reportError, setReportError] = useState('')
+  const [reportLoadError, setReportLoadError] = useState('')
   const [refreshCount, setRefreshCount] = useState(0)
+  const locationName = user?.locationName
+  const invalidDateRange = !startDate || !endDate || startDate > endDate
+  const reportError = !locationName
+    ? 'Your account does not have a location assigned.'
+    : !startDate || !endDate
+      ? 'Choose both a start date and an end date.'
+      : startDate > endDate
+      ? 'The start date must be on or before the end date.'
+      : reportLoadError
+  const reportIsLoading = Boolean(locationName && !invalidDateRange && reportLoading)
+  const summaryReport = aggregateDailyReports(reports)
 
   useEffect(() => {
     let active = true
 
-    if (!user?.locationName) {
-      setReportError('Your account does not have a location assigned.')
-      setReport(null)
+    if (!locationName || startDate > endDate) {
       return () => {
         active = false
       }
     }
 
-    setReportLoading(true)
-    setReportError('')
+    const selectedLocationName = locationName
 
-    window.api.hourlySales.getDailyReport({
-      businessDate,
-      locationName: user.locationName,
-    })
-      .then((result) => {
-        if (active) setReport(result)
-      })
-      .catch((error: unknown) => {
-        if (active) {
-          setReport(null)
-          setReportError(getErrorMessage(error))
+    async function loadReports() {
+      setReportLoading(true)
+      setReportLoadError('')
+      setReports([])
+
+      try {
+        const dates = getDatesInRange(startDate, endDate)
+        const batchSize = 7
+
+        for (let index = 0; index < dates.length; index += batchSize) {
+          const batchReports = await Promise.all(
+            dates.slice(index, index + batchSize).map((businessDate) =>
+              window.api.hourlySales.getDailyReport({
+                businessDate,
+                locationName: selectedLocationName,
+              }),
+            ),
+          )
+
+          if (!active) return
+          setReports((currentReports) => [...currentReports, ...batchReports])
         }
-      })
-      .finally(() => {
+      } catch (error) {
+        if (active) {
+          setReports([])
+          setReportLoadError(getErrorMessage(error))
+        }
+      } finally {
         if (active) setReportLoading(false)
-      })
+      }
+    }
+
+    void loadReports()
 
     return () => {
       active = false
     }
-  }, [businessDate, refreshCount, user?.locationName])
+  }, [endDate, locationName, refreshCount, startDate])
 
   function handleEntrySaved() {
-    setView('report')
+    setView('daily')
     setRefreshCount((count) => count + 1)
   }
 
@@ -523,16 +630,29 @@ function HourlySalesPage() {
         <div className="hourly-sales-report-controls">
           <div className="hourly-sales-date">
             <CalendarDays size={17} aria-hidden="true" />
-            <label htmlFor="hourly-business-date">Business date</label>
+            <label htmlFor="hourly-start-date">From</label>
             <input
-              id="hourly-business-date"
+              id="hourly-start-date"
+              aria-label="Report start date"
               type="date"
-              value={businessDate}
-              onChange={(event) => setBusinessDate(event.target.value)}
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
               required
             />
           </div>
-          {view === 'report' && (
+          <div className="hourly-sales-date">
+            <CalendarDays size={17} aria-hidden="true" />
+            <label htmlFor="hourly-end-date">To</label>
+            <input
+              id="hourly-end-date"
+              aria-label="Report end date"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              required
+            />
+          </div>
+          {view !== 'entry' && (
             <button
               className="hourly-sales-refresh"
               type="button"
@@ -551,12 +671,22 @@ function HourlySalesPage() {
         <button
           type="button"
           role="tab"
-          aria-selected={view === 'report'}
-          className={view === 'report' ? 'active' : ''}
-          onClick={() => setView('report')}
+          aria-selected={view === 'daily'}
+          className={view === 'daily' ? 'active' : ''}
+          onClick={() => setView('daily')}
         >
           <ClipboardList size={16} aria-hidden="true" />
-          Daily report
+          Hourly details
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'summary'}
+          className={view === 'summary' ? 'active' : ''}
+          onClick={() => setView('summary')}
+        >
+          <BarChart3 size={16} aria-hidden="true" />
+          Donut summary
         </button>
         <button
           type="button"
@@ -570,17 +700,25 @@ function HourlySalesPage() {
         </button>
       </div>
 
-      {view === 'report' && (
+      {view !== 'entry' && (
         <>
-          {reportLoading && <div className="hourly-sales-report-state">Loading daily report...</div>}
+          {reportIsLoading && <div className="hourly-sales-report-state">Loading reports for the selected date range...</div>}
           {reportError && <div className="hourly-sales-message error" role="alert">{reportError}</div>}
-          {report && !reportLoading && <HourlyDailyReport report={report} />}
+          {!reportIsLoading && !reportError && view === 'daily' && reports.map((report) => (
+            <section className="hourly-sales-day-report" key={report.businessDate}>
+              <h2>{report.businessDate}</h2>
+              <HourlyDailyReport report={report} />
+            </section>
+          ))}
+          {!reportIsLoading && !reportError && view === 'summary' && summaryReport && (
+            <HourlyProductionSummary report={summaryReport} />
+          )}
         </>
       )}
 
       {view === 'entry' && (
         <HourlyEntryForm
-          businessDate={businessDate}
+          businessDate={startDate}
           onSaved={handleEntrySaved}
         />
       )}

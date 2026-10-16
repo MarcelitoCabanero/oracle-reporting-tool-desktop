@@ -1,9 +1,6 @@
 import sql from 'mssql'
 
 import {
-  getHourlyDbPool,
-} from '../database/hourlydb.js'
-import {
   getLocalDbPool,
 } from '../database/localdb.js'
 
@@ -18,7 +15,7 @@ import type {
 export async function insertHourlyEntries(
   input: CreateHourlyEntriesInput,
 ): Promise<void> {
-  const pool = await getHourlyDbPool()
+  const pool = await getLocalDbPool()
   const transaction = new sql.Transaction(pool)
   const isProduce = input.kind === 'produce'
   const tableName = isProduce ? 'dbo.dts_produce' : 'dbo.dts_waste'
@@ -76,13 +73,10 @@ export async function insertHourlyEntries(
 export async function loadHourlyReportSources(
   input: HourlyDailyReportInput,
 ): Promise<HourlyReportSources> {
-  const [hourlyPool, posPool] = await Promise.all([
-    getHourlyDbPool(),
-    getLocalDbPool(),
-  ])
+  const pool = await getLocalDbPool()
 
-  const [produceResult, wasteResult, salesResult] = await Promise.all([
-    hourlyPool
+  const [produceResult, wasteResult, salesResult, posWasteResult] = await Promise.all([
+    pool
       .request()
       .input('businessDate', sql.Date, input.businessDate)
       .input('locationName', sql.VarChar(50), input.locationName)
@@ -94,11 +88,11 @@ export async function loadHourlyReportSources(
           SUM(ISNULL(ring_qty, 0)) AS ringQty,
           SUM(ISNULL(jpops_qty, 0)) AS jpopsQty
         FROM dbo.dts_produce
-        WHERE businessdate = @businessDate
+        WHERE date_mix = @businessDate
           AND locationname = @locationName
         GROUP BY time_mixing, Remarks
       `),
-    hourlyPool
+    pool
       .request()
       .input('businessDate', sql.Date, input.businessDate)
       .input('locationName', sql.VarChar(50), input.locationName)
@@ -110,11 +104,11 @@ export async function loadHourlyReportSources(
           SUM(ISNULL(ring_qty, 0)) AS ringQty,
           SUM(ISNULL(jpops_qty, 0)) AS jpopsQty
         FROM dbo.dts_waste
-        WHERE businessdate = @businessDate
+        WHERE date_waste = @businessDate
           AND locationname = @locationName
         GROUP BY time_waste, Remarks
       `),
-    posPool
+    pool
       .request()
       .input('businessDate', sql.Date, input.businessDate)
       .query(`
@@ -126,6 +120,19 @@ export async function loadHourlyReportSources(
         FROM dbo.v_donutsold
         WHERE CAST(DateSold AS date) = @businessDate
         GROUP BY HourRange
+      `),
+    pool
+      .request()
+      .input('businessDate', sql.Date, input.businessDate)
+      .query(`
+        SELECT
+          SUM(CASE WHEN UPPER(LTRIM(RTRIM(Category))) = 'RING' THEN ISNULL(qty, 0) ELSE 0 END) AS ringWaste,
+          SUM(CASE WHEN UPPER(LTRIM(RTRIM(Category))) = 'SHELL' THEN ISNULL(qty, 0) ELSE 0 END) AS shellWaste,
+          SUM(CASE WHEN UPPER(LTRIM(RTRIM(Category))) = 'JPOPS' THEN ISNULL(qty, 0) ELSE 0 END) AS jpopsWaste
+        FROM dbo.v_itemdetail
+        WHERE UPPER(LTRIM(RTRIM(rvc_type))) = 'FOC WASTE'
+          AND DetailPostingTime >= @businessDate
+          AND DetailPostingTime < DATEADD(day, 1, @businessDate)
       `),
   ])
 
@@ -150,5 +157,10 @@ export async function loadHourlyReportSources(
       shellSold: Number(row.shellSold ?? 0),
       jpopsSold: Number(row.jpopsSold ?? 0),
     })),
+    posWaste: {
+      ring: Number(posWasteResult.recordset[0]?.ringWaste ?? 0),
+      shell: Number(posWasteResult.recordset[0]?.shellWaste ?? 0),
+      jpops: Number(posWasteResult.recordset[0]?.jpopsWaste ?? 0),
+    },
   }
 }

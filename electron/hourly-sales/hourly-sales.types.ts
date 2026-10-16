@@ -42,10 +42,21 @@ export interface HourlySalesSourceRow {
   jpopsSold: number
 }
 
+export interface HourlyPosSalesRow extends HourlySalesSourceRow {
+  businessDate: string
+}
+
+export interface HourlyPosWasteTotals {
+  ring: number
+  shell: number
+  jpops: number
+}
+
 export interface HourlyReportSources {
   produce: HourlyReportSourceRow[]
   waste: HourlyReportSourceRow[]
   sales: HourlySalesSourceRow[]
+  posWaste: HourlyPosWasteTotals
 }
 
 export interface HourlyQuantityTotals {
@@ -98,6 +109,8 @@ export interface HourlyDailyReport {
   locationName: string
   retardingProduced: HourlyQuantityTotals
   retardingReceived: HourlyQuantityTotals
+  posSales: HourlyPosSalesRow[]
+  posWaste: HourlyPosWasteTotals
   rows: HourlyDailyRow[]
   summary: HourlyDailySummary
 }

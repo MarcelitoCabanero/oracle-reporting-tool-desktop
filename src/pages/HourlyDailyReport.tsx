@@ -22,6 +22,309 @@ function percent(value: number) {
   return `${(value * 100).toFixed(2)}%`
 }
 
+function roundAwayFromZero(value: number) {
+  return Math.sign(value) * Math.floor(Math.abs(value) + 0.5)
+}
+
+interface SummaryQuantities {
+  ring: number | null
+  shell: number | null
+  total: number | null
+}
+
+interface SummaryLine {
+  label: string
+  quantities: SummaryQuantities
+  kind?: 'subtotal' | 'emphasis'
+}
+
+export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
+  const { summary } = report
+  const quantities = (
+    ring: number,
+    shell: number,
+    total: number,
+  ): SummaryQuantities => ({ ring, shell, total })
+  const unavailable: SummaryQuantities = { ring: null, shell: null, total: null }
+  const sections: { title: string; lines: SummaryLine[] }[] = [
+    {
+      title: 'SALES',
+      lines: [
+        {
+          label: 'POS donuts sold (combined)',
+          quantities: quantities(summary.sold.ring, summary.sold.shell + summary.sold.jpops, summary.sold.total),
+        },
+        { label: 'J.Club / J.Pops breakdown', quantities: unavailable },
+        {
+          label: 'Received donuts (less)',
+          quantities: quantities(-summary.received.ring, -(summary.received.shell + summary.received.jpops), -summary.received.total),
+        },
+        {
+          label: 'Total produced sold',
+          quantities: quantities(summary.netProducedSales.ring, summary.netProducedSales.shell, summary.netProducedSales.total),
+          kind: 'subtotal',
+        },
+      ],
+    },
+    {
+      title: 'FOC',
+      lines: [
+        { label: 'Promotions, training and other FOC', quantities: unavailable },
+        { label: 'Total free of charge', quantities: unavailable, kind: 'subtotal' },
+      ],
+    },
+    {
+      title: 'WASTE',
+      lines: [
+        {
+          label: 'Proofing',
+          quantities: quantities(summary.proofingWaste.ring, summary.proofingWaste.shell + summary.proofingWaste.jpops, summary.proofingWaste.total),
+        },
+        {
+          label: 'Frying',
+          quantities: quantities(summary.fryingWaste.ring, summary.fryingWaste.shell + summary.fryingWaste.jpops, summary.fryingWaste.total),
+        },
+        {
+          label: 'Topping',
+          quantities: quantities(summary.toppingWaste.ring, summary.toppingWaste.shell + summary.toppingWaste.jpops, summary.toppingWaste.total),
+        },
+        { label: 'Other waste types', quantities: unavailable },
+        {
+          label: 'Total actual wastages (tracked)',
+          quantities: quantities(summary.totalWaste.ring, summary.totalWaste.shell + summary.totalWaste.jpops, summary.totalWaste.total),
+          kind: 'subtotal',
+        },
+      ],
+    },
+    {
+      title: 'BUFFER',
+      lines: [
+        { label: 'Buffer entries', quantities: unavailable },
+        { label: 'Total buffer', quantities: unavailable, kind: 'subtotal' },
+      ],
+    },
+    {
+      title: 'TRANSFER',
+      lines: [
+        { label: 'Transferred to other stores', quantities: unavailable },
+        { label: 'Total transferred', quantities: unavailable, kind: 'subtotal' },
+      ],
+    },
+  ]
+  const metrics: SummaryLine[] = [
+    {
+      label: 'Produced donuts',
+      quantities: quantities(summary.produced.ring, summary.produced.shell + summary.produced.jpops, summary.produced.total),
+      kind: 'emphasis',
+    },
+    {
+      label: 'Variance (produced versus sold)',
+      quantities: quantities(summary.variance.ring, summary.variance.shell, summary.variance.total),
+      kind: 'emphasis',
+    },
+    {
+      label: 'Tolerable variance (3%)',
+      quantities: { ring: null, shell: null, total: summary.tolerableVariance },
+    },
+    {
+      label: 'Efficiency of baker',
+      quantities: unavailable,
+    },
+    {
+      label: 'Tolerable wastages (1%)',
+      quantities: { ring: null, shell: null, total: summary.tolerableWaste },
+    },
+    {
+      label: 'Total actual wastages',
+      quantities: quantities(summary.totalWaste.ring, summary.totalWaste.shell + summary.totalWaste.jpops, summary.totalWaste.total),
+    },
+    {
+      label: 'Excess wastages',
+      quantities: { ring: null, shell: null, total: summary.excessWaste },
+    },
+    {
+      label: 'Excess waste equivalent (₱27 per piece)',
+      quantities: { ring: null, shell: null, total: summary.excessWasteEquivalent },
+    },
+  ]
+
+  function display(value: number | null) {
+    return value === null ? '—' : quantity(value)
+  }
+
+  function renderLine(line: SummaryLine) {
+    return (
+      <tr className={line.kind ? `hourly-production-summary-${line.kind}` : undefined} key={line.label}>
+        <th scope="row">{line.label}</th>
+        <td>{display(line.quantities.ring)}</td>
+        <td>{display(line.quantities.shell)}</td>
+        <td>{display(line.quantities.total)}</td>
+      </tr>
+    )
+  }
+
+  const posSales = report.posSales ?? []
+  const posSalesTotals = posSales.reduce((total, row) => ({
+    ring: total.ring + row.ringSold,
+    shell: total.shell + row.shellSold,
+    jpops: total.jpops + row.jpopsSold,
+  }), { ring: 0, shell: 0, jpops: 0 })
+  const posWaste = report.posWaste ?? { ring: 0, shell: 0, jpops: 0 }
+  const posWasteJpops = roundAwayFromZero(posWaste.jpops * 24 * 7 / 35)
+
+  return (
+    <div className="hourly-production-summary-layout">
+      <section className="hourly-production-summary" aria-label="Donut production summary">
+      <div className="hourly-production-summary-heading">
+        <div>
+          <h2>Donut production summary</h2>
+          <p>{report.locationName} · {report.businessDate}</p>
+        </div>
+        <span>Shell includes JPops equivalents</span>
+      </div>
+      <div className="hourly-production-summary-scroll">
+        <table className="hourly-production-summary-table">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col">Ring</th>
+              <th scope="col">Shell</th>
+              <th scope="col">Total</th>
+            </tr>
+          </thead>
+          {sections.map((section) => (
+            <tbody key={section.title}>
+              <tr className="hourly-production-summary-section">
+                <th scope="rowgroup" colSpan={4}>{section.title}</th>
+              </tr>
+              {section.lines.map(renderLine)}
+            </tbody>
+          ))}
+          <tbody className="hourly-production-summary-totals">
+            {metrics.map(renderLine)}
+          </tbody>
+        </table>
+      </div>
+      </section>
+
+      <aside className="hourly-production-pos" aria-label="POS report">
+        <div className="hourly-production-pos-heading">
+          <h2>POS report</h2>
+          <span>{report.businessDate}</span>
+        </div>
+        <section className="hourly-production-pos-section" aria-label="Produce totals">
+          <h3>Produce</h3>
+          <div className="hourly-production-summary-scroll">
+            <table className="hourly-production-pos-table">
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col">Ring Qty</th>
+                  <th scope="col">Shell Qty</th>
+                  <th scope="col">Jpops Qty</th>
+                  <th scope="col">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="hourly-production-pos-total hourly-production-pos-waste-total">
+                  <th scope="row">TOTAL PRODUCED</th>
+                  <td>{quantity(summary.produced.ring)}</td>
+                  <td>{quantity(summary.produced.shell)}</td>
+                  <td>{quantity(summary.produced.jpops)}</td>
+                  <td>—</td>
+                </tr>
+                <tr className="hourly-production-pos-total">
+                  <th scope="row">TOTAL RECEIVED</th>
+                  <td>{quantity(summary.received.ring)}</td>
+                  <td>{quantity(summary.received.shell)}</td>
+                  <td>{quantity(summary.received.jpops)}</td>
+                  <td>—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section className="hourly-production-pos-section" aria-label="POS waste totals">
+          <h3>Waste totals</h3>
+          <p>POS waste comes from dbo.v_itemdetail records with rvc_type = FOC Waste.</p>
+          <div className="hourly-production-summary-scroll">
+            <table className="hourly-production-pos-table">
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col">Ring Qty</th>
+                  <th scope="col">Shell Qty</th>
+                  <th scope="col">Jpops Qty</th>
+                  <th scope="col">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">TOTAL WASTE</th>
+                  <td>{quantity(summary.totalWaste.ring)}</td>
+                  <td>{quantity(summary.totalWaste.shell)}</td>
+                  <td>{quantity(summary.totalWaste.jpops)}</td>
+                  <td>—</td>
+                </tr>
+                <tr className="hourly-production-pos-total">
+                  <th scope="row">TOTAL POS WASTE</th>
+                  <td>{quantity(posWaste.ring)}</td>
+                  <td>{quantity(posWaste.shell)}</td>
+                  <td>{quantity(posWasteJpops)}</td>
+                  <td>—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="hourly-production-pos-section hourly-production-pos-sales" aria-label="POS sales by hour">
+          <h3>POS donuts sold</h3>
+          <div className="hourly-production-summary-scroll">
+            <table className="hourly-production-pos-table">
+              <thead>
+                <tr>
+                  <th scope="col">Time sold</th>
+                  <th scope="col">Ring Qty</th>
+                  <th scope="col">Shell Qty</th>
+                  <th scope="col">Jpops Qty</th>
+                </tr>
+              </thead>
+              <tbody>
+                {posSales.map((row, index) => (
+                  <tr key={`${row.businessDate}-${row.hourRange}-${index}`}>
+                    <th scope="row">
+                      {report.businessDate.includes(' – ') &&
+                        `${row.businessDate} · `}
+                      {row.hourRange}
+                    </th>
+                    <td>{quantity(row.ringSold)}</td>
+                    <td>{quantity(row.shellSold)}</td>
+                    <td>{quantity(row.jpopsSold)}</td>
+                  </tr>
+                ))}
+                {posSales.length === 0 && (
+                  <tr><td colSpan={4} className="hourly-production-pos-empty">No POS sales for this date range.</td></tr>
+                )}
+                <tr className="hourly-production-pos-total">
+                  <th scope="row">TOTAL SOLD</th>
+                  <td>{quantity(posSalesTotals.ring)}</td>
+                  <td>{quantity(posSalesTotals.shell)}</td>
+                  <td>{quantity(posSalesTotals.jpops)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </aside>
+
+      <p className="hourly-production-summary-note">
+        A dash indicates a category that is not available in the current report data. FOC, buffer, transfers, and baker efficiency are not currently captured by the app. POS waste is read from dbo.v_itemdetail, filtered to FOC Waste, with JPops converted using 24 × 7 ÷ 35 and rounded to the nearest whole piece.
+      </p>
+    </div>
+  )
+}
+
 function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
   const { summary } = report
   const rows = report.rows

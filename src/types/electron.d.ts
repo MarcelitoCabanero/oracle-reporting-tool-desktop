@@ -402,11 +402,27 @@ interface HourlyDailySummary {
   varianceAllocation: number
 }
 
+interface HourlyPosSalesRow {
+  businessDate: string
+  hourRange: string
+  ringSold: number
+  shellSold: number
+  jpopsSold: number
+}
+
+interface HourlyPosWasteTotals {
+  ring: number
+  shell: number
+  jpops: number
+}
+
 interface HourlyDailyReport {
   businessDate: string
   locationName: string
   retardingProduced: HourlyQuantityTotals
   retardingReceived: HourlyQuantityTotals
+  posSales?: HourlyPosSalesRow[]
+  posWaste?: HourlyPosWasteTotals
   rows: HourlyDailyRow[]
   summary: HourlyDailySummary
 }
