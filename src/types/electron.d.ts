@@ -408,6 +408,7 @@ interface HourlyPosSalesRow {
   ringSold: number
   shellSold: number
   jpopsSold: number
+  jclubSold: number
 }
 
 interface HourlyPosWasteTotals {

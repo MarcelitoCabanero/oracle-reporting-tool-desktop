@@ -148,12 +148,12 @@ function rollupHourlyReport(
   for (const row of sources.sales) {
     const key = normalizeHourRange(row.hourRange)
     const current = salesByHour.get(key) ?? emptyTotals()
-    const jpopsEquivalent = row.jpopsSold * (24 * 7 / 35)
+    const jpopsEquivalent = row.jpopsSold * 24
     salesByHour.set(key, addTotals(current, {
       ring: row.ringSold,
-      shell: row.shellSold,
+      shell: row.shellSold + row.jclubSold,
       jpops: jpopsEquivalent,
-      total: row.ringSold + row.shellSold + jpopsEquivalent,
+      total: row.ringSold + row.shellSold + row.jclubSold + jpopsEquivalent,
     }))
   }
 
@@ -260,6 +260,7 @@ function rollupHourlyReport(
       ringSold: row.ringSold,
       shellSold: row.shellSold,
       jpopsSold: row.jpopsSold,
+      jclubSold: row.jclubSold,
     })),
     posWaste: sources.posWaste,
     rows,

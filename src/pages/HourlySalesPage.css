@@ -421,10 +421,11 @@
 
   .hourly-sales-view-tabs {
     width: 100%;
+    overflow-x: auto;
   }
 
   .hourly-sales-view-tabs button {
-    flex: 1;
+    flex: 1 0 auto;
     padding: 0 8px;
   }
 }

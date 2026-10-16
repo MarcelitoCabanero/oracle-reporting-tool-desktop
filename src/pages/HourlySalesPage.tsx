@@ -20,7 +20,9 @@ import {
   useAuth,
 } from '../auth/useAuth'
 
-import HourlyDailyReport, { HourlyProductionSummary } from './HourlyDailyReport'
+import HourlyDailyReport, {
+  HourlyProductionSummary,
+} from './HourlyDailyReport'
 
 import './HourlySalesPage.css'
 
@@ -79,73 +81,6 @@ function getDatesInRange(startDate: string, endDate: string): string[] {
   }
 
   return dates
-}
-
-function aggregateDailyReports(
-  reports: HourlyDailyReportData[],
-): HourlyDailyReportData | null {
-  const first = reports[0]
-  const last = reports.at(-1)
-  if (!first || !last) return null
-
-  function sumTotals(
-    key: 'produced' | 'received' | 'sold' | 'netProducedSales' | 'variance' |
-      'proofingWaste' | 'fryingWaste' | 'toppingWaste' | 'totalWaste',
-  ) {
-    return reports.reduce((total, report) => {
-      const daily = report.summary[key]
-      return {
-        ring: total.ring + daily.ring,
-        shell: total.shell + daily.shell,
-        jpops: total.jpops + daily.jpops,
-        total: total.total + daily.total,
-      }
-    }, { ring: 0, shell: 0, jpops: 0, total: 0 })
-  }
-
-  const produced = sumTotals('produced')
-  const received = sumTotals('received')
-  const sold = sumTotals('sold')
-  const netProducedSales = sumTotals('netProducedSales')
-  const variance = sumTotals('variance')
-  const proofingWaste = sumTotals('proofingWaste')
-  const fryingWaste = sumTotals('fryingWaste')
-  const toppingWaste = sumTotals('toppingWaste')
-  const totalWaste = sumTotals('totalWaste')
-  const posWaste = reports.reduce((total, report) => ({
-    ring: total.ring + (report.posWaste?.ring ?? 0),
-    shell: total.shell + (report.posWaste?.shell ?? 0),
-    jpops: total.jpops + (report.posWaste?.jpops ?? 0),
-  }), { ring: 0, shell: 0, jpops: 0 })
-  const tolerableVariance = produced.total * 0.03
-  const tolerableWaste = produced.total * 0.01
-  const excessWaste = Math.max(0, totalWaste.total - tolerableWaste)
-
-  return {
-    ...last,
-    businessDate: `${first.businessDate} – ${last.businessDate}`,
-    posSales: reports.flatMap((report) => report.posSales ?? []),
-    posWaste,
-    summary: {
-      ...last.summary,
-      produced,
-      received,
-      sold,
-      netProducedSales,
-      variance,
-      tolerableVariance,
-      proofingWaste,
-      fryingWaste,
-      toppingWaste,
-      totalWaste,
-      tolerableWaste,
-      excessWaste,
-      excessWasteEquivalent: excessWaste * 27,
-      salesAllocation: produced.total === 0 ? 0 : netProducedSales.total / produced.total,
-      wasteAllocation: produced.total === 0 ? 0 : totalWaste.total / produced.total,
-      varianceAllocation: produced.total === 0 ? 0 : variance.total / produced.total,
-    },
-  }
 }
 
 function createDraft(date: string): EntryDraft {
@@ -553,21 +488,22 @@ function HourlySalesPage() {
   const [reportLoadError, setReportLoadError] = useState('')
   const [refreshCount, setRefreshCount] = useState(0)
   const locationName = user?.locationName
-  const invalidDateRange = !startDate || !endDate || startDate > endDate
+  const reportEndDate = view === 'summary' ? startDate : endDate
+  const invalidDateRange = !startDate || !reportEndDate || startDate > reportEndDate
   const reportError = !locationName
     ? 'Your account does not have a location assigned.'
-    : !startDate || !endDate
-      ? 'Choose both a start date and an end date.'
-      : startDate > endDate
+    : !startDate || !reportEndDate
+      ? 'Choose a report date.'
+      : startDate > reportEndDate
       ? 'The start date must be on or before the end date.'
       : reportLoadError
   const reportIsLoading = Boolean(locationName && !invalidDateRange && reportLoading)
-  const summaryReport = aggregateDailyReports(reports)
+  const summaryReport = reports[0] ?? null
 
   useEffect(() => {
     let active = true
 
-    if (!locationName || startDate > endDate) {
+    if (!locationName || startDate > reportEndDate) {
       return () => {
         active = false
       }
@@ -581,7 +517,7 @@ function HourlySalesPage() {
       setReports([])
 
       try {
-        const dates = getDatesInRange(startDate, endDate)
+        const dates = getDatesInRange(startDate, reportEndDate)
         const batchSize = 7
 
         for (let index = 0; index < dates.length; index += batchSize) {
@@ -612,7 +548,7 @@ function HourlySalesPage() {
     return () => {
       active = false
     }
-  }, [endDate, locationName, refreshCount, startDate])
+  }, [locationName, refreshCount, reportEndDate, startDate])
 
   function handleEntrySaved() {
     setView('daily')
@@ -630,28 +566,30 @@ function HourlySalesPage() {
         <div className="hourly-sales-report-controls">
           <div className="hourly-sales-date">
             <CalendarDays size={17} aria-hidden="true" />
-            <label htmlFor="hourly-start-date">From</label>
+            <label htmlFor="hourly-start-date">{view === 'summary' ? 'Summary date' : 'From'}</label>
             <input
               id="hourly-start-date"
-              aria-label="Report start date"
+              aria-label={view === 'summary' ? 'Donut summary date' : 'Report start date'}
               type="date"
               value={startDate}
               onChange={(event) => setStartDate(event.target.value)}
               required
             />
           </div>
-          <div className="hourly-sales-date">
-            <CalendarDays size={17} aria-hidden="true" />
-            <label htmlFor="hourly-end-date">To</label>
-            <input
-              id="hourly-end-date"
-              aria-label="Report end date"
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              required
-            />
-          </div>
+          {view !== 'summary' && (
+            <div className="hourly-sales-date">
+              <CalendarDays size={17} aria-hidden="true" />
+              <label htmlFor="hourly-end-date">To</label>
+              <input
+                id="hourly-end-date"
+                aria-label="Report end date"
+                type="date"
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                required
+              />
+            </div>
+          )}
           {view !== 'entry' && (
             <button
               className="hourly-sales-refresh"
@@ -702,7 +640,11 @@ function HourlySalesPage() {
 
       {view !== 'entry' && (
         <>
-          {reportIsLoading && <div className="hourly-sales-report-state">Loading reports for the selected date range...</div>}
+          {reportIsLoading && (
+            <div className="hourly-sales-report-state">
+              {view === 'summary' ? 'Loading the selected day summary...' : 'Loading reports for the selected date range...'}
+            </div>
+          )}
           {reportError && <div className="hourly-sales-message error" role="alert">{reportError}</div>}
           {!reportIsLoading && !reportError && view === 'daily' && reports.map((report) => (
             <section className="hourly-sales-day-report" key={report.businessDate}>
@@ -711,7 +653,7 @@ function HourlySalesPage() {
             </section>
           ))}
           {!reportIsLoading && !reportError && view === 'summary' && summaryReport && (
-            <HourlyProductionSummary report={summaryReport} />
+            <HourlyProductionSummary key={`${summaryReport.locationName}-${summaryReport.businessDate}`} report={summaryReport} />
           )}
         </>
       )}

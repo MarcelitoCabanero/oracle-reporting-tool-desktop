@@ -1,6 +1,9 @@
 import {
   AlertCircle,
 } from 'lucide-react'
+import {
+  useState,
+} from 'react'
 
 import './HourlyDailyReport.css'
 
@@ -26,6 +29,132 @@ function roundAwayFromZero(value: number) {
   return Math.sign(value) * Math.floor(Math.abs(value) + 0.5)
 }
 
+type ComparisonCategory = 'ring' | 'shell' | 'jpops'
+
+const comparisonCategories: { key: ComparisonCategory; label: string }[] = [
+  { key: 'ring', label: 'Ring' },
+  { key: 'shell', label: 'Shell' },
+  { key: 'jpops', label: 'JPops' },
+]
+
+function normalizeHourRange(value: string) {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/NN/g, 'PM')
+    .replace(/[\s–—-]+/g, '')
+}
+
+function HourlyPosComparison({ report }: HourlyDailyReportProps) {
+  const [category, setCategory] = useState<ComparisonCategory>('ring')
+  const posSalesByHour = new Map<string, number>()
+
+  for (const sale of report.posSales ?? []) {
+    const key = normalizeHourRange(sale.hourRange)
+    const sold = category === 'shell'
+      ? sale.shellSold + sale.jclubSold
+      : sale[`${category}Sold`]
+    posSalesByHour.set(
+      key,
+      (posSalesByHour.get(key) ?? 0) + sold,
+    )
+  }
+
+  const rows = report.rows.map((row) => {
+    const processWaste =
+      row.proofingWaste[category] +
+      row.fryingWaste[category] +
+      row.toppingWaste[category]
+
+    return {
+      hourRange: row.hourRange,
+      produced: row.produced[category],
+      sold: posSalesByHour.get(normalizeHourRange(row.hourRange)) ?? 0,
+      waste: processWaste,
+    }
+  }).filter((row) => row.produced > 0 || row.sold > 0 || row.waste > 0)
+  const maxValue = Math.max(
+    1,
+    ...rows.flatMap((row) => [row.produced, row.sold, row.waste]),
+  )
+  const categoryLabel = comparisonCategories.find((item) => item.key === category)?.label ?? category
+
+  function renderQuantityCell(value: number, label: string) {
+    return (
+      <td>
+        <div className="hourly-pos-comparison-value">
+          <span>{quantity(value)}</span>
+          <span className="hourly-pos-comparison-track" aria-hidden="true">
+            <span
+              className={`hourly-pos-comparison-bar ${label}`}
+              style={{ width: `${(value / maxValue) * 100}%` }}
+            />
+          </span>
+        </div>
+      </td>
+    )
+  }
+
+  return (
+    <section className="hourly-pos-comparison" aria-label="Hourly POS sales, production, and waste comparison">
+      <div className="hourly-pos-comparison-heading">
+        <div>
+          <h2>POS sold vs production &amp; waste</h2>
+          <p>
+            {categoryLabel} quantities by hour · POS actuals compared with hourly production and recorded process waste
+          </p>
+        </div>
+        <div className="hourly-pos-comparison-categories" role="group" aria-label="Product category">
+          {comparisonCategories.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              aria-pressed={category === item.key}
+              className={category === item.key ? 'active' : ''}
+              onClick={() => setCategory(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="hourly-pos-comparison-scroll">
+        <table className="hourly-pos-comparison-table">
+          <thead>
+            <tr>
+              <th scope="col">Hour</th>
+              <th scope="col">Produced</th>
+              <th scope="col">POS sold</th>
+              <th scope="col">Process waste</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.hourRange}>
+                <th scope="row">{row.hourRange}</th>
+                {renderQuantityCell(row.produced, 'produced')}
+                {renderQuantityCell(row.sold, 'sold')}
+                {renderQuantityCell(row.waste, 'waste')}
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4} className="hourly-pos-comparison-empty">
+                  No {categoryLabel.toLowerCase()} production, POS sales, or process waste recorded for this date.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <p className="hourly-pos-comparison-note">
+        Bars use a shared scale for the selected product. Hours with no activity are hidden. Shell POS sales include J.Club. JPops values follow the conversion returned by v_donutsold; POS sales can include stock produced earlier or received.
+      </p>
+    </section>
+  )
+}
+
 interface SummaryQuantities {
   ring: number | null
   shell: number | null
@@ -36,10 +165,177 @@ interface SummaryLine {
   label: string
   quantities: SummaryQuantities
   kind?: 'subtotal' | 'emphasis'
+  manualKey?: ManualFieldKey
+  manualTotalKey?: 'efficiency'
+  posSalesKey?: 'jclubSold' | 'jpopsSold'
+}
+
+type ManualFieldKey =
+  | 'jpopsKitSold'
+  | 'promotions'
+  | 'training'
+  | 'focDonuts'
+  | 'focJpops'
+  | 'focJClub'
+  | 'staffMeal'
+  | 'otherWaste'
+  | 'bufferEstimate'
+  | 'bufferPlain'
+  | 'bufferSales'
+  | 'bufferJpops'
+  | 'transferred'
+
+type ManualSummaryInputs = Record<ManualFieldKey, { ring: string; shell: string }> & {
+  efficiency: string
+}
+
+const manualFieldLabels: Record<ManualFieldKey, string> = {
+  jpopsKitSold: 'J.Pops KIT sold',
+  promotions: 'Promotions (donuts)',
+  training: 'Training',
+  focDonuts: 'FOC - Donuts',
+  focJpops: 'FOC - J.Pops',
+  focJClub: 'FOC - J.Club',
+  staffMeal: 'Staff meal',
+  otherWaste: 'Other waste types',
+  bufferEstimate: 'Waste estimate',
+  bufferPlain: 'Waste plain',
+  bufferSales: 'Waste sales',
+  bufferJpops: 'Waste JPops',
+  transferred: 'Transferred to other stores',
+}
+
+function emptyManualSummaryInputs(): ManualSummaryInputs {
+  return {
+    jpopsKitSold: { ring: '', shell: '' },
+    promotions: { ring: '', shell: '' },
+    training: { ring: '', shell: '' },
+    focDonuts: { ring: '', shell: '' },
+    focJpops: { ring: '', shell: '' },
+    focJClub: { ring: '', shell: '' },
+    staffMeal: { ring: '', shell: '' },
+    otherWaste: { ring: '', shell: '' },
+    bufferEstimate: { ring: '', shell: '' },
+    bufferPlain: { ring: '', shell: '' },
+    bufferSales: { ring: '', shell: '' },
+    bufferJpops: { ring: '', shell: '' },
+    transferred: { ring: '', shell: '' },
+    efficiency: '',
+  }
+}
+
+function readManualSummaryInputs(storageKey: string): {
+  values: ManualSummaryInputs
+  error: string
+} {
+  try {
+    const stored = window.localStorage.getItem(storageKey)
+    if (!stored) return { values: emptyManualSummaryInputs(), error: '' }
+
+    const parsed: unknown = JSON.parse(stored)
+    if (!parsed || typeof parsed !== 'object') {
+      return { values: emptyManualSummaryInputs(), error: 'Saved manual inputs are invalid and could not be loaded.' }
+    }
+
+    const defaults = emptyManualSummaryInputs()
+    const values = { ...defaults }
+    for (const key of Object.keys(manualFieldLabels) as ManualFieldKey[]) {
+      const row = (parsed as Record<string, unknown>)[key]
+      if (!row || typeof row !== 'object') continue
+      const record = row as Record<string, unknown>
+      values[key] = {
+        ring: typeof record.ring === 'string' ? record.ring : '',
+        shell: typeof record.shell === 'string' ? record.shell : '',
+      }
+    }
+
+    const efficiency = (parsed as Record<string, unknown>).efficiency
+    values.efficiency = typeof efficiency === 'string' ? efficiency : ''
+    return { values, error: '' }
+  } catch {
+    return {
+      values: emptyManualSummaryInputs(),
+      error: 'Unable to load saved manual inputs from this device.',
+    }
+  }
 }
 
 export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
+  const storageKey = `hourly-sales-summary:${report.locationName}:${report.businessDate}`
+  const [storedInputs, setStoredInputs] = useState(() => readManualSummaryInputs(storageKey))
+  const manualInputs = storedInputs.values
+  const manualError = storedInputs.error
+
+  function updateManualInput(
+    field: ManualFieldKey | 'efficiency',
+    part: 'ring' | 'shell' | 'value',
+    value: string,
+  ) {
+    const numericValue = value === '' ? null : Number(value)
+    if (
+      numericValue !== null &&
+      (!Number.isFinite(numericValue) ||
+        numericValue < 0 ||
+        (field === 'efficiency' && numericValue > 100))
+    ) {
+      setStoredInputs((current) => ({
+        ...current,
+        error: field === 'efficiency'
+          ? 'Baker efficiency must be between 0 and 100%.'
+          : 'Manual quantities must be zero or greater.',
+      }))
+      return
+    }
+
+    const updated: ManualSummaryInputs = {
+      ...manualInputs,
+      ...(field === 'efficiency'
+        ? { efficiency: value }
+        : { [field]: { ...manualInputs[field], [part]: value } }),
+    }
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify(updated))
+      setStoredInputs({ values: updated, error: '' })
+    } catch {
+      setStoredInputs({
+        values: updated,
+        error: 'Manual inputs are visible but could not be saved on this device.',
+      })
+    }
+  }
+
+  function manualValue(key: ManualFieldKey, part: 'ring' | 'shell') {
+    const value = manualInputs[key][part]
+    return value === '' ? null : Number(value)
+  }
+
+  function manualTotal(key: ManualFieldKey) {
+    const ring = manualValue(key, 'ring')
+    const shell = manualValue(key, 'shell')
+    return ring === null && shell === null ? null : (ring ?? 0) + (shell ?? 0)
+  }
+
+  const manualFocKeys: ManualFieldKey[] = ['promotions', 'training', 'focDonuts', 'focJpops', 'focJClub', 'staffMeal']
+  const manualBufferKeys: ManualFieldKey[] = ['bufferEstimate', 'bufferPlain', 'bufferSales', 'bufferJpops']
+
+  function sumManual(keys: ManualFieldKey[], part: 'ring' | 'shell'): number | null {
+    const values = keys.map((key) => manualValue(key, part))
+    return values.every((value) => value === null)
+      ? null
+      : values.reduce<number>((total, value) => total + (value ?? 0), 0)
+  }
+
+  function manualTotals(keys: ManualFieldKey[]): SummaryQuantities {
+    const ring = sumManual(keys, 'ring')
+    const shell = sumManual(keys, 'shell')
+    const total = ring === null && shell === null ? null : (ring ?? 0) + (shell ?? 0)
+    return { ring, shell, total }
+  }
+
   const { summary } = report
+  const posSales = report.posSales ?? []
+  const posJclubSold = posSales.reduce((total, row) => total + row.jclubSold, 0)
+  const posJpopsSold = posSales.reduce((total, row) => total + row.jpopsSold, 0)
   const quantities = (
     ring: number,
     shell: number,
@@ -54,7 +350,17 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
           label: 'POS donuts sold (combined)',
           quantities: quantities(summary.sold.ring, summary.sold.shell + summary.sold.jpops, summary.sold.total),
         },
-        { label: 'J.Club / J.Pops breakdown', quantities: unavailable },
+        {
+          label: 'J.Club sold',
+          quantities: { ring: null, shell: posJclubSold, total: posJclubSold },
+          posSalesKey: 'jclubSold',
+        },
+        {
+          label: 'J.Pops sold',
+          quantities: { ring: null, shell: posJpopsSold, total: posJpopsSold },
+          posSalesKey: 'jpopsSold',
+        },
+        { label: manualFieldLabels.jpopsKitSold, quantities: unavailable, manualKey: 'jpopsKitSold' },
         {
           label: 'Received donuts (less)',
           quantities: quantities(-summary.received.ring, -(summary.received.shell + summary.received.jpops), -summary.received.total),
@@ -69,8 +375,16 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
     {
       title: 'FOC',
       lines: [
-        { label: 'Promotions, training and other FOC', quantities: unavailable },
-        { label: 'Total free of charge', quantities: unavailable, kind: 'subtotal' },
+        ...(['promotions', 'training', 'focDonuts', 'focJpops', 'focJClub', 'staffMeal'] as const).map((key) => ({
+          label: manualFieldLabels[key],
+          quantities: unavailable,
+          manualKey: key,
+        })),
+        {
+          label: 'Total free of charge (manual)',
+          quantities: manualTotals(manualFocKeys),
+          kind: 'subtotal',
+        },
       ],
     },
     {
@@ -88,7 +402,7 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
           label: 'Topping',
           quantities: quantities(summary.toppingWaste.ring, summary.toppingWaste.shell + summary.toppingWaste.jpops, summary.toppingWaste.total),
         },
-        { label: 'Other waste types', quantities: unavailable },
+        { label: manualFieldLabels.otherWaste, quantities: unavailable, manualKey: 'otherWaste' },
         {
           label: 'Total actual wastages (tracked)',
           quantities: quantities(summary.totalWaste.ring, summary.totalWaste.shell + summary.totalWaste.jpops, summary.totalWaste.total),
@@ -99,15 +413,19 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
     {
       title: 'BUFFER',
       lines: [
-        { label: 'Buffer entries', quantities: unavailable },
-        { label: 'Total buffer', quantities: unavailable, kind: 'subtotal' },
+        ...(['bufferEstimate', 'bufferPlain', 'bufferSales', 'bufferJpops'] as const).map((key) => ({
+          label: manualFieldLabels[key],
+          quantities: unavailable,
+          manualKey: key,
+        })),
+        { label: 'Total buffer (manual)', quantities: manualTotals(manualBufferKeys), kind: 'subtotal' },
       ],
     },
     {
       title: 'TRANSFER',
       lines: [
-        { label: 'Transferred to other stores', quantities: unavailable },
-        { label: 'Total transferred', quantities: unavailable, kind: 'subtotal' },
+        { label: manualFieldLabels.transferred, quantities: unavailable, manualKey: 'transferred' },
+        { label: 'Total transferred (manual)', quantities: manualTotals(['transferred']), kind: 'subtotal' },
       ],
     },
   ]
@@ -129,6 +447,7 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
     {
       label: 'Efficiency of baker',
       quantities: unavailable,
+      manualTotalKey: 'efficiency',
     },
     {
       label: 'Tolerable wastages (1%)',
@@ -153,24 +472,72 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
   }
 
   function renderLine(line: SummaryLine) {
+    const manual = line.manualKey
+      ? {
+        ring: manualValue(line.manualKey, 'ring'),
+        shell: manualValue(line.manualKey, 'shell'),
+        total: manualTotal(line.manualKey),
+      }
+      : null
+
+    function renderManualInput(part: 'ring' | 'shell' | 'value', value: string, label: string) {
+      return (
+        <input
+          aria-label={`${line.label} ${label}`}
+          className="hourly-production-manual-input"
+          type="number"
+          min="0"
+          max={label === 'percentage' ? 100 : undefined}
+          step={label === 'percentage' ? '0.01' : 'any'}
+          value={value}
+          onChange={(event) => updateManualInput(line.manualKey ?? 'efficiency', part, event.target.value)}
+        />
+      )
+    }
+
+    const manualEfficiency = line.manualTotalKey === 'efficiency'
+    const posSalesValue = line.posSalesKey === 'jclubSold'
+      ? posJclubSold
+      : line.posSalesKey === 'jpopsSold'
+        ? posJpopsSold
+        : null
+
     return (
       <tr className={line.kind ? `hourly-production-summary-${line.kind}` : undefined} key={line.label}>
         <th scope="row">{line.label}</th>
-        <td>{display(line.quantities.ring)}</td>
-        <td>{display(line.quantities.shell)}</td>
-        <td>{display(line.quantities.total)}</td>
+        {line.posSalesKey ? (
+          <>
+            <td></td>
+            <td>{quantity(posSalesValue ?? 0)}</td>
+            <td>{quantity(posSalesValue ?? 0)}</td>
+          </>
+        ) : manual && line.manualKey ? (
+          <>
+            <td>{renderManualInput('ring', manualInputs[line.manualKey].ring, 'ring quantity')}</td>
+            <td>{renderManualInput('shell', manualInputs[line.manualKey].shell, 'shell quantity')}</td>
+            <td>{display(manual.total)}</td>
+          </>
+        ) : manualEfficiency ? (
+          <>
+            <td>—</td>
+            <td>—</td>
+            <td>
+              <div className="hourly-production-manual-percent">
+                {renderManualInput('value', manualInputs.efficiency, 'percentage')}
+                <span>%</span>
+              </div>
+            </td>
+          </>
+        ) : (
+          <>
+            <td>{display(line.quantities.ring)}</td>
+            <td>{display(line.quantities.shell)}</td>
+            <td>{display(line.quantities.total)}</td>
+          </>
+        )}
       </tr>
     )
   }
-
-  const posSales = report.posSales ?? []
-  const posSalesTotals = posSales.reduce((total, row) => ({
-    ring: total.ring + row.ringSold,
-    shell: total.shell + row.shellSold,
-    jpops: total.jpops + row.jpopsSold,
-  }), { ring: 0, shell: 0, jpops: 0 })
-  const posWaste = report.posWaste ?? { ring: 0, shell: 0, jpops: 0 }
-  const posWasteJpops = roundAwayFromZero(posWaste.jpops * 24 * 7 / 35)
 
   return (
     <div className="hourly-production-summary-layout">
@@ -180,7 +547,7 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
           <h2>Donut production summary</h2>
           <p>{report.locationName} · {report.businessDate}</p>
         </div>
-        <span>Shell includes JPops equivalents</span>
+        <span>Daily summary · manual rows are saved per location and date</span>
       </div>
       <div className="hourly-production-summary-scroll">
         <table className="hourly-production-summary-table">
@@ -206,14 +573,75 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
         </table>
       </div>
       </section>
+      <HourlyPosReport reports={[report]} />
+      <p className="hourly-production-summary-note">
+        Enter manual figures from the daily Excel template in the blank Ring and Shell fields. Blank means not entered; the summary does not infer FOC, buffer, transfers, or baker efficiency from POS data. Inputs are saved locally for this location and date.
+      </p>
+      {manualError && <p className="hourly-production-summary-note error" role="alert">{manualError}</p>}
+    </div>
+  )
+}
 
+export function HourlyPosReport({ reports }: { reports: HourlyDailyReportData[] }) {
+  const productionTotals = reports.reduce((total, report) => ({
+    producedRing: total.producedRing + report.summary.produced.ring,
+    producedShell: total.producedShell + report.summary.produced.shell,
+    producedJpops: total.producedJpops + report.summary.produced.jpops,
+    receivedRing: total.receivedRing + report.summary.received.ring,
+    receivedShell: total.receivedShell + report.summary.received.shell,
+    receivedJpops: total.receivedJpops + report.summary.received.jpops,
+    wasteRing: total.wasteRing + report.summary.totalWaste.ring,
+    wasteShell: total.wasteShell + report.summary.totalWaste.shell,
+    wasteJpops: total.wasteJpops + report.summary.totalWaste.jpops,
+    posWasteRing: total.posWasteRing + (report.posWaste?.ring ?? 0),
+    posWasteShell: total.posWasteShell + (report.posWaste?.shell ?? 0),
+    posWasteJpops: total.posWasteJpops + (report.posWaste?.jpops ?? 0),
+  }), {
+    producedRing: 0,
+    producedShell: 0,
+    producedJpops: 0,
+    receivedRing: 0,
+    receivedShell: 0,
+    receivedJpops: 0,
+    wasteRing: 0,
+    wasteShell: 0,
+    wasteJpops: 0,
+    posWasteRing: 0,
+    posWasteShell: 0,
+    posWasteJpops: 0,
+  })
+  const posSales = reports.flatMap((report) =>
+    (report.posSales ?? []).map((sale, index) => ({
+      ...sale,
+      businessDate: report.businessDate,
+      rowKey: `${report.businessDate}-${sale.hourRange}-${index}`,
+    })),
+  )
+  const posSalesTotals = posSales.reduce((total, row) => ({
+    ring: total.ring + row.ringSold,
+    shell: total.shell + row.shellSold,
+    jpops: total.jpops + row.jpopsSold,
+    jclub: total.jclub + row.jclubSold,
+  }), { ring: 0, shell: 0, jpops: 0, jclub: 0 })
+  const posWasteJpops = roundAwayFromZero(productionTotals.posWasteJpops * 24 * 7 / 35)
+  const dateRange = reports.length === 0
+    ? ''
+    : reports.length === 1
+      ? reports[0].businessDate
+      : `${reports[0].businessDate} – ${reports[reports.length - 1].businessDate}`
+
+  return (
+    <div className="hourly-production-pos-report">
       <aside className="hourly-production-pos" aria-label="POS report">
         <div className="hourly-production-pos-heading">
-          <h2>POS report</h2>
-          <span>{report.businessDate}</span>
+          <div>
+            <h2>POS &amp; waste report</h2>
+            <span>{reports[0]?.locationName}</span>
+          </div>
+          <span>{dateRange}</span>
         </div>
-        <section className="hourly-production-pos-section" aria-label="Produce totals">
-          <h3>Produce</h3>
+        <section className="hourly-production-pos-section" aria-label="Production and received totals">
+          <h3>Production &amp; received</h3>
           <div className="hourly-production-summary-scroll">
             <table className="hourly-production-pos-table">
               <thead>
@@ -221,32 +649,29 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
                   <th scope="col">Category</th>
                   <th scope="col">Ring Qty</th>
                   <th scope="col">Shell Qty</th>
-                  <th scope="col">Jpops Qty</th>
-                  <th scope="col">Remarks</th>
+                  <th scope="col">JPops Qty</th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="hourly-production-pos-total hourly-production-pos-waste-total">
                   <th scope="row">TOTAL PRODUCED</th>
-                  <td>{quantity(summary.produced.ring)}</td>
-                  <td>{quantity(summary.produced.shell)}</td>
-                  <td>{quantity(summary.produced.jpops)}</td>
-                  <td>—</td>
+                  <td>{quantity(productionTotals.producedRing)}</td>
+                  <td>{quantity(productionTotals.producedShell)}</td>
+                  <td>{quantity(productionTotals.producedJpops)}</td>
                 </tr>
                 <tr className="hourly-production-pos-total">
                   <th scope="row">TOTAL RECEIVED</th>
-                  <td>{quantity(summary.received.ring)}</td>
-                  <td>{quantity(summary.received.shell)}</td>
-                  <td>{quantity(summary.received.jpops)}</td>
-                  <td>—</td>
+                  <td>{quantity(productionTotals.receivedRing)}</td>
+                  <td>{quantity(productionTotals.receivedShell)}</td>
+                  <td>{quantity(productionTotals.receivedJpops)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
-        <section className="hourly-production-pos-section" aria-label="POS waste totals">
+        <section className="hourly-production-pos-section" aria-label="Waste totals">
           <h3>Waste totals</h3>
-          <p>POS waste comes from dbo.v_itemdetail records with rvc_type = FOC Waste.</p>
+          <p>Process waste is from hourly waste entries. POS waste is from dbo.v_itemdetail records with rvc_type = FOC Waste; its JPops quantity is converted to shell-equivalent pieces.</p>
           <div className="hourly-production-summary-scroll">
             <table className="hourly-production-pos-table">
               <thead>
@@ -254,73 +679,64 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
                   <th scope="col">Category</th>
                   <th scope="col">Ring Qty</th>
                   <th scope="col">Shell Qty</th>
-                  <th scope="col">Jpops Qty</th>
-                  <th scope="col">Remarks</th>
+                  <th scope="col">JPops Qty / eq.</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <th scope="row">TOTAL WASTE</th>
-                  <td>{quantity(summary.totalWaste.ring)}</td>
-                  <td>{quantity(summary.totalWaste.shell)}</td>
-                  <td>{quantity(summary.totalWaste.jpops)}</td>
-                  <td>—</td>
+                  <th scope="row">PROCESS WASTE</th>
+                  <td>{quantity(productionTotals.wasteRing)}</td>
+                  <td>{quantity(productionTotals.wasteShell)}</td>
+                  <td>{quantity(productionTotals.wasteJpops)}</td>
                 </tr>
                 <tr className="hourly-production-pos-total">
-                  <th scope="row">TOTAL POS WASTE</th>
-                  <td>{quantity(posWaste.ring)}</td>
-                  <td>{quantity(posWaste.shell)}</td>
+                  <th scope="row">POS WASTE</th>
+                  <td>{quantity(productionTotals.posWasteRing)}</td>
+                  <td>{quantity(productionTotals.posWasteShell)}</td>
                   <td>{quantity(posWasteJpops)}</td>
-                  <td>—</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
-
-        <section className="hourly-production-pos-section hourly-production-pos-sales" aria-label="POS sales by hour">
+        <section className="hourly-production-pos-section hourly-production-pos-sales" aria-label="POS donuts sold">
           <h3>POS donuts sold</h3>
           <div className="hourly-production-summary-scroll">
             <table className="hourly-production-pos-table">
               <thead>
                 <tr>
-                  <th scope="col">Time sold</th>
+                  <th scope="col">Date / time sold</th>
                   <th scope="col">Ring Qty</th>
                   <th scope="col">Shell Qty</th>
-                  <th scope="col">Jpops Qty</th>
+                  <th scope="col">JPops Qty</th>
+                  <th scope="col">J.Club Qty</th>
                 </tr>
               </thead>
               <tbody>
-                {posSales.map((row, index) => (
-                  <tr key={`${row.businessDate}-${row.hourRange}-${index}`}>
-                    <th scope="row">
-                      {report.businessDate.includes(' – ') &&
-                        `${row.businessDate} · `}
-                      {row.hourRange}
-                    </th>
+                {posSales.map((row) => (
+                  <tr key={row.rowKey}>
+                    <th scope="row">{row.businessDate} · {row.hourRange}</th>
                     <td>{quantity(row.ringSold)}</td>
                     <td>{quantity(row.shellSold)}</td>
                     <td>{quantity(row.jpopsSold)}</td>
+                    <td>{quantity(row.jclubSold)}</td>
                   </tr>
                 ))}
                 {posSales.length === 0 && (
-                  <tr><td colSpan={4} className="hourly-production-pos-empty">No POS sales for this date range.</td></tr>
+                  <tr><td colSpan={5} className="hourly-production-pos-empty">No POS sales for this date range.</td></tr>
                 )}
                 <tr className="hourly-production-pos-total">
                   <th scope="row">TOTAL SOLD</th>
                   <td>{quantity(posSalesTotals.ring)}</td>
                   <td>{quantity(posSalesTotals.shell)}</td>
                   <td>{quantity(posSalesTotals.jpops)}</td>
+                  <td>{quantity(posSalesTotals.jclub)}</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </section>
       </aside>
-
-      <p className="hourly-production-summary-note">
-        A dash indicates a category that is not available in the current report data. FOC, buffer, transfers, and baker efficiency are not currently captured by the app. POS waste is read from dbo.v_itemdetail, filtered to FOC Waste, with JPops converted using 24 × 7 ÷ 35 and rounded to the nearest whole piece.
-      </p>
     </div>
   )
 }
@@ -356,6 +772,8 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
           <small>{percent(summary.wasteAllocation)} of production</small>
         </article>
       </div>
+
+      <HourlyPosComparison report={report} />
 
       <div className="hourly-report-retarding">
         <div>

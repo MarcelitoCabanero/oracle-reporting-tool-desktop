@@ -116,7 +116,8 @@ export async function loadHourlyReportSources(
           LTRIM(RTRIM(HourRange)) AS hourRange,
           SUM(ISNULL(RingSold, 0)) AS ringSold,
           SUM(ISNULL(ShellSold, 0)) AS shellSold,
-          SUM(ISNULL(JpopsSold, 0)) AS jpopsSold
+          SUM(ISNULL(JpopsSold, 0)) AS jpopsSold,
+          SUM(ISNULL(jclubsold, 0)) AS jclubSold
         FROM dbo.v_donutsold
         WHERE CAST(DateSold AS date) = @businessDate
         GROUP BY HourRange
@@ -156,6 +157,7 @@ export async function loadHourlyReportSources(
       ringSold: Number(row.ringSold ?? 0),
       shellSold: Number(row.shellSold ?? 0),
       jpopsSold: Number(row.jpopsSold ?? 0),
+      jclubSold: Number(row.jclubSold ?? 0),
     })),
     posWaste: {
       ring: Number(posWasteResult.recordset[0]?.ringWaste ?? 0),

@@ -40,6 +40,7 @@ export interface HourlySalesSourceRow {
   ringSold: number
   shellSold: number
   jpopsSold: number
+  jclubSold: number
 }
 
 export interface HourlyPosSalesRow extends HourlySalesSourceRow {
