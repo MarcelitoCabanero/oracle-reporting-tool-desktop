@@ -98,7 +98,7 @@ function createDraft(date: string): EntryDraft {
 function getErrorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
-    : 'Unable to save entries. Check the database connection and try again.'
+    : 'The request could not be completed. Check the database connection and try again.'
 }
 
 function HourlyEntryForm({
@@ -480,13 +480,282 @@ function HourlyEntryForm({
   )
 }
 
+interface HourlyRecordDraft {
+  id: number
+  kind: EntryKind
+  entryDate: string
+  time: string
+  shellQty: string
+  ringQty: string
+  jpopsQty: string
+  remarks: string
+}
+
+type HourlyRecordData = Awaited<
+  ReturnType<typeof window.api.hourlySales.getRecords>
+>[number]
+
+function HourlyRecords({
+  startDate,
+  endDate,
+  locationName,
+  refreshCount,
+}: {
+  startDate: string
+  endDate: string
+  locationName: string | undefined
+  refreshCount: number
+}) {
+  const [records, setRecords] = useState<HourlyRecordData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState('')
+  const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draft, setDraft] = useState<HourlyRecordDraft | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [reloadCount, setReloadCount] = useState(0)
+
+  useEffect(() => {
+    let active = true
+
+    async function loadRecords() {
+      setEditingId(null)
+      setDraft(null)
+      if (!locationName) {
+        setRecords([])
+        setLoading(false)
+        setLoadError('Your account does not have a location assigned.')
+        return
+      }
+      if (!startDate || !endDate || startDate > endDate) {
+        setRecords([])
+        setLoading(false)
+        setLoadError('Choose a valid date range.')
+        return
+      }
+
+      setLoading(true)
+      setLoadError('')
+      try {
+        const result = await window.api.hourlySales.getRecords({
+          startDate,
+          endDate,
+          locationName,
+        })
+        if (active) setRecords(result)
+      } catch (error) {
+        if (active) {
+          setRecords([])
+          setLoadError(getErrorMessage(error))
+        }
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void loadRecords()
+    return () => {
+      active = false
+    }
+  }, [endDate, locationName, refreshCount, reloadCount, startDate])
+
+  function beginEditing(record: HourlyRecordData) {
+    setEditingId(`${record.kind}-${record.id}`)
+    setDraft({
+      ...record,
+      shellQty: String(record.shellQty),
+      ringQty: String(record.ringQty),
+      jpopsQty: String(record.jpopsQty),
+    })
+    setMessage('')
+  }
+
+  function updateDraft(field: keyof Omit<HourlyRecordDraft, 'id' | 'kind'>, value: string) {
+    setDraft((current) => current ? { ...current, [field]: value } : current)
+    if (messageType === 'error') setMessage('')
+  }
+
+  function cancelEditing() {
+    setEditingId(null)
+    setDraft(null)
+    setMessage('')
+  }
+
+  async function saveRecord() {
+    if (!draft || !locationName) return
+
+    const quantityFields = ['shellQty', 'ringQty', 'jpopsQty'] as const
+    const invalidQuantity = quantityFields.find((field) =>
+      draft[field] === '' ||
+      !Number.isSafeInteger(Number(draft[field])) ||
+      Number(draft[field]) < 0,
+    )
+    if (invalidQuantity) {
+      setMessageType('error')
+      setMessage('Quantities must be non-negative whole numbers.')
+      return
+    }
+
+    const isReceivedDonuts = draft.kind === 'produce' && draft.remarks === 'Received Donuts'
+    if (!isReceivedDonuts && quantityFields.every((field) => Number(draft[field]) === 0)) {
+      setMessageType('error')
+      setMessage('The record must have at least one quantity greater than zero.')
+      return
+    }
+
+    setSaving(true)
+    setMessageType('success')
+    setMessage('')
+    try {
+      const result = await window.api.hourlySales.updateRecord({
+        id: draft.id,
+        kind: draft.kind,
+        entryDate: draft.entryDate,
+        time: draft.time,
+        shellQty: Number(draft.shellQty),
+        ringQty: Number(draft.ringQty),
+        jpopsQty: Number(draft.jpopsQty),
+        remarks: draft.remarks,
+        locationName,
+      })
+      setMessage(result.message)
+      setEditingId(null)
+      setDraft(null)
+      setReloadCount((count) => count + 1)
+    } catch (error) {
+      setMessageType('error')
+      setMessage(getErrorMessage(error))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const tableColSpan = 8
+
+  return (
+    <section className="hourly-sales-panel hourly-records-panel" aria-label="Produce and waste records">
+      <header className="hourly-records-heading">
+        <div>
+          <h2>Produce / Waste Records</h2>
+          <p>{locationName || 'Location unavailable'} · {startDate} to {endDate}</p>
+        </div>
+        <span>{records.length.toLocaleString()} {records.length === 1 ? 'record' : 'records'}</span>
+      </header>
+
+      {loading && <div className="hourly-sales-report-state">Loading Produce and Waste records...</div>}
+      {loadError && <div className="hourly-sales-message error" role="alert">{loadError}</div>}
+      {!loading && !loadError && (
+        <div>
+          <div className="hourly-sales-table-wrap">
+            <table className="hourly-sales-table hourly-records-table">
+              <thead>
+                <tr>
+                  <th scope="col">Type</th>
+                  <th scope="col">Entry date</th>
+                  <th scope="col">Time</th>
+                  <th scope="col">Shell qty</th>
+                  <th scope="col">Ring qty</th>
+                  <th scope="col">JPops qty</th>
+                  <th scope="col">Remarks</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((record) => {
+                  const key = `${record.kind}-${record.id}`
+                  const isEditing = editingId === key && draft !== null
+                  const rowDraft = isEditing ? draft : null
+                  const timeOptions = record.kind === 'produce'
+                    ? ['Retarding', ...timeSlots]
+                    : timeSlots
+                  const remarksOptions = record.kind === 'produce'
+                    ? ['Produced Donuts', 'Received Donuts']
+                    : ['Proofing', 'Frying', 'Topping']
+
+                  return (
+                    <tr key={key} className={isEditing ? 'hourly-records-editing' : undefined}>
+                      <td>
+                        <span className={`hourly-record-kind ${record.kind}`}>
+                          {record.kind === 'produce' ? 'Produce' : 'Waste'}
+                        </span>
+                      </td>
+                      <td>
+                        {rowDraft
+                          ? <input aria-label="Record entry date" type="date" value={rowDraft.entryDate} onChange={(event) => updateDraft('entryDate', event.target.value)} required />
+                          : record.entryDate}
+                      </td>
+                      <td>
+                        {rowDraft
+                          ? (
+                            <select aria-label="Record time" value={rowDraft.time} onChange={(event) => updateDraft('time', event.target.value)} required>
+                              <option value="">Select time</option>
+                              {!timeOptions.includes(rowDraft.time) && <option value={rowDraft.time}>{rowDraft.time}</option>}
+                              {timeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                          )
+                          : record.time}
+                      </td>
+                      {(['shellQty', 'ringQty', 'jpopsQty'] as const).map((field) => (
+                        <td key={field}>
+                          {rowDraft
+                            ? <input aria-label={`${field} for record`} type="number" min="0" step="1" value={rowDraft[field]} onChange={(event) => updateDraft(field, event.target.value)} required />
+                            : record[field].toLocaleString()}
+                        </td>
+                      ))}
+                      <td>
+                        {rowDraft
+                          ? (
+                            <select aria-label="Record remarks" value={rowDraft.remarks} onChange={(event) => updateDraft('remarks', event.target.value)} required>
+                              <option value="">Select remarks</option>
+                              {!remarksOptions.includes(rowDraft.remarks) && <option value={rowDraft.remarks}>{rowDraft.remarks}</option>}
+                              {remarksOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
+                          )
+                          : record.remarks}
+                      </td>
+                      <td className="hourly-record-actions">
+                        {rowDraft
+                          ? (
+                            <>
+                              <button className="hourly-record-action-save" type="button" onClick={() => void saveRecord()} disabled={saving} aria-label="Save record changes" title="Save changes">
+                                <Save size={15} aria-hidden="true" />
+                              </button>
+                              <button className="hourly-record-action-cancel" type="button" disabled={saving} onClick={cancelEditing} aria-label="Cancel editing" title="Cancel">
+                                Cancel
+                              </button>
+                            </>
+                          )
+                          : (
+                            <button className="hourly-record-action-edit" type="button" onClick={() => beginEditing(record)} disabled={editingId !== null} aria-label={`Edit ${record.kind} record ${record.id}`} title="Edit record">
+                              <PenLine size={15} aria-hidden="true" />
+                              Edit
+                            </button>
+                          )}
+                      </td>
+                    </tr>
+                  )
+                })}
+                {records.length === 0 && (
+                  <tr><td className="hourly-sales-empty" colSpan={tableColSpan}>No Produce or Waste records in this date range.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {message && <div className={`hourly-sales-message ${messageType}`} role={messageType === 'error' ? 'alert' : 'status'}>{message}</div>}
+        </div>
+      )}
+    </section>
+  )
+}
+
 type HourlyDailyReportData = Awaited<
   ReturnType<typeof window.api.hourlySales.getDailyReport>
 >
 
 function HourlySalesPage() {
   const { user } = useAuth()
-  const [view, setView] = useState<'daily' | 'summary' | 'entry'>('daily')
+  const [view, setView] = useState<'daily' | 'summary' | 'records' | 'entry'>('daily')
   const [startDate, setStartDate] = useState(todayString)
   const [endDate, setEndDate] = useState(todayString)
   const [reports, setReports] = useState<HourlyDailyReportData[]>([])
@@ -503,13 +772,23 @@ function HourlySalesPage() {
       : startDate > reportEndDate
       ? 'The start date must be on or before the end date.'
       : reportLoadError
-  const reportIsLoading = Boolean(locationName && !invalidDateRange && reportLoading)
+  const reportIsLoading = Boolean(
+    (view === 'daily' || view === 'summary') &&
+    locationName &&
+    !invalidDateRange &&
+    reportLoading,
+  )
   const summaryReport = reports[0] ?? null
 
   useEffect(() => {
     let active = true
 
-    if (!locationName || startDate > reportEndDate) {
+    if (
+      view === 'entry' ||
+      view === 'records' ||
+      !locationName ||
+      startDate > reportEndDate
+    ) {
       return () => {
         active = false
       }
@@ -554,7 +833,7 @@ function HourlySalesPage() {
     return () => {
       active = false
     }
-  }, [locationName, refreshCount, reportEndDate, startDate])
+  }, [locationName, refreshCount, reportEndDate, startDate, view])
 
   function handleEntrySaved() {
     setView('daily')
@@ -578,7 +857,10 @@ function HourlySalesPage() {
               aria-label={view === 'summary' ? 'Donut summary date' : 'Report start date'}
               type="date"
               value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
+              onChange={(event) => {
+                setStartDate(event.target.value)
+                if (view === 'summary') setEndDate(event.target.value)
+              }}
               required
             />
           </div>
@@ -635,6 +917,16 @@ function HourlySalesPage() {
         <button
           type="button"
           role="tab"
+          aria-selected={view === 'records'}
+          className={view === 'records' ? 'active' : ''}
+          onClick={() => setView('records')}
+        >
+          <ClipboardList size={16} aria-hidden="true" />
+          Records
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={view === 'entry'}
           className={view === 'entry' ? 'active' : ''}
           onClick={() => setView('entry')}
@@ -644,7 +936,7 @@ function HourlySalesPage() {
         </button>
       </div>
 
-      {view !== 'entry' && (
+      {(view === 'daily' || view === 'summary') && (
         <>
           {reportIsLoading && (
             <div className="hourly-sales-report-state">
@@ -662,6 +954,15 @@ function HourlySalesPage() {
             <HourlyProductionSummary key={`${summaryReport.locationName}-${summaryReport.businessDate}`} report={summaryReport} />
           )}
         </>
+      )}
+
+      {view === 'records' && (
+        <HourlyRecords
+          startDate={startDate}
+          endDate={endDate}
+          locationName={locationName}
+          refreshCount={refreshCount}
+        />
       )}
 
       {view === 'entry' && (

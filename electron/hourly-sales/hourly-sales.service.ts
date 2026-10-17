@@ -1,6 +1,8 @@
 import {
+  loadHourlyRecords,
   loadHourlyReportSources,
   insertHourlyEntries,
+  updateHourlyRecord,
 } from './hourly-sales.repository.js'
 
 import type {
@@ -9,10 +11,14 @@ import type {
   HourlyDailyReport,
   HourlyDailyReportInput,
   HourlyDailyRow,
+  HourlyRecord,
+  HourlyRecordsInput,
   HourlyPosSalesRow,
   HourlyQuantityTotals,
   HourlyReportSourceRow,
   HourlyReportSources,
+  UpdateHourlyRecordInput,
+  UpdateHourlyRecordResult,
 } from './hourly-sales.types.js'
 
 const emptyTotals = (): HourlyQuantityTotals => ({
@@ -403,4 +409,75 @@ export async function getHourlyDailyReport(
   const sources = await loadHourlyReportSources(input)
 
   return rollupHourlyReport(input, sources)
+}
+
+export async function getHourlyRecords(
+  input: HourlyRecordsInput,
+): Promise<HourlyRecord[]> {
+  if (!isValidDate(input.startDate) || !isValidDate(input.endDate)) {
+    throw new Error('Choose a valid records date range.')
+  }
+
+  if (input.startDate > input.endDate) {
+    throw new Error('The start date must be on or before the end date.')
+  }
+
+  if (!input.locationName.trim() || input.locationName.length > 50) {
+    throw new Error('A valid location is required.')
+  }
+
+  return loadHourlyRecords(input)
+}
+
+export async function editHourlyRecord(
+  input: UpdateHourlyRecordInput,
+): Promise<UpdateHourlyRecordResult> {
+  if (input.kind !== 'produce' && input.kind !== 'waste') {
+    throw new Error('Choose either a Produce or Waste record.')
+  }
+
+  if (!Number.isSafeInteger(input.id) || input.id <= 0) {
+    throw new Error('The selected record is invalid.')
+  }
+
+  if (!input.locationName.trim() || input.locationName.length > 50) {
+    throw new Error('A valid location is required.')
+  }
+
+  if (!isValidDate(input.entryDate)) {
+    throw new Error('Choose a valid record date.')
+  }
+
+  if (!input.time.trim() || input.time.length > 50) {
+    throw new Error('A valid time is required.')
+  }
+
+  if (!input.remarks.trim() || input.remarks.length > 50) {
+    throw new Error('Valid remarks are required.')
+  }
+
+  const quantities = [
+    normalizeEntryQuantity(input.shellQty, 1),
+    normalizeEntryQuantity(input.ringQty, 1),
+    normalizeEntryQuantity(input.jpopsQty, 1),
+  ]
+  const isReceivedDonuts =
+    input.kind === 'produce' && input.remarks.trim() === 'Received Donuts'
+  if (!isReceivedDonuts && quantities.every((quantity) => quantity === null || quantity === 0)) {
+    throw new Error('The record must have at least one quantity greater than zero.')
+  }
+
+  await updateHourlyRecord({
+    ...input,
+    time: input.time.trim(),
+    remarks: input.remarks.trim(),
+    shellQty: quantities[0] ?? 0,
+    ringQty: quantities[1] ?? 0,
+    jpopsQty: quantities[2] ?? 0,
+  })
+
+  return {
+    success: true,
+    message: `${input.kind === 'produce' ? 'Produce' : 'Waste'} record updated.`,
+  }
 }

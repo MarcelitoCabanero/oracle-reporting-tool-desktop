@@ -20,6 +20,8 @@ import type {
 import type {
   CreateHourlyEntriesInput,
   HourlyDailyReportInput,
+  HourlyRecordsInput,
+  UpdateHourlyRecordInput,
 } from './hourly-sales/hourly-sales.types.js'
 
 
@@ -265,6 +267,16 @@ hourlySales: {
   createEntries: (input: CreateHourlyEntriesInput) =>
     ipcRenderer.invoke(
       'hourly-sales:create-entries',
+      input,
+    ),
+  getRecords: (input: HourlyRecordsInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:get-records',
+      input,
+    ),
+  updateRecord: (input: UpdateHourlyRecordInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:update-record',
       input,
     ),
 },

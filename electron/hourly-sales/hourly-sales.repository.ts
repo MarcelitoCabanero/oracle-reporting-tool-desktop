@@ -7,9 +7,12 @@ import {
 import type {
   CreateHourlyEntriesInput,
   HourlyDailyReportInput,
+  HourlyRecord,
+  HourlyRecordsInput,
   HourlyReportSourceRow,
   HourlyReportSources,
   HourlySalesSourceRow,
+  UpdateHourlyRecordInput,
 } from './hourly-sales.types.js'
 
 export async function insertHourlyEntries(
@@ -67,6 +70,118 @@ export async function insertHourlyEntries(
   } catch (error) {
     await transaction.rollback()
     throw error
+  }
+}
+
+export async function loadHourlyRecords(
+  input: HourlyRecordsInput,
+): Promise<HourlyRecord[]> {
+  const pool = await getLocalDbPool()
+  const [produceResult, wasteResult] = await Promise.all([
+    pool
+      .request()
+      .input('startDate', sql.Date, input.startDate)
+      .input('endDate', sql.Date, input.endDate)
+      .input('locationName', sql.VarChar(50), input.locationName)
+      .query(`
+        SELECT
+          produce_id AS id,
+          CONVERT(char(10), date_mix, 23) AS entryDate,
+          LTRIM(RTRIM(time_mixing)) AS time,
+          ISNULL(shell_qty, 0) AS shellQty,
+          ISNULL(ring_qty, 0) AS ringQty,
+          ISNULL(jpops_qty, 0) AS jpopsQty,
+          LTRIM(RTRIM(Remarks)) AS remarks
+        FROM dbo.dts_produce
+        WHERE date_mix >= @startDate
+          AND date_mix < DATEADD(day, 1, @endDate)
+          AND locationname = @locationName
+        ORDER BY date_mix DESC, time_mixing
+      `),
+    pool
+      .request()
+      .input('startDate', sql.Date, input.startDate)
+      .input('endDate', sql.Date, input.endDate)
+      .input('locationName', sql.VarChar(50), input.locationName)
+      .query(`
+        SELECT
+          waste_id AS id,
+          CONVERT(char(10), date_waste, 23) AS entryDate,
+          LTRIM(RTRIM(time_waste)) AS time,
+          ISNULL(shell_qty, 0) AS shellQty,
+          ISNULL(ring_qty, 0) AS ringQty,
+          ISNULL(jpops_qty, 0) AS jpopsQty,
+          LTRIM(RTRIM(Remarks)) AS remarks
+        FROM dbo.dts_waste
+        WHERE date_waste >= @startDate
+          AND date_waste < DATEADD(day, 1, @endDate)
+          AND locationname = @locationName
+        ORDER BY date_waste DESC, time_waste
+      `),
+  ])
+
+  return [
+    ...produceResult.recordset.map((row): HourlyRecord => ({
+      id: Number(row.id),
+      kind: 'produce',
+      entryDate: String(row.entryDate ?? ''),
+      time: String(row.time ?? ''),
+      shellQty: Number(row.shellQty ?? 0),
+      ringQty: Number(row.ringQty ?? 0),
+      jpopsQty: Number(row.jpopsQty ?? 0),
+      remarks: String(row.remarks ?? ''),
+    })),
+    ...wasteResult.recordset.map((row): HourlyRecord => ({
+      id: Number(row.id),
+      kind: 'waste',
+      entryDate: String(row.entryDate ?? ''),
+      time: String(row.time ?? ''),
+      shellQty: Number(row.shellQty ?? 0),
+      ringQty: Number(row.ringQty ?? 0),
+      jpopsQty: Number(row.jpopsQty ?? 0),
+      remarks: String(row.remarks ?? ''),
+    })),
+  ].sort((left, right) =>
+    right.entryDate.localeCompare(left.entryDate) ||
+    left.time.localeCompare(right.time) ||
+    left.kind.localeCompare(right.kind),
+  )
+}
+
+export async function updateHourlyRecord(
+  input: UpdateHourlyRecordInput,
+): Promise<void> {
+  const pool = await getLocalDbPool()
+  const isProduce = input.kind === 'produce'
+  const tableName = isProduce ? 'dbo.dts_produce' : 'dbo.dts_waste'
+  const idColumn = isProduce ? 'produce_id' : 'waste_id'
+  const timeColumn = isProduce ? 'time_mixing' : 'time_waste'
+  const dateColumn = isProduce ? 'date_mix' : 'date_waste'
+  const result = await pool
+    .request()
+    .input('id', sql.Int, input.id)
+    .input('entryDate', sql.Date, input.entryDate)
+    .input('timeValue', sql.VarChar(50), input.time)
+    .input('shellQty', sql.Int, input.shellQty)
+    .input('ringQty', sql.Int, input.ringQty)
+    .input('jpopsQty', sql.Int, input.jpopsQty)
+    .input('remarks', sql.VarChar(50), input.remarks)
+    .input('locationName', sql.VarChar(50), input.locationName)
+    .query(`
+      UPDATE ${tableName}
+      SET
+        ${dateColumn} = @entryDate,
+        ${timeColumn} = @timeValue,
+        shell_qty = @shellQty,
+        ring_qty = @ringQty,
+        jpops_qty = @jpopsQty,
+        Remarks = @remarks
+      WHERE ${idColumn} = @id
+        AND locationname = @locationName
+    `)
+
+  if (result.rowsAffected[0] !== 1) {
+    throw new Error('The record was not found or is no longer available for this location. Refresh the records and try again.')
   }
 }
 

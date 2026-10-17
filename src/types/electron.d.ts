@@ -433,6 +433,32 @@ interface HourlyDailyReportInput {
   locationName: string
 }
 
+interface HourlyRecordsInput {
+  startDate: string
+  endDate: string
+  locationName: string
+}
+
+interface HourlyRecord {
+  id: number
+  kind: 'produce' | 'waste'
+  entryDate: string
+  time: string
+  shellQty: number
+  ringQty: number
+  jpopsQty: number
+  remarks: string
+}
+
+interface UpdateHourlyRecordInput extends HourlyRecord {
+  locationName: string
+}
+
+interface UpdateHourlyRecordResult {
+  success: boolean
+  message: string
+}
+
 
 declare global {
   interface Window {
@@ -605,6 +631,12 @@ hourlySales: {
   createEntries: (
     input: CreateHourlyEntriesInput,
   ) => Promise<CreateHourlyEntriesResult>
+  getRecords: (
+    input: HourlyRecordsInput,
+  ) => Promise<HourlyRecord[]>
+  updateRecord: (
+    input: UpdateHourlyRecordInput,
+  ) => Promise<UpdateHourlyRecordResult>
 }
 
 varianceChecking: {

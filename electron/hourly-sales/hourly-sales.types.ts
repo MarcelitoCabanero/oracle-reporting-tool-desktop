@@ -27,6 +27,33 @@ export interface HourlyDailyReportInput {
   locationName: string
 }
 
+export interface HourlyRecordsInput {
+  startDate: string
+  endDate: string
+  locationName: string
+}
+
+export interface HourlyRecord {
+  id: number
+  kind: HourlyEntryKind
+  entryDate: string
+  time: string
+  shellQty: number
+  ringQty: number
+  jpopsQty: number
+  remarks: string
+}
+
+export interface UpdateHourlyRecordInput extends Omit<HourlyRecord, 'id'> {
+  id: number
+  locationName: string
+}
+
+export interface UpdateHourlyRecordResult {
+  success: boolean
+  message: string
+}
+
 export interface HourlyReportSourceRow {
   time: string
   remarks: string
