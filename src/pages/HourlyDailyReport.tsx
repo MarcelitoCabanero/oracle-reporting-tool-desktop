@@ -170,6 +170,16 @@ interface SummaryLine {
   posSalesKey?: 'jclubSold' | 'jpopsSold'
 }
 
+interface HourlyPercentageAllocation {
+  sold: number
+  foc: number
+  waste: number
+  buffer: number
+  variance: number
+  transfer: number
+  produced: number
+}
+
 type ManualFieldKey =
   | 'promotions'
   | 'training'
@@ -178,9 +188,6 @@ type ManualFieldKey =
   | 'focJClub'
   | 'staffMeal'
   | 'otherWaste'
-  | 'bufferEstimate'
-  | 'bufferPlain'
-  | 'bufferSales'
   | 'bufferJpops'
   | 'transferred'
 
@@ -196,9 +203,6 @@ const manualFieldLabels: Record<ManualFieldKey, string> = {
   focJClub: 'FOC - J.Club',
   staffMeal: 'Staff meal',
   otherWaste: 'Other waste types',
-  bufferEstimate: 'Waste estimate',
-  bufferPlain: 'Waste plain',
-  bufferSales: 'Waste sales',
   bufferJpops: 'Waste JPops',
   transferred: 'Transferred to other stores',
 }
@@ -212,9 +216,6 @@ function emptyManualSummaryInputs(): ManualSummaryInputs {
     focJClub: { ring: '', shell: '' },
     staffMeal: { ring: '', shell: '' },
     otherWaste: { ring: '', shell: '' },
-    bufferEstimate: { ring: '', shell: '' },
-    bufferPlain: { ring: '', shell: '' },
-    bufferSales: { ring: '', shell: '' },
     bufferJpops: { ring: '', shell: '' },
     transferred: { ring: '', shell: '' },
     efficiency: '',
@@ -312,8 +313,17 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
     return ring === null && shell === null ? null : (ring ?? 0) + (shell ?? 0)
   }
 
+  const { summary } = report
+  const posSales = report.posSales ?? []
+  const posJclubSold = posSales.reduce((total, row) => total + row.jclubSold, 0)
+  const posJpopsSold = posSales.reduce((total, row) => total + row.jpopsSold, 0)
+  const quantities = (
+    ring: number,
+    shell: number,
+    total: number,
+  ): SummaryQuantities => ({ ring, shell, total })
+  const unavailable: SummaryQuantities = { ring: null, shell: null, total: null }
   const manualFocKeys: ManualFieldKey[] = ['promotions', 'training', 'focDonuts', 'focJpops', 'focJClub', 'staffMeal']
-  const manualBufferKeys: ManualFieldKey[] = ['bufferEstimate', 'bufferPlain', 'bufferSales', 'bufferJpops']
 
   function sumManual(keys: ManualFieldKey[], part: 'ring' | 'shell'): number | null {
     const values = keys.map((key) => manualValue(key, part))
@@ -329,16 +339,44 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
     return { ring, shell, total }
   }
 
-  const { summary } = report
-  const posSales = report.posSales ?? []
-  const posJclubSold = posSales.reduce((total, row) => total + row.jclubSold, 0)
-  const posJpopsSold = posSales.reduce((total, row) => total + row.jpopsSold, 0)
-  const quantities = (
-    ring: number,
-    shell: number,
-    total: number,
-  ): SummaryQuantities => ({ ring, shell, total })
-  const unavailable: SummaryQuantities = { ring: null, shell: null, total: null }
+  function wasteQuantities(waste: typeof report.summary.proofingWaste): SummaryQuantities {
+    return quantities(waste.ring, waste.shell + waste.jpops, waste.total)
+  }
+
+  const bufferJpopsRing = manualValue('bufferJpops', 'ring') ?? 0
+  const bufferJpopsShell = manualValue('bufferJpops', 'shell') ?? 0
+  const bufferTotals = quantities(
+    summary.proofingWaste.ring + summary.fryingWaste.ring + summary.toppingWaste.ring + bufferJpopsRing,
+    summary.proofingWaste.shell + summary.proofingWaste.jpops +
+      summary.fryingWaste.shell + summary.fryingWaste.jpops +
+      summary.toppingWaste.shell + summary.toppingWaste.jpops +
+      bufferJpopsShell,
+    summary.proofingWaste.total + summary.fryingWaste.total + summary.toppingWaste.total +
+      bufferJpopsRing + bufferJpopsShell,
+  )
+  const focRing = sumManual(manualFocKeys, 'ring') ?? 0
+  const focShell = sumManual(manualFocKeys, 'shell') ?? 0
+  const transferredRing = manualValue('transferred', 'ring') ?? 0
+  const transferredShell = manualValue('transferred', 'shell') ?? 0
+  const otherWasteRing = manualValue('otherWaste', 'ring') ?? 0
+  const otherWasteShell = manualValue('otherWaste', 'shell') ?? 0
+  const totalRing =
+    summary.sold.ring - summary.received.ring +
+    focRing +
+    summary.proofingWaste.ring + summary.fryingWaste.ring + summary.toppingWaste.ring +
+    otherWasteRing +
+    (bufferTotals.ring ?? 0) +
+    transferredRing
+  const totalShell =
+    summary.sold.shell + summary.sold.jpops - summary.received.shell - summary.received.jpops +
+    focShell +
+    summary.proofingWaste.shell + summary.proofingWaste.jpops +
+    summary.fryingWaste.shell + summary.fryingWaste.jpops +
+    summary.toppingWaste.shell + summary.toppingWaste.jpops +
+    otherWasteShell +
+    (bufferTotals.shell ?? 0) +
+    transferredShell
+  const summaryRangeTotal = totalRing + totalShell
   const sections: { title: string; lines: SummaryLine[] }[] = [
     {
       title: 'SALES',
@@ -410,19 +448,18 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
     {
       title: 'BUFFER',
       lines: [
-        ...(['bufferEstimate', 'bufferPlain', 'bufferSales', 'bufferJpops'] as const).map((key) => ({
-          label: manualFieldLabels[key],
-          quantities: unavailable,
-          manualKey: key,
-        })),
-        { label: 'Total buffer (manual)', quantities: manualTotals(manualBufferKeys), kind: 'subtotal' },
+        { label: 'WE', quantities: wasteQuantities(summary.proofingWaste) },
+        { label: 'WPL', quantities: wasteQuantities(summary.fryingWaste) },
+        { label: 'WS', quantities: wasteQuantities(summary.toppingWaste) },
+        { label: manualFieldLabels.bufferJpops, quantities: unavailable, manualKey: 'bufferJpops' },
+        { label: 'Total buffer', quantities: bufferTotals, kind: 'subtotal' },
       ],
     },
     {
       title: 'TRANSFER',
       lines: [
         { label: manualFieldLabels.transferred, quantities: unavailable, manualKey: 'transferred' },
-        { label: 'Total transferred (manual)', quantities: manualTotals(['transferred']), kind: 'subtotal' },
+        { label: 'Total', quantities: quantities(totalRing, totalShell, summaryRangeTotal), kind: 'subtotal' },
       ],
     },
   ]
@@ -434,12 +471,12 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
     },
     {
       label: 'Variance (produced versus sold)',
-      quantities: quantities(summary.variance.ring, summary.variance.shell, summary.variance.total),
+      quantities: { ring: null, shell: null, total: summary.produced.total - summaryRangeTotal },
       kind: 'emphasis',
     },
     {
       label: 'Tolerable variance (3%)',
-      quantities: { ring: null, shell: null, total: summary.tolerableVariance },
+      quantities: { ring: null, shell: null, total: summary.produced.total * 0.03 },
     },
     {
       label: 'Efficiency of baker',
@@ -570,16 +607,33 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
         </table>
       </div>
       </section>
-      <HourlyPosReport reports={[report]} />
+      <HourlyPosReport
+        reports={[report]}
+        allocation={{
+          sold: summary.netProducedSales.total ?? 0,
+          foc: focRing + focShell,
+          waste: (summary.totalWaste.total ?? 0) + (manualTotal('otherWaste') ?? 0),
+          buffer: bufferTotals.total ?? 0,
+          variance: summary.produced.total - summaryRangeTotal,
+          transfer: transferredRing + transferredShell,
+          produced: summary.produced.total,
+        }}
+      />
       <p className="hourly-production-summary-note">
-        Enter manual figures from the daily Excel template in the blank Ring and Shell fields. Blank means not entered; the summary does not infer FOC, buffer, transfers, or baker efficiency from POS data. Inputs are saved locally for this location and date.
+
       </p>
       {manualError && <p className="hourly-production-summary-note error" role="alert">{manualError}</p>}
     </div>
   )
 }
 
-export function HourlyPosReport({ reports }: { reports: HourlyDailyReportData[] }) {
+export function HourlyPosReport({
+  reports,
+  allocation,
+}: {
+  reports: HourlyDailyReportData[]
+  allocation: HourlyPercentageAllocation
+}) {
   const productionTotals = reports.reduce((total, report) => ({
     producedRing: total.producedRing + report.summary.produced.ring,
     producedShell: total.producedShell + report.summary.produced.shell,
@@ -729,6 +783,46 @@ export function HourlyPosReport({ reports }: { reports: HourlyDailyReportData[] 
                   <td>{quantity(posSalesTotals.jpops)}</td>
                   <td>{quantity(posSalesTotals.jclub)}</td>
                 </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section className="hourly-production-pos-section" aria-label="Percentage allocation">
+          <h3>Percentage Allocation</h3>
+          <div className="hourly-production-summary-scroll">
+            <table className="hourly-production-pos-table hourly-production-allocation-table">
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col">Total</th>
+                  <th scope="col">Allocation</th>
+                  <th scope="col">Calculation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {([
+                  ['SOLD', allocation.sold, 'Total produced sold / Produced donuts × 100'],
+                  ['FOC', allocation.foc, 'Sum of FOC donuts / Produced donuts × 100'],
+                  ['WASTE', allocation.waste, 'Sum of waste donuts / Produced donuts × 100'],
+                  ['BUFFER', allocation.buffer, 'Sum of buffer donuts / Produced donuts × 100'],
+                  ['VARIANCE', allocation.variance, 'Variance / Produced donuts × 100'],
+                  ['TRANSFER', allocation.transfer, 'Transferred donuts / Produced × 100'],
+                  ['PRODUCED', allocation.produced, 'Total actual donuts produced'],
+                ] as const).map(([label, value, calculation]) => (
+                  <tr
+                    className={label === 'PRODUCED' ? 'hourly-production-allocation-produced' : undefined}
+                    key={label}
+                  >
+                    <th scope="row">{label}</th>
+                    <td>{quantity(value)}</td>
+                    <td>
+                      {allocation.produced === 0
+                        ? '0.00%'
+                        : `${((value / allocation.produced) * 100).toFixed(2)}%`}
+                    </td>
+                    <td className="hourly-production-allocation-calculation">{calculation}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

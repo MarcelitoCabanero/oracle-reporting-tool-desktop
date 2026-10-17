@@ -630,6 +630,39 @@
   background: #dff0d0;
 }
 
+.hourly-production-allocation-table {
+  min-width: 620px;
+  table-layout: fixed;
+}
+
+.hourly-production-allocation-table th:nth-child(1) {
+  width: 18%;
+}
+
+.hourly-production-allocation-table th:nth-child(2) {
+  width: 16%;
+}
+
+.hourly-production-allocation-table th:nth-child(3) {
+  width: 19%;
+}
+
+.hourly-production-allocation-table th:nth-child(4) {
+  width: 47%;
+}
+
+.hourly-production-allocation-table .hourly-production-allocation-calculation {
+  text-align: left;
+  white-space: normal;
+}
+
+.hourly-production-allocation-table .hourly-production-allocation-produced th,
+.hourly-production-allocation-table .hourly-production-allocation-produced td {
+  border-bottom-color: #c7d9bd;
+  background: #e5f0dc;
+  font-weight: 750;
+}
+
 .hourly-production-pos-empty {
   color: #716a62;
   text-align: center !important;
