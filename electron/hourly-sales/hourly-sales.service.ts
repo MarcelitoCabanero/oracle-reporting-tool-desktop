@@ -297,6 +297,21 @@ function isValidDate(value: string): boolean {
     parsed.toISOString().slice(0, 10) === value
 }
 
+function normalizeEntryQuantity(
+  value: unknown,
+  entryNumber: number,
+): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Entry ${entryNumber} quantities must be whole numbers.`)
+  }
+
+  return value
+}
+
 export async function createHourlyEntries(
   input: CreateHourlyEntriesInput,
 ): Promise<CreateHourlyEntriesResult> {
@@ -317,6 +332,7 @@ export async function createHourlyEntries(
   }
 
   const seenTimes = new Set<string>()
+  const normalizedRows: CreateHourlyEntriesInput['rows'] = []
   for (const [index, row] of input.rows.entries()) {
     if (!row.time.trim() || row.time.length > 50) {
       throw new Error(`Entry ${index + 1} needs a valid time.`)
@@ -336,21 +352,35 @@ export async function createHourlyEntries(
       throw new Error(`Entry ${index + 1} needs valid remarks.`)
     }
 
-    const quantities = [row.shellQty, row.ringQty, row.jpopsQty]
+    const shellQty = normalizeEntryQuantity(row.shellQty, index + 1)
+    const ringQty = normalizeEntryQuantity(row.ringQty, index + 1)
+    const jpopsQty = normalizeEntryQuantity(row.jpopsQty, index + 1)
+    const quantities = [shellQty, ringQty, jpopsQty]
+
+    const isReceivedDonuts = input.kind === 'produce' && row.remarks.trim() === 'Received Donuts'
     if (
-      quantities.some((quantity) =>
-        !Number.isSafeInteger(quantity) || quantity < 0,
-      )
+      isReceivedDonuts
+        ? quantities.every((quantity) => quantity === null)
+        : quantities.every((quantity) => quantity === null || quantity === 0)
     ) {
-      throw new Error(`Entry ${index + 1} quantities must be whole numbers.`)
+      const message = isReceivedDonuts
+        ? `Entry ${index + 1} received donuts must have at least one quantity field filled.`
+        : `Entry ${index + 1} must have a quantity greater than zero.`
+      throw new Error(message)
     }
 
-    if (quantities.every((quantity) => quantity === 0)) {
-      throw new Error(`Entry ${index + 1} must have a quantity greater than zero.`)
-    }
+    normalizedRows.push({
+      ...row,
+      shellQty,
+      ringQty,
+      jpopsQty,
+    })
   }
 
-  await insertHourlyEntries(input)
+  await insertHourlyEntries({
+    ...input,
+    rows: normalizedRows,
+  })
 
   return {
     success: true,

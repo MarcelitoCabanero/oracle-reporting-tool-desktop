@@ -216,9 +216,15 @@ function HourlyEntryForm({
         return
       }
 
-      if (quantityFields.every((field) => Number(row[field] || 0) === 0)) {
+      const isReceivedDonuts = kind === 'produce' && row.remarks === 'Received Donuts'
+      const hasEnteredQuantity = quantityFields.some((field) => row[field] !== '')
+      const hasPositiveQuantity = quantityFields.some((field) => Number(row[field] || 0) > 0)
+
+      if (isReceivedDonuts ? !hasEnteredQuantity : !hasPositiveQuantity) {
         setMessageType('error')
-        setMessage(`Entry ${index + 1} needs at least one quantity greater than zero.`)
+        setMessage(isReceivedDonuts
+          ? `Entry ${index + 1} needs at least one quantity field filled for received donuts.`
+          : `Entry ${index + 1} needs at least one quantity greater than zero.`)
         fieldRefs.current.get(`${row.id}:shellQty`)?.focus()
         return
       }
@@ -241,9 +247,9 @@ function HourlyEntryForm({
     const preparedRows = rows.map((row) => ({
       time: row.time,
       entryDate: row.entryDate,
-      shellQty: Number(row.shellQty || 0),
-      ringQty: Number(row.ringQty || 0),
-      jpopsQty: Number(row.jpopsQty || 0),
+      shellQty: row.shellQty === '' ? null : Number(row.shellQty),
+      ringQty: row.ringQty === '' ? null : Number(row.ringQty),
+      jpopsQty: row.jpopsQty === '' ? null : Number(row.jpopsQty),
       remarks: row.remarks,
     }))
 

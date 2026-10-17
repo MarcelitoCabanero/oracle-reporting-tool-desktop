@@ -171,7 +171,6 @@ interface SummaryLine {
 }
 
 type ManualFieldKey =
-  | 'jpopsKitSold'
   | 'promotions'
   | 'training'
   | 'focDonuts'
@@ -190,7 +189,6 @@ type ManualSummaryInputs = Record<ManualFieldKey, { ring: string; shell: string 
 }
 
 const manualFieldLabels: Record<ManualFieldKey, string> = {
-  jpopsKitSold: 'J.Pops KIT sold',
   promotions: 'Promotions (donuts)',
   training: 'Training',
   focDonuts: 'FOC - Donuts',
@@ -207,7 +205,6 @@ const manualFieldLabels: Record<ManualFieldKey, string> = {
 
 function emptyManualSummaryInputs(): ManualSummaryInputs {
   return {
-    jpopsKitSold: { ring: '', shell: '' },
     promotions: { ring: '', shell: '' },
     training: { ring: '', shell: '' },
     focDonuts: { ring: '', shell: '' },
@@ -360,7 +357,7 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
           quantities: { ring: null, shell: posJpopsSold, total: posJpopsSold },
           posSalesKey: 'jpopsSold',
         },
-        { label: manualFieldLabels.jpopsKitSold, quantities: unavailable, manualKey: 'jpopsKitSold' },
+        { label: 'J.Pops KIT sold', quantities: unavailable },
         {
           label: 'Received donuts (less)',
           quantities: quantities(-summary.received.ring, -(summary.received.shell + summary.received.jpops), -summary.received.total),

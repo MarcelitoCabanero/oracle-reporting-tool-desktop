@@ -3,9 +3,9 @@ export type HourlyEntryKind = 'produce' | 'waste'
 export interface HourlyEntryRow {
   time: string
   entryDate: string
-  shellQty: number
-  ringQty: number
-  jpopsQty: number
+  shellQty: number | null
+  ringQty: number | null
+  jpopsQty: number | null
   remarks: string
 }
 

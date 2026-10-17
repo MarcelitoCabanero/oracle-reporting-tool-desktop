@@ -29,9 +29,9 @@ export async function insertHourlyEntries(
       await new sql.Request(transaction)
         .input('timeValue', sql.VarChar(50), row.time)
         .input('entryDate', sql.Date, row.entryDate)
-        .input('shellQty', sql.Int, row.shellQty)
-        .input('ringQty', sql.Int, row.ringQty)
-        .input('jpopsQty', sql.Int, row.jpopsQty)
+        .input('shellQty', sql.Int, row.shellQty ?? 0)
+        .input('ringQty', sql.Int, row.ringQty ?? 0)
+        .input('jpopsQty', sql.Int, row.jpopsQty ?? 0)
         .input('remarks', sql.VarChar(50), row.remarks)
         .input('locationName', sql.VarChar(50), input.locationName)
         .input('businessDate', sql.Date, input.businessDate)
@@ -58,7 +58,7 @@ export async function insertHourlyEntries(
             @remarks,
             @locationName,
             @businessDate,
-            SYSDATETIME()
+            DATEADD(HOUR, 8, GETUTCDATE())
           )
         `)
     }
