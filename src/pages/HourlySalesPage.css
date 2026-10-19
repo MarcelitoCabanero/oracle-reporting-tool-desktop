@@ -1,17 +1,24 @@
 .hourly-sales-page {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
   min-width: 0;
   padding: 4px 2px 24px;
   color: #24211e;
 }
 
-.hourly-sales-heading {
+.hourly-sales-navigation-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 12px;
+  min-width: 0;
+}
+
+.hourly-sales-heading h1 {
+  margin: 0;
+  font-size: 25px;
+  font-weight: 700;
 }
 
 .hourly-sales-eyebrow {
@@ -22,12 +29,6 @@
   letter-spacing: 0.7px;
 }
 
-.hourly-sales-heading h1 {
-  margin: 0;
-  font-size: 25px;
-  font-weight: 700;
-}
-
 .hourly-sales-heading p {
   margin: 6px 0 0;
   color: #77716a;
@@ -35,29 +36,31 @@
 }
 
 .hourly-sales-date {
-  display: grid;
-  grid-template-columns: 20px auto;
+  display: flex;
   align-items: center;
-  gap: 4px 8px;
-  min-width: 220px;
-  padding: 10px 12px;
+  gap: 7px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 9px;
   border: 1px solid #e8e2d8;
-  border-radius: 6px;
+  border-radius: 5px;
   background: #fff;
 }
 
 .hourly-sales-date svg {
-  grid-row: span 2;
+  flex: 0 0 auto;
   color: #a94a23;
 }
 
 .hourly-sales-date label {
   color: #77716a;
-  font-size: 11px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .hourly-sales-date input {
-  width: 100%;
+  width: 135px;
+  min-width: 0;
   border: 0;
   color: #24211e;
   font-size: 13px;
@@ -295,11 +298,6 @@
 }
 
 @media (max-width: 720px) {
-  .hourly-sales-heading {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
   .hourly-sales-date {
     width: 100%;
   }
@@ -328,6 +326,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 .hourly-sales-refresh {
@@ -335,7 +334,7 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 42px;
+  min-height: 40px;
   padding: 0 12px;
   border: 1px solid #e2ddd5;
   border-radius: 4px;
@@ -357,7 +356,7 @@
 .hourly-sales-view-tabs {
   display: flex;
   align-items: center;
-  align-self: flex-start;
+  flex: 0 0 auto;
   gap: 3px;
   padding: 3px;
   border: 1px solid #e8e2d8;
@@ -408,10 +407,30 @@
   font-size: 12px;
 }
 
-.hourly-records-heading > span {
+.hourly-records-heading > span,
+.hourly-records-controls > span {
   color: #77716a;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.hourly-records-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #77716a;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.hourly-records-controls select {
+  min-height: 34px;
+  padding: 0 28px 0 9px;
+  border: 1px solid #e2ddd5;
+  border-radius: 4px;
+  background: #fff;
+  color: #514b44;
+  font-size: 12px;
 }
 
 .hourly-records-table {
@@ -425,6 +444,18 @@
 
 .hourly-records-table .hourly-records-editing {
   background: #fffaf1;
+}
+
+.hourly-records-total th,
+.hourly-records-total td {
+  border-top: 2px solid #e2ddd5;
+  background: #faf8f4;
+  color: #37322d;
+  font-weight: 700;
+}
+
+.hourly-records-total th {
+  text-align: right;
 }
 
 .hourly-record-kind {
@@ -521,9 +552,24 @@
 }
 
 @media (max-width: 720px) {
-  .hourly-sales-report-controls {
+  .hourly-sales-navigation-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .hourly-sales-report-controls {
+    align-items: stretch;
+    flex-wrap: wrap;
+    margin-left: 0;
+  }
+
+  .hourly-sales-report-controls .hourly-sales-date {
+    flex: 1 1 180px;
+  }
+
+  .hourly-sales-date input {
+    flex: 1;
+    width: auto;
   }
 
   .hourly-sales-view-tabs {

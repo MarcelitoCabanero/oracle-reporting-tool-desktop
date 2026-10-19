@@ -515,6 +515,7 @@ function HourlyRecords({
   const [draft, setDraft] = useState<HourlyRecordDraft | null>(null)
   const [saving, setSaving] = useState(false)
   const [reloadCount, setReloadCount] = useState(0)
+  const [kindFilter, setKindFilter] = useState<'all' | EntryKind>('all')
 
   useEffect(() => {
     let active = true
@@ -631,6 +632,14 @@ function HourlyRecords({
     }
   }
 
+  const filteredRecords = records.filter((record) =>
+    kindFilter === 'all' || record.kind === kindFilter,
+  )
+  const recordTotals = filteredRecords.reduce((totals, record) => ({
+    shell: totals.shell + record.shellQty,
+    ring: totals.ring + record.ringQty,
+    jpops: totals.jpops + record.jpopsQty,
+  }), { shell: 0, ring: 0, jpops: 0 })
   const tableColSpan = 8
 
   return (
@@ -640,7 +649,20 @@ function HourlyRecords({
           <h2>Produce / Waste Records</h2>
           <p>{locationName || 'Location unavailable'} · {startDate} to {endDate}</p>
         </div>
-        <span>{records.length.toLocaleString()} {records.length === 1 ? 'record' : 'records'}</span>
+        <div className="hourly-records-controls">
+          <label htmlFor="hourly-record-kind-filter">Show</label>
+          <select
+            id="hourly-record-kind-filter"
+            aria-label="Filter records by type"
+            value={kindFilter}
+            onChange={(event) => setKindFilter(event.target.value as 'all' | EntryKind)}
+          >
+            <option value="all">All types</option>
+            <option value="produce">Produce</option>
+            <option value="waste">Waste</option>
+          </select>
+          <span>{filteredRecords.length.toLocaleString()} {filteredRecords.length === 1 ? 'record' : 'records'}</span>
+        </div>
       </header>
 
       {loading && <div className="hourly-sales-report-state">Loading Produce and Waste records...</div>}
@@ -662,7 +684,7 @@ function HourlyRecords({
                 </tr>
               </thead>
               <tbody>
-                {records.map((record) => {
+                {filteredRecords.map((record) => {
                   const key = `${record.kind}-${record.id}`
                   const isEditing = editingId === key && draft !== null
                   const rowDraft = isEditing ? draft : null
@@ -736,10 +758,23 @@ function HourlyRecords({
                     </tr>
                   )
                 })}
-                {records.length === 0 && (
-                  <tr><td className="hourly-sales-empty" colSpan={tableColSpan}>No Produce or Waste records in this date range.</td></tr>
+                {filteredRecords.length === 0 && (
+                  <tr><td className="hourly-sales-empty" colSpan={tableColSpan}>
+                    {records.length === 0
+                      ? 'No Produce or Waste records in this date range.'
+                      : `No ${kindFilter === 'produce' ? 'Produce' : 'Waste'} records in this date range.`}
+                  </td></tr>
                 )}
               </tbody>
+              <tfoot>
+                <tr className="hourly-records-total">
+                  <th scope="row" colSpan={3}>Total</th>
+                  <td>{recordTotals.shell.toLocaleString()}</td>
+                  <td>{recordTotals.ring.toLocaleString()}</td>
+                  <td>{recordTotals.jpops.toLocaleString()}</td>
+                  <td colSpan={2}></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
           {message && <div className={`hourly-sales-message ${messageType}`} role={messageType === 'error' ? 'alert' : 'status'}>{message}</div>}
@@ -763,7 +798,7 @@ function HourlySalesPage() {
   const [reportLoadError, setReportLoadError] = useState('')
   const [refreshCount, setRefreshCount] = useState(0)
   const locationName = user?.locationName
-  const reportEndDate = view === 'summary' ? startDate : endDate
+  const reportEndDate = endDate
   const invalidDateRange = !startDate || !reportEndDate || startDate > reportEndDate
   const reportError = !locationName
     ? 'Your account does not have a location assigned.'
@@ -778,8 +813,6 @@ function HourlySalesPage() {
     !invalidDateRange &&
     reportLoading,
   )
-  const summaryReport = reports[0] ?? null
-
   useEffect(() => {
     let active = true
 
@@ -787,6 +820,8 @@ function HourlySalesPage() {
       view === 'entry' ||
       view === 'records' ||
       !locationName ||
+      !startDate ||
+      !reportEndDate ||
       startDate > reportEndDate
     ) {
       return () => {
@@ -842,42 +877,76 @@ function HourlySalesPage() {
 
   return (
     <main className="hourly-sales-page">
-      <header className="hourly-sales-heading">
-        <div>
-          <div className="hourly-sales-eyebrow">HOURLY OPERATIONS</div>
-          <h1>Donut production monitoring</h1>
-          <p>Daily production, process waste, inventory, and POS sales.</p>
+
+      <div className="hourly-sales-navigation-row">
+        <div className="hourly-sales-view-tabs" role="tablist" aria-label="Hourly sales view">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'daily'}
+            className={view === 'daily' ? 'active' : ''}
+            onClick={() => setView('daily')}
+          >
+            <ClipboardList size={16} aria-hidden="true" />
+            Hourly details
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'summary'}
+            className={view === 'summary' ? 'active' : ''}
+            onClick={() => setView('summary')}
+          >
+            <BarChart3 size={16} aria-hidden="true" />
+            Donut summary
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'records'}
+            className={view === 'records' ? 'active' : ''}
+            onClick={() => setView('records')}
+          >
+            <ClipboardList size={16} aria-hidden="true" />
+            Records
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'entry'}
+            className={view === 'entry' ? 'active' : ''}
+            onClick={() => setView('entry')}
+          >
+            <PenLine size={16} aria-hidden="true" />
+            Transactions
+          </button>
         </div>
+
         <div className="hourly-sales-report-controls">
           <div className="hourly-sales-date">
-            <CalendarDays size={17} aria-hidden="true" />
-            <label htmlFor="hourly-start-date">{view === 'summary' ? 'Summary date' : 'From'}</label>
+            <CalendarDays size={15} aria-hidden="true" />
+            <label htmlFor="hourly-start-date">From</label>
             <input
               id="hourly-start-date"
-              aria-label={view === 'summary' ? 'Donut summary date' : 'Report start date'}
+              aria-label="Report start date"
               type="date"
               value={startDate}
-              onChange={(event) => {
-                setStartDate(event.target.value)
-                if (view === 'summary') setEndDate(event.target.value)
-              }}
+              onChange={(event) => setStartDate(event.target.value)}
               required
             />
           </div>
-          {view !== 'summary' && (
-            <div className="hourly-sales-date">
-              <CalendarDays size={17} aria-hidden="true" />
-              <label htmlFor="hourly-end-date">To</label>
-              <input
-                id="hourly-end-date"
-                aria-label="Report end date"
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                required
-              />
-            </div>
-          )}
+          <div className="hourly-sales-date">
+            <CalendarDays size={15} aria-hidden="true" />
+            <label htmlFor="hourly-end-date">To</label>
+            <input
+              id="hourly-end-date"
+              aria-label="Report end date"
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              required
+            />
+          </div>
           {view !== 'entry' && (
             <button
               className="hourly-sales-refresh"
@@ -891,56 +960,13 @@ function HourlySalesPage() {
             </button>
           )}
         </div>
-      </header>
-
-      <div className="hourly-sales-view-tabs" role="tablist" aria-label="Hourly sales view">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'daily'}
-          className={view === 'daily' ? 'active' : ''}
-          onClick={() => setView('daily')}
-        >
-          <ClipboardList size={16} aria-hidden="true" />
-          Hourly details
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'summary'}
-          className={view === 'summary' ? 'active' : ''}
-          onClick={() => setView('summary')}
-        >
-          <BarChart3 size={16} aria-hidden="true" />
-          Donut summary
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'records'}
-          className={view === 'records' ? 'active' : ''}
-          onClick={() => setView('records')}
-        >
-          <ClipboardList size={16} aria-hidden="true" />
-          Records
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'entry'}
-          className={view === 'entry' ? 'active' : ''}
-          onClick={() => setView('entry')}
-        >
-          <PenLine size={16} aria-hidden="true" />
-          Transactions
-        </button>
       </div>
 
       {(view === 'daily' || view === 'summary') && (
         <>
           {reportIsLoading && (
             <div className="hourly-sales-report-state">
-              {view === 'summary' ? 'Loading the selected day summary...' : 'Loading reports for the selected date range...'}
+              {view === 'summary' ? 'Loading summaries for the selected date range...' : 'Loading reports for the selected date range...'}
             </div>
           )}
           {reportError && <div className="hourly-sales-message error" role="alert">{reportError}</div>}
@@ -950,8 +976,11 @@ function HourlySalesPage() {
               <HourlyDailyReport report={report} />
             </section>
           ))}
-          {!reportIsLoading && !reportError && view === 'summary' && summaryReport && (
-            <HourlyProductionSummary key={`${summaryReport.locationName}-${summaryReport.businessDate}`} report={summaryReport} />
+          {!reportIsLoading && !reportError && view === 'summary' && reports.length > 0 && (
+            <HourlyProductionSummary
+              key={`${reports[0].locationName}-${reports[0].businessDate}-${reports[reports.length - 1].businessDate}`}
+              reports={reports}
+            />
           )}
         </>
       )}

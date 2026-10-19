@@ -222,34 +222,59 @@ function emptyManualSummaryInputs(): ManualSummaryInputs {
   }
 }
 
-function readManualSummaryInputs(storageKey: string): {
+function readManualSummaryInputs(storageKey: string, reports: HourlyDailyReportData[] = []): {
   values: ManualSummaryInputs
   error: string
 } {
   try {
     const stored = window.localStorage.getItem(storageKey)
-    if (!stored) return { values: emptyManualSummaryInputs(), error: '' }
+    if (stored) {
+      const parsed: unknown = JSON.parse(stored)
+      if (!parsed || typeof parsed !== 'object') {
+        return { values: emptyManualSummaryInputs(), error: 'Saved manual inputs are invalid and could not be loaded.' }
+      }
 
-    const parsed: unknown = JSON.parse(stored)
-    if (!parsed || typeof parsed !== 'object') {
-      return { values: emptyManualSummaryInputs(), error: 'Saved manual inputs are invalid and could not be loaded.' }
+      const defaults = emptyManualSummaryInputs()
+      const values = { ...defaults }
+      for (const key of Object.keys(manualFieldLabels) as ManualFieldKey[]) {
+        const row = (parsed as Record<string, unknown>)[key]
+        if (!row || typeof row !== 'object') continue
+        const record = row as Record<string, unknown>
+        values[key] = {
+          ring: typeof record.ring === 'string' ? record.ring : '',
+          shell: typeof record.shell === 'string' ? record.shell : '',
+        }
+      }
+
+      const efficiency = (parsed as Record<string, unknown>).efficiency
+      values.efficiency = typeof efficiency === 'string' ? efficiency : ''
+      return { values, error: '' }
     }
 
-    const defaults = emptyManualSummaryInputs()
-    const values = { ...defaults }
+    if (reports.length === 0) return { values: emptyManualSummaryInputs(), error: '' }
+
+    const dailyInputs = reports.map((report) => readManualSummaryInputs(
+      `hourly-sales-summary:${report.locationName}:${report.businessDate}`,
+    ))
+    const values = emptyManualSummaryInputs()
     for (const key of Object.keys(manualFieldLabels) as ManualFieldKey[]) {
-      const row = (parsed as Record<string, unknown>)[key]
-      if (!row || typeof row !== 'object') continue
-      const record = row as Record<string, unknown>
-      values[key] = {
-        ring: typeof record.ring === 'string' ? record.ring : '',
-        shell: typeof record.shell === 'string' ? record.shell : '',
+      for (const part of ['ring', 'shell'] as const) {
+        const enteredValues = dailyInputs
+          .map(({ values: dailyValues }) => dailyValues[key][part])
+          .filter((value) => value !== '')
+          .map(Number)
+        values[key][part] = enteredValues.length > 0
+          ? String(enteredValues.reduce((total, value) => total + value, 0))
+          : ''
       }
     }
-
-    const efficiency = (parsed as Record<string, unknown>).efficiency
-    values.efficiency = typeof efficiency === 'string' ? efficiency : ''
-    return { values, error: '' }
+    if (reports.length === 1) {
+      values.efficiency = dailyInputs[0].values.efficiency
+    }
+    return {
+      values,
+      error: dailyInputs.find(({ error }) => error)?.error ?? '',
+    }
   } catch {
     return {
       values: emptyManualSummaryInputs(),
@@ -258,11 +283,82 @@ function readManualSummaryInputs(storageKey: string): {
   }
 }
 
-export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
-  const storageKey = `hourly-sales-summary:${report.locationName}:${report.businessDate}`
-  const [storedInputs, setStoredInputs] = useState(() => readManualSummaryInputs(storageKey))
+function addQuantities(
+  left: HourlyDailyReportData['summary']['produced'],
+  right: HourlyDailyReportData['summary']['produced'],
+) {
+  return {
+    ring: left.ring + right.ring,
+    shell: left.shell + right.shell,
+    jpops: left.jpops + right.jpops,
+    total: left.total + right.total,
+  }
+}
+
+export function HourlyProductionSummary({ reports }: { reports: HourlyDailyReportData[] }) {
+  const firstReport = reports[0]!
+  const lastReport = reports[reports.length - 1]!
+  const dateRange = reports.length === 1
+    ? firstReport.businessDate
+    : `${firstReport.businessDate} – ${lastReport.businessDate}`
+  const storageDate = reports.length === 1
+    ? firstReport.businessDate
+    : `${firstReport.businessDate}..${lastReport.businessDate}`
+  const storageKey = `hourly-sales-summary:${firstReport.locationName}:${storageDate}`
+  const [storedInputs, setStoredInputs] = useState(() => readManualSummaryInputs(storageKey, reports))
   const manualInputs = storedInputs.values
   const manualError = storedInputs.error
+  const rangeSummary = reports.reduce((total, report) => ({
+    produced: addQuantities(total.produced, report.summary.produced),
+    received: addQuantities(total.received, report.summary.received),
+    sold: addQuantities(total.sold, report.summary.sold),
+    netProducedSales: addQuantities(total.netProducedSales, report.summary.netProducedSales),
+    variance: addQuantities(total.variance, report.summary.variance),
+    tolerableVariance: total.tolerableVariance + report.summary.tolerableVariance,
+    proofingWaste: addQuantities(total.proofingWaste, report.summary.proofingWaste),
+    fryingWaste: addQuantities(total.fryingWaste, report.summary.fryingWaste),
+    toppingWaste: addQuantities(total.toppingWaste, report.summary.toppingWaste),
+    totalWaste: addQuantities(total.totalWaste, report.summary.totalWaste),
+    tolerableWaste: total.tolerableWaste + report.summary.tolerableWaste,
+    excessWaste: total.excessWaste + report.summary.excessWaste,
+    excessWasteEquivalent: total.excessWasteEquivalent + report.summary.excessWasteEquivalent,
+    endingInventory: report.summary.endingInventory,
+    salesAllocation: 0,
+    wasteAllocation: 0,
+    varianceAllocation: 0,
+  }), {
+    produced: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    received: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    sold: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    netProducedSales: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    variance: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    tolerableVariance: 0,
+    proofingWaste: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    fryingWaste: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    toppingWaste: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    totalWaste: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    tolerableWaste: 0,
+    excessWaste: 0,
+    excessWasteEquivalent: 0,
+    endingInventory: firstReport.summary.endingInventory,
+    salesAllocation: 0,
+    wasteAllocation: 0,
+    varianceAllocation: 0,
+  })
+  rangeSummary.salesAllocation = rangeSummary.produced.total === 0 ? 0 : rangeSummary.netProducedSales.total / rangeSummary.produced.total
+  rangeSummary.wasteAllocation = rangeSummary.produced.total === 0 ? 0 : rangeSummary.totalWaste.total / rangeSummary.produced.total
+  rangeSummary.varianceAllocation = rangeSummary.produced.total === 0 ? 0 : rangeSummary.variance.total / rangeSummary.produced.total
+  const report = {
+    ...firstReport,
+    businessDate: dateRange,
+    summary: rangeSummary,
+    posSales: reports.flatMap((dailyReport) => dailyReport.posSales ?? []),
+    posWaste: reports.reduce((total, dailyReport) => ({
+      ring: total.ring + (dailyReport.posWaste?.ring ?? 0),
+      shell: total.shell + (dailyReport.posWaste?.shell ?? 0),
+      jpops: total.jpops + (dailyReport.posWaste?.jpops ?? 0),
+    }), { ring: 0, shell: 0, jpops: 0 }),
+  }
 
   function updateManualInput(
     field: ManualFieldKey | 'efficiency',
@@ -579,9 +675,9 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
       <div className="hourly-production-summary-heading">
         <div>
           <h2>Donut production summary</h2>
-          <p>{report.locationName} · {report.businessDate}</p>
+          <p>{report.locationName} · {dateRange}</p>
         </div>
-        <span>Daily summary · manual rows are saved per location and date</span>
+        <span>Date-range summary · manual rows are saved per location and selected range</span>
       </div>
       <div className="hourly-production-summary-scroll">
         <table className="hourly-production-summary-table">
@@ -608,7 +704,7 @@ export function HourlyProductionSummary({ report }: HourlyDailyReportProps) {
       </div>
       </section>
       <HourlyPosReport
-        reports={[report]}
+        reports={reports}
         allocation={{
           sold: summary.netProducedSales.total ?? 0,
           foc: focRing + focShell,
