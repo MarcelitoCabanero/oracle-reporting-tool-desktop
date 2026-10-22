@@ -2,6 +2,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import {
+  Fragment,
   useState,
 } from 'react'
 
@@ -1041,37 +1042,44 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
         <table className="hourly-report-table">
           <thead>
             <tr className="hourly-report-groups">
-              <th rowSpan={2} scope="col">Hour</th>
+              <th rowSpan={3} scope="col">Hour</th>
               <th colSpan={2} scope="colgroup">Opening</th>
               <th colSpan={2} scope="colgroup">Received</th>
               <th colSpan={2} scope="colgroup">Produced</th>
-              <th colSpan={3} scope="colgroup">Proofing</th>
-              <th colSpan={2} scope="colgroup">After proofing</th>
-              <th colSpan={3} scope="colgroup">Frying</th>
-              <th colSpan={2} scope="colgroup">After frying</th>
-              <th colSpan={3} scope="colgroup">Topping</th>
-              <th colSpan={2} scope="colgroup">Ready</th>
+              <th colSpan={5} scope="colgroup">Proofing</th>
+              <th colSpan={5} scope="colgroup">Frying</th>
+              <th colSpan={5} scope="colgroup">Topping</th>
               <th colSpan={2} scope="colgroup">POS sold</th>
               <th colSpan={2} scope="colgroup">Ending balance</th>
             </tr>
             <tr>
-              {[
-                ['opening', false],
-                ['received', false],
-                ['produced', false],
-                ['proofing', true],
-                ['after-proofing', false],
-                ['frying', true],
-                ['after-frying', false],
-                ['topping', true],
-                ['ready', false],
-                ['sold', false],
-                ['ending', false],
-              ].flatMap(([section, hasRate]) => [
-                <th key={`${section}-ring`}>Ring</th>,
-                <th key={`${section}-shell`}>Shell eq.</th>,
-                ...(hasRate ? [<th key={`${section}-rate`}>Loss %</th>] : []),
-              ])}
+              <th rowSpan={2} scope="col">Ring</th>
+              <th rowSpan={2} scope="col">Shell eq.</th>
+              <th rowSpan={2} scope="col">Ring</th>
+              <th rowSpan={2} scope="col">Shell eq.</th>
+              <th rowSpan={2} scope="col">Ring</th>
+              <th rowSpan={2} scope="col">Shell eq.</th>
+              <th className="hourly-report-good-heading" colSpan={2} scope="colgroup">Good</th>
+              <th className="hourly-report-waste-heading" colSpan={2} scope="colgroup">Bad/Waste</th>
+              <th className="hourly-report-waste-heading" rowSpan={2} scope="col">Waste %</th>
+              <th className="hourly-report-good-heading" colSpan={2} scope="colgroup">Good</th>
+              <th className="hourly-report-waste-heading" colSpan={2} scope="colgroup">Bad/Waste</th>
+              <th className="hourly-report-waste-heading" rowSpan={2} scope="col">Waste %</th>
+              <th className="hourly-report-good-heading" colSpan={2} scope="colgroup">Good</th>
+              <th className="hourly-report-waste-heading" colSpan={2} scope="colgroup">Bad/Waste</th>
+              <th className="hourly-report-waste-heading" rowSpan={2} scope="col">Waste %</th>
+              <th rowSpan={2} scope="col">Ring</th>
+              <th rowSpan={2} scope="col">Shell eq.</th>
+              <th rowSpan={2} scope="col">Ring</th>
+              <th rowSpan={2} scope="col">Shell eq.</th>
+            </tr>
+            <tr>
+              {Array.from({ length: 6 }, (_, index) => (
+                <Fragment key={`waste-stage-${index}`}>
+                  <th className={index % 2 === 1 ? 'hourly-report-waste-subheader' : 'hourly-report-good-subheader'} scope="col">Ring</th>
+                  <th className={index % 2 === 1 ? 'hourly-report-waste-subheader' : 'hourly-report-good-subheader'} scope="col">Shell</th>
+                </Fragment>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -1112,21 +1120,21 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
                 <td>{quantity(row.received.shell + row.received.jpops)}</td>
                 <td>{quantity(row.produced.ring)}</td>
                 <td>{quantity(row.produced.shell + row.produced.jpops)}</td>
-                <td>{quantity(row.proofingWaste.ring)}</td>
-                <td>{quantity(row.proofingWaste.shell + row.proofingWaste.jpops)}</td>
-                <td>{percent(row.proofingWasteRate)}</td>
-                <td>{quantity(row.proofingGood.ring)}</td>
-                <td>{quantity(row.proofingGood.shell)}</td>
-                <td>{quantity(row.fryingWaste.ring)}</td>
-                <td>{quantity(row.fryingWaste.shell + row.fryingWaste.jpops)}</td>
-                <td>{percent(row.fryingWasteRate)}</td>
-                <td>{quantity(row.fryingGood.ring)}</td>
-                <td>{quantity(row.fryingGood.shell)}</td>
-                <td>{quantity(row.toppingWaste.ring)}</td>
-                <td>{quantity(row.toppingWaste.shell + row.toppingWaste.jpops)}</td>
-                <td>{percent(row.toppingWasteRate)}</td>
-                <td>{quantity(row.toppingGood.ring)}</td>
-                <td>{quantity(row.toppingGood.shell)}</td>
+                <td className="hourly-report-good-cell">{quantity(row.proofingGood.ring)}</td>
+                <td className="hourly-report-good-cell">{quantity(row.proofingGood.shell)}</td>
+                <td className="hourly-report-waste-cell">{quantity(row.proofingWaste.ring)}</td>
+                <td className="hourly-report-waste-cell">{quantity(row.proofingWaste.shell + row.proofingWaste.jpops)}</td>
+                <td className="hourly-report-waste-cell">{percent(row.proofingWasteRate)}</td>
+                <td className="hourly-report-good-cell">{quantity(row.fryingGood.ring)}</td>
+                <td className="hourly-report-good-cell">{quantity(row.fryingGood.shell)}</td>
+                <td className="hourly-report-waste-cell">{quantity(row.fryingWaste.ring)}</td>
+                <td className="hourly-report-waste-cell">{quantity(row.fryingWaste.shell + row.fryingWaste.jpops)}</td>
+                <td className="hourly-report-waste-cell">{percent(row.fryingWasteRate)}</td>
+                <td className="hourly-report-good-cell">{quantity(row.toppingGood.ring)}</td>
+                <td className="hourly-report-good-cell">{quantity(row.toppingGood.shell)}</td>
+                <td className="hourly-report-waste-cell">{quantity(row.toppingWaste.ring)}</td>
+                <td className="hourly-report-waste-cell">{quantity(row.toppingWaste.shell + row.toppingWaste.jpops)}</td>
+                <td className="hourly-report-waste-cell">{percent(row.toppingWasteRate)}</td>
                 <td>{quantity(row.sold.ring)}</td>
                 <td>{quantity(row.sold.shell + row.sold.jpops)}</td>
                 <td>{quantity(row.ending.ring)}</td>
@@ -1143,21 +1151,21 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td>{quantity(summary.received.shell + summary.received.jpops)}</td>
               <td>{quantity(summary.produced.ring)}</td>
               <td>{quantity(summary.produced.shell + summary.produced.jpops)}</td>
-              <td>{quantity(summary.proofingWaste.ring)}</td>
-              <td>{quantity(summary.proofingWaste.shell + summary.proofingWaste.jpops)}</td>
-              <td>{percent(summary.proofingWaste.total / (proofingGood + summary.proofingWaste.total || 1))}</td>
-              <td>{quantity(proofingGoodRing)}</td>
-              <td>{quantity(proofingGoodShell)}</td>
-              <td>{quantity(summary.fryingWaste.ring)}</td>
-              <td>{quantity(summary.fryingWaste.shell + summary.fryingWaste.jpops)}</td>
-              <td>{percent(summary.fryingWaste.total / (fryingGood + summary.fryingWaste.total || 1))}</td>
-              <td>{quantity(fryingGoodRing)}</td>
-              <td>{quantity(fryingGoodShell)}</td>
-              <td>{quantity(summary.toppingWaste.ring)}</td>
-              <td>{quantity(summary.toppingWaste.shell + summary.toppingWaste.jpops)}</td>
-              <td>{percent(summary.toppingWaste.total / (toppingGood + summary.toppingWaste.total || 1))}</td>
-              <td>{quantity(toppingGoodRing)}</td>
-              <td>{quantity(toppingGoodShell)}</td>
+              <td className="hourly-report-good-cell">{quantity(proofingGoodRing)}</td>
+              <td className="hourly-report-good-cell">{quantity(proofingGoodShell)}</td>
+              <td className="hourly-report-waste-cell">{quantity(summary.proofingWaste.ring)}</td>
+              <td className="hourly-report-waste-cell">{quantity(summary.proofingWaste.shell + summary.proofingWaste.jpops)}</td>
+              <td className="hourly-report-waste-cell">{percent(summary.proofingWaste.total / (proofingGood + summary.proofingWaste.total || 1))}</td>
+              <td className="hourly-report-good-cell">{quantity(fryingGoodRing)}</td>
+              <td className="hourly-report-good-cell">{quantity(fryingGoodShell)}</td>
+              <td className="hourly-report-waste-cell">{quantity(summary.fryingWaste.ring)}</td>
+              <td className="hourly-report-waste-cell">{quantity(summary.fryingWaste.shell + summary.fryingWaste.jpops)}</td>
+              <td className="hourly-report-waste-cell">{percent(summary.fryingWaste.total / (fryingGood + summary.fryingWaste.total || 1))}</td>
+              <td className="hourly-report-good-cell">{quantity(toppingGoodRing)}</td>
+              <td className="hourly-report-good-cell">{quantity(toppingGoodShell)}</td>
+              <td className="hourly-report-waste-cell">{quantity(summary.toppingWaste.ring)}</td>
+              <td className="hourly-report-waste-cell">{quantity(summary.toppingWaste.shell + summary.toppingWaste.jpops)}</td>
+              <td className="hourly-report-waste-cell">{percent(summary.toppingWaste.total / (toppingGood + summary.toppingWaste.total || 1))}</td>
               <td>{quantity(summary.sold.ring)}</td>
               <td>{quantity(summary.sold.shell + summary.sold.jpops)}</td>
               <td>{quantity(summary.endingInventory.ring)}</td>
