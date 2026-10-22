@@ -284,7 +284,11 @@
 .hourly-report-table thead {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 1;
+}
+
+.hourly-report-table thead th {
+  background: #f6f0e6;
 }
 
 .hourly-report-table thead tr:last-child th {
@@ -412,7 +416,7 @@
   border-left: 2px solid #fff;
 }
 
-.hourly-report-table thead th:first-child,
+.hourly-report-table thead .hourly-report-groups th:first-child,
 .hourly-report-table tbody th,
 .hourly-report-table tfoot th {
   position: sticky;
@@ -422,7 +426,7 @@
   text-align: left;
 }
 
-.hourly-report-table thead th:first-child {
+.hourly-report-table thead .hourly-report-groups th:first-child {
   z-index: 3;
 }
 
