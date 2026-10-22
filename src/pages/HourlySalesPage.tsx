@@ -31,7 +31,6 @@ type EntryKind = 'produce' | 'waste'
 interface EntryDraft {
   id: string
   time: string
-  entryDate: string
   shellQty: string
   ringQty: string
   jpopsQty: string
@@ -42,7 +41,6 @@ type EntryField = keyof Omit<EntryDraft, 'id'>
 
 const entryFieldOrder: EntryField[] = [
   'time',
-  'entryDate',
   'shellQty',
   'ringQty',
   'jpopsQty',
@@ -60,6 +58,20 @@ const timeSlots = Array.from({ length: 24 }, (_, hour) => {
 
   return `${formatHour(hour)} – ${formatHour(hour + 1)}`
 })
+
+function normalizeTimeSlot(time: string) {
+  return time.trim().toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, ' ')
+}
+
+const timeSlotOrder = new Map(
+  timeSlots.map((time, index) => [normalizeTimeSlot(time), index]),
+)
+
+function getRecordTimeOrder(time: string) {
+  const normalizedTime = normalizeTimeSlot(time)
+  if (normalizedTime === 'retarding') return -1
+  return timeSlotOrder.get(normalizedTime) ?? timeSlots.length
+}
 
 function todayString() {
   const now = new Date()
@@ -83,11 +95,10 @@ function getDatesInRange(startDate: string, endDate: string): string[] {
   return dates
 }
 
-function createDraft(date: string): EntryDraft {
+function createDraft(): EntryDraft {
   return {
     id: crypto.randomUUID(),
     time: '',
-    entryDate: date,
     shellQty: '',
     ringQty: '',
     jpopsQty: '',
@@ -110,8 +121,8 @@ function HourlyEntryForm({
 }) {
   const { user } = useAuth()
   const [kind, setKind] = useState<EntryKind>('produce')
-  const [produceRows, setProduceRows] = useState<EntryDraft[]>(() => [createDraft(businessDate)])
-  const [wasteRows, setWasteRows] = useState<EntryDraft[]>(() => [createDraft(businessDate)])
+  const [produceRows, setProduceRows] = useState<EntryDraft[]>(() => [createDraft()])
+  const [wasteRows, setWasteRows] = useState<EntryDraft[]>(() => [createDraft()])
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
@@ -130,7 +141,7 @@ function HourlyEntryForm({
   const ringQuantity = rows.reduce((total, row) => total + Number(row.ringQty || 0), 0)
   const jpopsQuantity = rows.reduce((total, row) => total + Number(row.jpopsQty || 0), 0)
 
-  function updateRow(id: string, field: keyof Omit<EntryDraft, 'id'>, value: string) {
+  function updateRow(id: string, field: EntryField, value: string) {
     setRows((currentRows) => currentRows.map((row) =>
       row.id === id ? { ...row, [field]: value } : row,
     ))
@@ -167,7 +178,7 @@ function HourlyEntryForm({
   }
 
   function addRow() {
-    setRows((currentRows) => [...currentRows, createDraft(businessDate)])
+    setRows((currentRows) => [...currentRows, createDraft()])
     setMessage('')
   }
 
@@ -185,6 +196,12 @@ function HourlyEntryForm({
     event.preventDefault()
     setMessage('')
 
+    if (!businessDate) {
+      setMessageType('error')
+      setMessage('Choose a transaction date before saving.')
+      return
+    }
+
     if (rows.length === 0) {
       setMessageType('error')
       setMessage('Add at least one entry before saving.')
@@ -193,12 +210,12 @@ function HourlyEntryForm({
 
     for (const [index, row] of rows.entries()) {
       const requiredField = entryFieldOrder.find((field) =>
-        ['time', 'entryDate', 'remarks'].includes(field) && !row[field].trim(),
+        ['time', 'remarks'].includes(field) && !row[field].trim(),
       )
 
       if (requiredField) {
         setMessageType('error')
-        setMessage(`Entry ${index + 1} is missing ${requiredField === 'entryDate' ? 'an entry date' : requiredField === 'time' ? 'a time duration' : 'remarks'}.`)
+        setMessage(`Entry ${index + 1} is missing ${requiredField === 'time' ? 'a time duration' : 'remarks'}.`)
         fieldRefs.current.get(`${row.id}:${requiredField}`)?.focus()
         return
       }
@@ -246,7 +263,7 @@ function HourlyEntryForm({
 
     const preparedRows = rows.map((row) => ({
       time: row.time,
-      entryDate: row.entryDate,
+      entryDate: businessDate,
       shellQty: row.shellQty === '' ? null : Number(row.shellQty),
       ringQty: row.ringQty === '' ? null : Number(row.ringQty),
       jpopsQty: row.jpopsQty === '' ? null : Number(row.jpopsQty),
@@ -265,7 +282,7 @@ function HourlyEntryForm({
 
       setMessageType('success')
       setMessage(result.message)
-      setRows([createDraft(businessDate)])
+      setRows([createDraft()])
       onSaved()
     } catch (error) {
       setMessageType('error')
@@ -276,7 +293,7 @@ function HourlyEntryForm({
   }
 
   return (
-    <section className="hourly-sales-panel" aria-label="Hourly production and waste entry">
+    <section className="hourly-sales-panel hourly-entry-panel" aria-label="Hourly production and waste entry">
         <div className="hourly-sales-toolbar">
           <div className="hourly-sales-tabs" role="tablist" aria-label="Entry type">
             <button
@@ -329,69 +346,73 @@ function HourlyEntryForm({
             </div>
           </div>
 
-          <div className="hourly-sales-table-wrap">
-            <table className="hourly-sales-table">
-              <thead>
-                <tr>
-                  <th scope="col">{kind === 'produce' ? 'Time mixing' : 'Time waste'}</th>
-                  <th scope="col">Entry date</th>
-                  <th scope="col">Shell qty</th>
-                  <th scope="col">Ring qty</th>
-                  <th scope="col">JPops qty</th>
-                  <th scope="col">Remarks</th>
-                  <th scope="col"><span className="visually-hidden">Remove entry</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => (
-                  <tr key={row.id}>
-                    <td>
-                      <select
-                        aria-label={`Entry ${index + 1} time`}
-                        value={row.time}
-                        ref={(element) => {
-                          if (element) fieldRefs.current.set(`${row.id}:time`, element)
-                          else fieldRefs.current.delete(`${row.id}:time`)
-                        }}
-                        onChange={(event) => {
-                          updateRow(row.id, 'time', event.target.value)
-                          if (event.target.value) focusNextField(row.id, 'time')
-                        }}
-                      >
-                        <option value="">Select hour</option>
-                        {timeOptions.map((timeOption) => {
-                          const selectedElsewhere = rows.some((otherRow) =>
-                            otherRow.id !== row.id &&
-                            timeOption.toUpperCase() !== 'RETARDING' &&
-                            otherRow.time.trim().toUpperCase() === timeOption.toUpperCase(),
-                          )
+          <div className="hourly-entry-card-list">
+            {rows.map((row, index) => (
+              <section className="hourly-entry-card" key={row.id} aria-label={`Entry ${index + 1}`}>
+                <header className="hourly-entry-card-heading">
+                  <strong>Entry {index + 1}</strong>
+                  <button
+                    className="hourly-sales-icon-button"
+                    type="button"
+                    onClick={() => removeRow(row.id)}
+                    aria-label={`Remove entry ${index + 1}`}
+                    title="Remove entry"
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                </header>
 
-                          return (
-                            <option key={timeOption} value={timeOption} disabled={selectedElsewhere}>
-                              {timeOption}
-                            </option>
-                          )
-                        })}
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        aria-label={`Entry ${index + 1} date`}
-                        type="date"
-                        value={row.entryDate}
-                        ref={(element) => {
-                          if (element) fieldRefs.current.set(`${row.id}:entryDate`, element)
-                          else fieldRefs.current.delete(`${row.id}:entryDate`)
-                        }}
-                        onChange={(event) => {
-                          updateRow(row.id, 'entryDate', event.target.value)
-                          if (event.target.value) focusNextField(row.id, 'entryDate')
-                        }}
-                      />
-                    </td>
-                    {(['shellQty', 'ringQty', 'jpopsQty'] as const).map((field) => (
-                      <td key={field}>
+                <div className="hourly-entry-fields">
+                  <div className="hourly-entry-field">
+                    <label htmlFor={`${row.id}-time`}>{kind === 'produce' ? 'Time mixing' : 'Time waste'}</label>
+                    <select
+                      id={`${row.id}-time`}
+                      aria-label={`Entry ${index + 1} time`}
+                      value={row.time}
+                      ref={(element) => {
+                        if (element) fieldRefs.current.set(`${row.id}:time`, element)
+                        else fieldRefs.current.delete(`${row.id}:time`)
+                      }}
+                      onChange={(event) => {
+                        updateRow(row.id, 'time', event.target.value)
+                        if (event.target.value) focusNextField(row.id, 'time')
+                      }}
+                    >
+                      <option value="">Select hour</option>
+                      {timeOptions.map((timeOption) => {
+                        const selectedElsewhere = rows.some((otherRow) =>
+                          otherRow.id !== row.id &&
+                          timeOption.toUpperCase() !== 'RETARDING' &&
+                          otherRow.time.trim().toUpperCase() === timeOption.toUpperCase(),
+                        )
+
+                        return (
+                          <option key={timeOption} value={timeOption} disabled={selectedElsewhere}>
+                            {timeOption}
+                          </option>
+                        )
+                      })}
+                    </select>
+                  </div>
+
+                  <div className="hourly-entry-field hourly-entry-fixed-date">
+                    <span>Entry date</span>
+                    <div>
+                      <CalendarDays size={15} aria-hidden="true" />
+                      <strong>{businessDate || 'Select a transaction date'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="hourly-entry-quantity-group">
+                    {([
+                      ['shellQty', 'Shell quantity'],
+                      ['ringQty', 'Ring quantity'],
+                      ['jpopsQty', 'JPops quantity'],
+                    ] as const).map(([field, label]) => (
+                      <div className="hourly-entry-field hourly-entry-quantity" key={field}>
+                        <label htmlFor={`${row.id}-${field}`}>{label}</label>
                         <input
+                          id={`${row.id}-${field}`}
                           aria-label={`Entry ${index + 1} ${field.replace('Qty', '')} quantity`}
                           type="number"
                           min="0"
@@ -414,45 +435,35 @@ function HourlyEntryForm({
                             : undefined}
                           placeholder="0"
                         />
-                      </td>
+                      </div>
                     ))}
-                    <td>
-                      <select
-                        aria-label={`Entry ${index + 1} remarks`}
-                        value={row.remarks}
-                        ref={(element) => {
-                          if (element) fieldRefs.current.set(`${row.id}:remarks`, element)
-                          else fieldRefs.current.delete(`${row.id}:remarks`)
-                        }}
-                        onChange={(event) => {
-                          updateRow(row.id, 'remarks', event.target.value)
-                          if (event.target.value) focusNextField(row.id, 'remarks')
-                        }}
-                      >
-                        <option value="">Select remark</option>
-                        {remarksOptions.map((remark) => <option key={remark} value={remark}>{remark}</option>)}
-                      </select>
-                    </td>
-                    <td className="hourly-sales-remove-cell">
-                      <button
-                        className="hourly-sales-icon-button"
-                        type="button"
-                        onClick={() => removeRow(row.id)}
-                        aria-label={`Remove entry ${index + 1}`}
-                        title="Remove entry"
-                      >
-                        <Trash2 size={16} aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {rows.length === 0 && (
-                  <tr>
-                    <td className="hourly-sales-empty" colSpan={7}>No entries yet</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </div>
+
+                  <div className="hourly-entry-field hourly-entry-remarks">
+                    <label htmlFor={`${row.id}-remarks`}>Remarks</label>
+                    <select
+                      id={`${row.id}-remarks`}
+                      aria-label={`Entry ${index + 1} remarks`}
+                      value={row.remarks}
+                      ref={(element) => {
+                        if (element) fieldRefs.current.set(`${row.id}:remarks`, element)
+                        else fieldRefs.current.delete(`${row.id}:remarks`)
+                      }}
+                      onChange={(event) => {
+                        updateRow(row.id, 'remarks', event.target.value)
+                        if (event.target.value) focusNextField(row.id, 'remarks')
+                      }}
+                    >
+                      <option value="">Select remark</option>
+                      {remarksOptions.map((remark) => <option key={remark} value={remark}>{remark}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </section>
+            ))}
+            {rows.length === 0 && (
+              <div className="hourly-entry-empty">No entries yet. Add an entry to get started.</div>
+            )}
           </div>
 
           <div className="hourly-sales-actions">
@@ -632,9 +643,12 @@ function HourlyRecords({
     }
   }
 
-  const filteredRecords = records.filter((record) =>
-    kindFilter === 'all' || record.kind === kindFilter,
-  )
+  const filteredRecords = records
+    .filter((record) => kindFilter === 'all' || record.kind === kindFilter)
+    .sort((first, second) =>
+      second.entryDate.localeCompare(first.entryDate) ||
+      getRecordTimeOrder(first.time) - getRecordTimeOrder(second.time),
+    )
   const recordTotals = filteredRecords.reduce((totals, record) => ({
     shell: totals.shell + record.shellQty,
     ring: totals.ring + record.ringQty,
@@ -790,9 +804,10 @@ type HourlyDailyReportData = Awaited<
 
 function HourlySalesPage() {
   const { user } = useAuth()
-  const [view, setView] = useState<'daily' | 'summary' | 'records' | 'entry'>('daily')
+  const [view, setView] = useState<'daily' | 'summary' | 'records' | 'transactions'>('daily')
   const [startDate, setStartDate] = useState(todayString)
   const [endDate, setEndDate] = useState(todayString)
+  const [transactionDate, setTransactionDate] = useState(todayString)
   const [reports, setReports] = useState<HourlyDailyReportData[]>([])
   const [reportLoading, setReportLoading] = useState(false)
   const [reportLoadError, setReportLoadError] = useState('')
@@ -817,7 +832,7 @@ function HourlySalesPage() {
     let active = true
 
     if (
-      view === 'entry' ||
+      view === 'transactions' ||
       view === 'records' ||
       !locationName ||
       !startDate ||
@@ -871,7 +886,6 @@ function HourlySalesPage() {
   }, [locationName, refreshCount, reportEndDate, startDate, view])
 
   function handleEntrySaved() {
-    setView('daily')
     setRefreshCount((count) => count + 1)
   }
 
@@ -913,9 +927,9 @@ function HourlySalesPage() {
           <button
             type="button"
             role="tab"
-            aria-selected={view === 'entry'}
-            className={view === 'entry' ? 'active' : ''}
-            onClick={() => setView('entry')}
+            aria-selected={view === 'transactions'}
+            className={view === 'transactions' ? 'active' : ''}
+            onClick={() => setView('transactions')}
           >
             <PenLine size={16} aria-hidden="true" />
             Transactions
@@ -923,41 +937,67 @@ function HourlySalesPage() {
         </div>
 
         <div className="hourly-sales-report-controls">
-          <div className="hourly-sales-date">
-            <CalendarDays size={15} aria-hidden="true" />
-            <label htmlFor="hourly-start-date">From</label>
-            <input
-              id="hourly-start-date"
-              aria-label="Report start date"
-              type="date"
-              value={startDate}
-              onChange={(event) => setStartDate(event.target.value)}
-              required
-            />
-          </div>
-          <div className="hourly-sales-date">
-            <CalendarDays size={15} aria-hidden="true" />
-            <label htmlFor="hourly-end-date">To</label>
-            <input
-              id="hourly-end-date"
-              aria-label="Report end date"
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              required
-            />
-          </div>
-          {view !== 'entry' && (
-            <button
-              className="hourly-sales-refresh"
-              type="button"
-              onClick={() => setRefreshCount((count) => count + 1)}
-              disabled={reportLoading}
-              title="Refresh report"
-            >
-              <RefreshCw size={16} aria-hidden="true" />
-              Refresh
-            </button>
+          {view === 'transactions' ? (
+            <>
+              <div className="hourly-sales-date">
+                <CalendarDays size={15} aria-hidden="true" />
+                <label htmlFor="hourly-transaction-date">Date</label>
+                <input
+                  id="hourly-transaction-date"
+                  aria-label="Transaction date"
+                  type="date"
+                  value={transactionDate}
+                  onChange={(event) => setTransactionDate(event.target.value)}
+                  required
+                />
+              </div>
+              <button
+                className="hourly-sales-refresh"
+                type="button"
+                onClick={() => setRefreshCount((count) => count + 1)}
+                title="Refresh transactions"
+              >
+                <RefreshCw size={16} aria-hidden="true" />
+                Refresh
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="hourly-sales-date">
+                <CalendarDays size={15} aria-hidden="true" />
+                <label htmlFor="hourly-start-date">From</label>
+                <input
+                  id="hourly-start-date"
+                  aria-label="Report start date"
+                  type="date"
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                  required
+                />
+              </div>
+              <div className="hourly-sales-date">
+                <CalendarDays size={15} aria-hidden="true" />
+                <label htmlFor="hourly-end-date">To</label>
+                <input
+                  id="hourly-end-date"
+                  aria-label="Report end date"
+                  type="date"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  required
+                />
+              </div>
+              <button
+                className="hourly-sales-refresh"
+                type="button"
+                onClick={() => setRefreshCount((count) => count + 1)}
+                disabled={reportLoading && (view === 'daily' || view === 'summary')}
+                title={view === 'records' ? 'Refresh records' : 'Refresh report'}
+              >
+                <RefreshCw size={16} aria-hidden="true" />
+                Refresh
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -994,11 +1034,19 @@ function HourlySalesPage() {
         />
       )}
 
-      {view === 'entry' && (
-        <HourlyEntryForm
-          businessDate={startDate}
-          onSaved={handleEntrySaved}
-        />
+      {view === 'transactions' && (
+        <div className="hourly-transactions-layout">
+          <HourlyEntryForm
+            businessDate={transactionDate}
+            onSaved={handleEntrySaved}
+          />
+          <HourlyRecords
+            startDate={transactionDate}
+            endDate={transactionDate}
+            locationName={locationName}
+            refreshCount={refreshCount}
+          />
+        </div>
       )}
     </main>
   )

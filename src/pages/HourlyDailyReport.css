@@ -287,7 +287,7 @@
   z-index: 2;
 }
 
-.hourly-report-table thead th {
+.hourly-report-table thead tr:last-child th {
   background: #f6f0e6;
   color: #5f564a;
   font-weight: 700;
@@ -295,9 +295,122 @@
 }
 
 .hourly-report-table thead .hourly-report-groups th {
-  background: #eee3d1;
   color: #463d32;
   font-size: 10px;
+  text-align: center;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(2),
+.hourly-report-table thead tr:last-child th:nth-child(-n+2),
+.hourly-report-table tbody td:nth-child(2),
+.hourly-report-table tfoot td:nth-child(2) {
+  background: #edf1f5;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(3),
+.hourly-report-table thead tr:last-child th:nth-child(n+3):nth-child(-n+4),
+.hourly-report-table tbody td:nth-child(n+4):nth-child(-n+5),
+.hourly-report-table tfoot td:nth-child(n+4):nth-child(-n+5) {
+  background: #eaf2f8;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(4),
+.hourly-report-table thead tr:last-child th:nth-child(n+5):nth-child(-n+6),
+.hourly-report-table tbody td:nth-child(n+6):nth-child(-n+7),
+.hourly-report-table tfoot td:nth-child(n+6):nth-child(-n+7) {
+  background: #eaf4ed;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(5),
+.hourly-report-table thead tr:last-child th:nth-child(n+7):nth-child(-n+9),
+.hourly-report-table tbody td:nth-child(n+8):nth-child(-n+10),
+.hourly-report-table tfoot td:nth-child(n+8):nth-child(-n+10) {
+  background: #fbf1df;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(6),
+.hourly-report-table thead tr:last-child th:nth-child(n+10):nth-child(-n+11),
+.hourly-report-table tbody td:nth-child(n+11):nth-child(-n+12),
+.hourly-report-table tfoot td:nth-child(n+11):nth-child(-n+12) {
+  background: #f4f0e5;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(7),
+.hourly-report-table thead tr:last-child th:nth-child(n+12):nth-child(-n+14),
+.hourly-report-table tbody td:nth-child(n+13):nth-child(-n+15),
+.hourly-report-table tfoot td:nth-child(n+13):nth-child(-n+15) {
+  background: #f9eae5;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(8),
+.hourly-report-table thead tr:last-child th:nth-child(n+15):nth-child(-n+16),
+.hourly-report-table tbody td:nth-child(n+16):nth-child(-n+17),
+.hourly-report-table tfoot td:nth-child(n+16):nth-child(-n+17) {
+  background: #f5eee9;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(9),
+.hourly-report-table thead tr:last-child th:nth-child(n+17):nth-child(-n+19),
+.hourly-report-table tbody td:nth-child(n+18):nth-child(-n+20),
+.hourly-report-table tfoot td:nth-child(n+18):nth-child(-n+20) {
+  background: #f3eaf0;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(10),
+.hourly-report-table thead tr:last-child th:nth-child(n+20):nth-child(-n+21),
+.hourly-report-table tbody td:nth-child(n+21):nth-child(-n+22),
+.hourly-report-table tfoot td:nth-child(n+21):nth-child(-n+22) {
+  background: #eaf3e9;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(11),
+.hourly-report-table thead tr:last-child th:nth-child(n+22):nth-child(-n+23),
+.hourly-report-table tbody td:nth-child(n+23):nth-child(-n+24),
+.hourly-report-table tfoot td:nth-child(n+23):nth-child(-n+24) {
+  background: #e8f2ef;
+}
+
+.hourly-report-table thead .hourly-report-groups th:nth-child(12),
+.hourly-report-table thead tr:last-child th:nth-child(n+24),
+.hourly-report-table tbody td:nth-child(n+25),
+.hourly-report-table tfoot td:nth-child(n+25) {
+  background: #ececf3;
+}
+
+.hourly-report-table thead tr:last-child th:nth-child(1),
+.hourly-report-table thead tr:last-child th:nth-child(3),
+.hourly-report-table thead tr:last-child th:nth-child(5),
+.hourly-report-table thead tr:last-child th:nth-child(7),
+.hourly-report-table thead tr:last-child th:nth-child(10),
+.hourly-report-table thead tr:last-child th:nth-child(12),
+.hourly-report-table thead tr:last-child th:nth-child(15),
+.hourly-report-table thead tr:last-child th:nth-child(17),
+.hourly-report-table thead tr:last-child th:nth-child(20),
+.hourly-report-table thead tr:last-child th:nth-child(22),
+.hourly-report-table thead tr:last-child th:nth-child(24),
+.hourly-report-table tbody td:nth-child(2),
+.hourly-report-table tbody td:nth-child(4),
+.hourly-report-table tbody td:nth-child(6),
+.hourly-report-table tbody td:nth-child(8),
+.hourly-report-table tbody td:nth-child(11),
+.hourly-report-table tbody td:nth-child(13),
+.hourly-report-table tbody td:nth-child(16),
+.hourly-report-table tbody td:nth-child(18),
+.hourly-report-table tbody td:nth-child(21),
+.hourly-report-table tbody td:nth-child(23),
+.hourly-report-table tbody td:nth-child(25),
+.hourly-report-table tfoot td:nth-child(2),
+.hourly-report-table tfoot td:nth-child(4),
+.hourly-report-table tfoot td:nth-child(6),
+.hourly-report-table tfoot td:nth-child(8),
+.hourly-report-table tfoot td:nth-child(11),
+.hourly-report-table tfoot td:nth-child(13),
+.hourly-report-table tfoot td:nth-child(16),
+.hourly-report-table tfoot td:nth-child(18),
+.hourly-report-table tfoot td:nth-child(21),
+.hourly-report-table tfoot td:nth-child(23),
+.hourly-report-table tfoot td:nth-child(25) {
+  border-left: 2px solid #fff;
 }
 
 .hourly-report-table thead th:first-child,
@@ -314,13 +427,16 @@
   z-index: 3;
 }
 
-.hourly-report-table tbody tr:nth-child(even) td {
-  background: #fcfbf9;
-}
-
 .hourly-report-table tbody th {
   color: #5b5146;
   font-weight: 650;
+}
+
+.hourly-report-table tbody .hourly-report-retarding-row th,
+.hourly-report-table tbody .hourly-report-retarding-row td {
+  border-bottom-color: #d7c7a7;
+  background: #f5efdf;
+  font-weight: 700;
 }
 
 .hourly-report-table tfoot th,

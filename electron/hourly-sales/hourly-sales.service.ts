@@ -51,6 +51,18 @@ function sourceTotals(
 }
 
 function normalizeHourRange(value: string): string {
+  const startTime = value.trim().match(/^(\d{1,2}):\d{2}\s*(AM|PM|NN)\b/i)
+  if (startTime) {
+    const hour = Number(startTime[1])
+    const period = startTime[2].toUpperCase()
+    if (hour >= 13 && hour <= 23) return String(hour)
+    if (hour === 0 || hour === 24) return '0'
+    if (hour >= 1 && hour <= 12) {
+      const normalizedHour = hour % 12 + (period === 'PM' || period === 'NN' ? 12 : 0)
+      return String(normalizedHour)
+    }
+  }
+
   return value
     .trim()
     .toUpperCase()

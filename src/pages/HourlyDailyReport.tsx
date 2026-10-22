@@ -776,6 +776,41 @@ export function HourlyPosReport({
     : reports.length === 1
       ? reports[0].businessDate
       : `${reports[0].businessDate} – ${reports[reports.length - 1].businessDate}`
+  const productionReceivedRows = reports.flatMap((report) => {
+    const rows: {
+      key: string
+      dateTime: string
+      type: 'PRODUCED' | 'RECEIVED'
+      ring: number
+      shell: number
+      jpops: number
+    }[] = []
+
+    function appendRow(
+      dateTime: string,
+      type: 'PRODUCED' | 'RECEIVED',
+      values: HourlyDailyReportData['summary']['produced'],
+    ) {
+      if (values.total === 0) return
+      rows.push({
+        key: `${report.businessDate}-${dateTime}-${type}`,
+        dateTime: `${report.businessDate} · ${dateTime}`,
+        type,
+        ring: values.ring,
+        shell: values.shell,
+        jpops: values.jpops,
+      })
+    }
+
+    appendRow('Retarding', 'PRODUCED', report.retardingProduced)
+    appendRow('Retarding', 'RECEIVED', report.retardingReceived)
+    for (const row of report.rows) {
+      appendRow(row.hourRange, 'PRODUCED', row.produced)
+      appendRow(row.hourRange, 'RECEIVED', row.received)
+    }
+
+    return rows
+  })
 
   return (
     <div className="hourly-production-pos-report">
@@ -793,21 +828,38 @@ export function HourlyPosReport({
             <table className="hourly-production-pos-table">
               <thead>
                 <tr>
-                  <th scope="col">Category</th>
+                  <th scope="col">Date / time</th>
+                  <th scope="col">Type</th>
                   <th scope="col">Ring Qty</th>
                   <th scope="col">Shell Qty</th>
                   <th scope="col">JPops Qty</th>
                 </tr>
               </thead>
               <tbody>
+                {productionReceivedRows.map((row) => (
+                  <tr key={row.key}>
+                    <th scope="row">{row.dateTime}</th>
+                    <td>{row.type}</td>
+                    <td>{quantity(row.ring)}</td>
+                    <td>{quantity(row.shell)}</td>
+                    <td>{quantity(row.jpops)}</td>
+                  </tr>
+                ))}
+                {productionReceivedRows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="hourly-production-pos-empty">
+                      No production or received records for this date range.
+                    </td>
+                  </tr>
+                )}
                 <tr className="hourly-production-pos-total hourly-production-pos-waste-total">
-                  <th scope="row">TOTAL PRODUCED</th>
+                  <th scope="row" colSpan={2}>TOTAL PRODUCED</th>
                   <td>{quantity(productionTotals.producedRing)}</td>
                   <td>{quantity(productionTotals.producedShell)}</td>
                   <td>{quantity(productionTotals.producedJpops)}</td>
                 </tr>
                 <tr className="hourly-production-pos-total">
-                  <th scope="row">TOTAL RECEIVED</th>
+                  <th scope="row" colSpan={2}>TOTAL RECEIVED</th>
                   <td>{quantity(productionTotals.receivedRing)}</td>
                   <td>{quantity(productionTotals.receivedShell)}</td>
                   <td>{quantity(productionTotals.receivedJpops)}</td>
@@ -931,8 +983,14 @@ export function HourlyPosReport({
 function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
   const { summary } = report
   const rows = report.rows
+  const proofingGoodRing = rows.reduce((total, row) => total + row.proofingGood.ring, 0)
+  const proofingGoodShell = rows.reduce((total, row) => total + row.proofingGood.shell, 0)
   const proofingGood = rows.reduce((total, row) => total + row.proofingGood.total, 0)
+  const fryingGoodRing = rows.reduce((total, row) => total + row.fryingGood.ring, 0)
+  const fryingGoodShell = rows.reduce((total, row) => total + row.fryingGood.shell, 0)
   const fryingGood = rows.reduce((total, row) => total + row.fryingGood.total, 0)
+  const toppingGoodRing = rows.reduce((total, row) => total + row.toppingGood.ring, 0)
+  const toppingGoodShell = rows.reduce((total, row) => total + row.toppingGood.shell, 0)
   const toppingGood = rows.reduce((total, row) => total + row.toppingGood.total, 0)
 
   return (
@@ -1017,6 +1075,34 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
             </tr>
           </thead>
           <tbody>
+            <tr className="hourly-report-retarding-row">
+              <th scope="row">Retarding balance</th>
+              <td>—</td>
+              <td>—</td>
+              <td>{quantity(report.retardingReceived.ring)}</td>
+              <td>{quantity(report.retardingReceived.shell + report.retardingReceived.jpops)}</td>
+              <td>{quantity(report.retardingProduced.ring)}</td>
+              <td>{quantity(report.retardingProduced.shell + report.retardingProduced.jpops)}</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>{quantity(report.retardingProduced.ring)}</td>
+              <td>{quantity(report.retardingProduced.shell + report.retardingProduced.jpops)}</td>
+            </tr>
             {rows.map((row) => (
               <tr key={row.hourRange}>
                 <th scope="row">{row.hourRange}</th>
@@ -1060,18 +1146,18 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td>{quantity(summary.proofingWaste.ring)}</td>
               <td>{quantity(summary.proofingWaste.shell + summary.proofingWaste.jpops)}</td>
               <td>{percent(summary.proofingWaste.total / (proofingGood + summary.proofingWaste.total || 1))}</td>
-              <td>{quantity(proofingGood)}</td>
-              <td></td>
+              <td>{quantity(proofingGoodRing)}</td>
+              <td>{quantity(proofingGoodShell)}</td>
               <td>{quantity(summary.fryingWaste.ring)}</td>
               <td>{quantity(summary.fryingWaste.shell + summary.fryingWaste.jpops)}</td>
               <td>{percent(summary.fryingWaste.total / (fryingGood + summary.fryingWaste.total || 1))}</td>
-              <td>{quantity(fryingGood)}</td>
-              <td></td>
+              <td>{quantity(fryingGoodRing)}</td>
+              <td>{quantity(fryingGoodShell)}</td>
               <td>{quantity(summary.toppingWaste.ring)}</td>
               <td>{quantity(summary.toppingWaste.shell + summary.toppingWaste.jpops)}</td>
               <td>{percent(summary.toppingWaste.total / (toppingGood + summary.toppingWaste.total || 1))}</td>
-              <td>{quantity(toppingGood)}</td>
-              <td></td>
+              <td>{quantity(toppingGoodRing)}</td>
+              <td>{quantity(toppingGoodShell)}</td>
               <td>{quantity(summary.sold.ring)}</td>
               <td>{quantity(summary.sold.shell + summary.sold.jpops)}</td>
               <td>{quantity(summary.endingInventory.ring)}</td>

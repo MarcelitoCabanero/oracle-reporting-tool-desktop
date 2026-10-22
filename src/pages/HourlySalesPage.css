@@ -74,6 +74,158 @@
   background: #fff;
 }
 
+.hourly-transactions-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.85fr) minmax(0, 1.5fr);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.hourly-transactions-layout > * {
+  min-width: 0;
+}
+
+.hourly-entry-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.hourly-entry-panel .hourly-sales-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.hourly-entry-panel .hourly-sales-summary > div:not(.hourly-sales-kind-label) {
+  min-width: 0;
+}
+
+.hourly-entry-panel .hourly-sales-kind-label {
+  grid-column: 1 / -1;
+  margin-left: 0;
+}
+
+.hourly-entry-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #eee9e1;
+  border-radius: 6px;
+  background: #fffdfa;
+}
+
+.hourly-entry-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -4px -4px 8px;
+}
+
+.hourly-entry-card-heading strong {
+  color: #514b44;
+  font-size: 12px;
+}
+
+.hourly-entry-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.hourly-entry-fixed-date {
+  min-width: 0;
+}
+
+.hourly-entry-fixed-date > span {
+  color: #655e56;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.hourly-entry-fixed-date > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 9px;
+  border: 1px solid #e2ddd5;
+  border-radius: 4px;
+  background: #faf8f4;
+  color: #302a25;
+  font-size: 12px;
+}
+
+.hourly-entry-fixed-date svg {
+  flex: 0 0 auto;
+  color: #a94a23;
+}
+
+.hourly-entry-fixed-date strong {
+  margin-left: auto;
+  overflow: hidden;
+  color: #302a25;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hourly-entry-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.hourly-entry-field label {
+  color: #655e56;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.hourly-entry-field input,
+.hourly-entry-field select {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0 9px;
+  border: 1px solid #e2ddd5;
+  border-radius: 4px;
+  background: #fff;
+  color: #302a25;
+  font-size: 12px;
+}
+
+.hourly-entry-field input:focus,
+.hourly-entry-field select:focus {
+  border-color: #b75930;
+  outline: 2px solid #b7593020;
+}
+
+.hourly-entry-quantity-group {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hourly-entry-remarks {
+  grid-column: 1 / -1;
+}
+
+.hourly-entry-empty {
+  padding: 18px 12px;
+  border: 1px dashed #e2ddd5;
+  border-radius: 5px;
+  color: #807970;
+  font-size: 12px;
+  text-align: center;
+}
+
 .hourly-sales-toolbar {
   display: flex;
   align-items: center;
@@ -298,6 +450,10 @@
 }
 
 @media (max-width: 720px) {
+  .hourly-transactions-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .hourly-sales-date {
     width: 100%;
   }
@@ -319,6 +475,17 @@
   .hourly-sales-kind-label {
     width: 100%;
     margin-left: 0;
+  }
+}
+
+@media (max-width: 420px) {
+  .hourly-entry-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hourly-entry-quantity-group,
+  .hourly-entry-remarks {
+    grid-column: 1;
   }
 }
 
@@ -580,5 +747,11 @@
   .hourly-sales-view-tabs button {
     flex: 1 0 auto;
     padding: 0 8px;
+  }
+}
+
+@media (max-width: 1100px) {
+  .hourly-transactions-layout {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
