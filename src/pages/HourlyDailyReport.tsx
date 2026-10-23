@@ -30,6 +30,12 @@ function roundAwayFromZero(value: number) {
   return Math.sign(value) * Math.floor(Math.abs(value) + 0.5)
 }
 
+const jpopsProduceConversionFactor = (56 * 7) / 35
+
+function jpopsTrayCount(shellConversion: number) {
+  return Math.round(shellConversion / jpopsProduceConversionFactor)
+}
+
 type ComparisonCategory = 'ring' | 'shell' | 'jpops'
 
 const comparisonCategories: { key: ComparisonCategory; label: string }[] = [
@@ -188,7 +194,8 @@ type ManualFieldKey =
   | 'focJpops'
   | 'focJClub'
   | 'staffMeal'
-  | 'otherWaste'
+  | 'wasteDoughGrams'
+  | 'wasteFrozenDough'
   | 'bufferJpops'
   | 'transferred'
 
@@ -203,7 +210,8 @@ const manualFieldLabels: Record<ManualFieldKey, string> = {
   focJpops: 'FOC - J.Pops',
   focJClub: 'FOC - J.Club',
   staffMeal: 'Staff meal',
-  otherWaste: 'Other waste types',
+  wasteDoughGrams: 'Waste Dough (Grams)',
+  wasteFrozenDough: 'Waste Frozen Dough',
   bufferJpops: 'Waste JPops',
   transferred: 'Transferred to other stores',
 }
@@ -216,7 +224,8 @@ function emptyManualSummaryInputs(): ManualSummaryInputs {
     focJpops: { ring: '', shell: '' },
     focJClub: { ring: '', shell: '' },
     staffMeal: { ring: '', shell: '' },
-    otherWaste: { ring: '', shell: '' },
+    wasteDoughGrams: { ring: '', shell: '' },
+    wasteFrozenDough: { ring: '', shell: '' },
     bufferJpops: { ring: '', shell: '' },
     transferred: { ring: '', shell: '' },
     efficiency: '',
@@ -455,13 +464,10 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
   const focShell = sumManual(manualFocKeys, 'shell') ?? 0
   const transferredRing = manualValue('transferred', 'ring') ?? 0
   const transferredShell = manualValue('transferred', 'shell') ?? 0
-  const otherWasteRing = manualValue('otherWaste', 'ring') ?? 0
-  const otherWasteShell = manualValue('otherWaste', 'shell') ?? 0
   const totalRing =
     summary.sold.ring - summary.received.ring +
     focRing +
     summary.proofingWaste.ring + summary.fryingWaste.ring + summary.toppingWaste.ring +
-    otherWasteRing +
     (bufferTotals.ring ?? 0) +
     transferredRing
   const totalShell =
@@ -470,7 +476,6 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     summary.proofingWaste.shell + summary.proofingWaste.jpops +
     summary.fryingWaste.shell + summary.fryingWaste.jpops +
     summary.toppingWaste.shell + summary.toppingWaste.jpops +
-    otherWasteShell +
     (bufferTotals.shell ?? 0) +
     transferredShell
   const summaryRangeTotal = totalRing + totalShell
@@ -523,18 +528,19 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
       title: 'WASTE',
       lines: [
         {
-          label: 'Proofing',
-          quantities: quantities(summary.proofingWaste.ring, summary.proofingWaste.shell + summary.proofingWaste.jpops, summary.proofingWaste.total),
-        },
-        {
-          label: 'Frying',
+          label: 'WP',
           quantities: quantities(summary.fryingWaste.ring, summary.fryingWaste.shell + summary.fryingWaste.jpops, summary.fryingWaste.total),
         },
         {
-          label: 'Topping',
+          label: 'WT',
           quantities: quantities(summary.toppingWaste.ring, summary.toppingWaste.shell + summary.toppingWaste.jpops, summary.toppingWaste.total),
         },
-        { label: manualFieldLabels.otherWaste, quantities: unavailable, manualKey: 'otherWaste' },
+        { label: manualFieldLabels.wasteDoughGrams, quantities: unavailable, manualKey: 'wasteDoughGrams' },
+        {
+          label: 'Raw Waste',
+          quantities: quantities(summary.proofingWaste.ring, summary.proofingWaste.shell + summary.proofingWaste.jpops, summary.proofingWaste.total),
+        },
+        { label: manualFieldLabels.wasteFrozenDough, quantities: unavailable, manualKey: 'wasteFrozenDough' },
         {
           label: 'Total actual wastages (tracked)',
           quantities: quantities(summary.totalWaste.ring, summary.totalWaste.shell + summary.totalWaste.jpops, summary.totalWaste.total),
@@ -709,7 +715,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
         allocation={{
           sold: summary.netProducedSales.total ?? 0,
           foc: focRing + focShell,
-          waste: (summary.totalWaste.total ?? 0) + (manualTotal('otherWaste') ?? 0),
+          waste: summary.totalWaste.total ?? 0,
           buffer: bufferTotals.total ?? 0,
           variance: summary.produced.total - summaryRangeTotal,
           transfer: transferredRing + transferredShell,
@@ -1046,6 +1052,8 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <th colSpan={2} scope="colgroup">Opening</th>
               <th colSpan={2} scope="colgroup">Received</th>
               <th colSpan={2} scope="colgroup">Produced</th>
+              <th rowSpan={3} scope="col">JPOPS Tray</th>
+              <th rowSpan={3} scope="col">SHELL Conversion</th>
               <th colSpan={5} scope="colgroup">Proofing</th>
               <th colSpan={5} scope="colgroup">Frying</th>
               <th colSpan={5} scope="colgroup">Topping</th>
@@ -1058,7 +1066,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <th rowSpan={2} scope="col">Ring</th>
               <th rowSpan={2} scope="col">Shell eq.</th>
               <th rowSpan={2} scope="col">Ring</th>
-              <th rowSpan={2} scope="col">Shell eq.</th>
+              <th rowSpan={2} scope="col">Shell</th>
               <th className="hourly-report-good-heading" colSpan={2} scope="colgroup">Good</th>
               <th className="hourly-report-waste-heading" colSpan={2} scope="colgroup">Bad/Waste</th>
               <th className="hourly-report-waste-heading" rowSpan={2} scope="col">Waste %</th>
@@ -1090,7 +1098,9 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td>{quantity(report.retardingReceived.ring)}</td>
               <td>{quantity(report.retardingReceived.shell + report.retardingReceived.jpops)}</td>
               <td>{quantity(report.retardingProduced.ring)}</td>
-              <td>{quantity(report.retardingProduced.shell + report.retardingProduced.jpops)}</td>
+              <td>{quantity(report.retardingProduced.shell)}</td>
+              <td>{quantity(jpopsTrayCount(report.retardingProduced.jpops))}</td>
+              <td>{quantity(report.retardingProduced.jpops)}</td>
               <td>—</td>
               <td>—</td>
               <td>—</td>
@@ -1119,7 +1129,9 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
                 <td>{quantity(row.received.ring)}</td>
                 <td>{quantity(row.received.shell + row.received.jpops)}</td>
                 <td>{quantity(row.produced.ring)}</td>
-                <td>{quantity(row.produced.shell + row.produced.jpops)}</td>
+                <td>{quantity(row.produced.shell)}</td>
+                <td>{quantity(jpopsTrayCount(row.produced.jpops))}</td>
+                <td>{quantity(row.produced.jpops)}</td>
                 <td className="hourly-report-good-cell">{quantity(row.proofingGood.ring)}</td>
                 <td className="hourly-report-good-cell">{quantity(row.proofingGood.shell)}</td>
                 <td className="hourly-report-waste-cell">{quantity(row.proofingWaste.ring)}</td>
@@ -1150,7 +1162,9 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td>{quantity(summary.received.ring)}</td>
               <td>{quantity(summary.received.shell + summary.received.jpops)}</td>
               <td>{quantity(summary.produced.ring)}</td>
-              <td>{quantity(summary.produced.shell + summary.produced.jpops)}</td>
+              <td>{quantity(summary.produced.shell)}</td>
+              <td>{quantity(jpopsTrayCount(summary.produced.jpops))}</td>
+              <td>{quantity(summary.produced.jpops)}</td>
               <td className="hourly-report-good-cell">{quantity(proofingGoodRing)}</td>
               <td className="hourly-report-good-cell">{quantity(proofingGoodShell)}</td>
               <td className="hourly-report-waste-cell">{quantity(summary.proofingWaste.ring)}</td>
