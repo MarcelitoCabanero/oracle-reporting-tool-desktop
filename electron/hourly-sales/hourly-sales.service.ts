@@ -281,6 +281,7 @@ function rollupHourlyReport(
       jclubSold: row.jclubSold,
     })),
     posWaste: sources.posWaste,
+    posFoc: sources.posFoc,
     rows,
     summary: {
       produced,

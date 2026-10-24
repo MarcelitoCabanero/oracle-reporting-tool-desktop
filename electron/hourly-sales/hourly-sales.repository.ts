@@ -190,7 +190,7 @@ export async function loadHourlyReportSources(
 ): Promise<HourlyReportSources> {
   const pool = await getLocalDbPool()
 
-  const [produceResult, wasteResult, salesResult, posWasteResult] = await Promise.all([
+  const [produceResult, wasteResult, salesResult, posWasteResult, posFocResult] = await Promise.all([
     pool
       .request()
       .input('businessDate', sql.Date, input.businessDate)
@@ -250,6 +250,20 @@ export async function loadHourlyReportSources(
           AND DetailPostingTime >= @businessDate
           AND DetailPostingTime < DATEADD(day, 1, @businessDate)
       `),
+    pool
+      .request()
+      .input('businessDate', sql.Date, input.businessDate)
+      .query(`
+        SELECT
+          SUM(CASE WHEN UPPER(LTRIM(RTRIM(Category))) = 'RING' THEN ISNULL(qty, 0) ELSE 0 END) AS ringFoc,
+          SUM(CASE WHEN UPPER(LTRIM(RTRIM(Category))) = 'SHELL' THEN ISNULL(qty, 0) ELSE 0 END) AS shellFoc,
+          SUM(CASE WHEN UPPER(LTRIM(RTRIM(Category))) = 'JPOPS' THEN ISNULL(qty, 0) ELSE 0 END) AS jpopsFoc,
+          SUM(CASE WHEN UPPER(LTRIM(RTRIM(Category))) = 'JCLUB' THEN ISNULL(qty, 0) ELSE 0 END) AS jclubFoc
+        FROM dbo.v_itemdetail
+        WHERE UPPER(LTRIM(RTRIM(rvc_type))) = 'FOC WASTE'
+          AND DetailPostingTime >= @businessDate
+          AND DetailPostingTime < DATEADD(day, 1, @businessDate)
+      `),
   ])
 
   return {
@@ -278,6 +292,12 @@ export async function loadHourlyReportSources(
       ring: Number(posWasteResult.recordset[0]?.ringWaste ?? 0),
       shell: Number(posWasteResult.recordset[0]?.shellWaste ?? 0),
       jpops: Number(posWasteResult.recordset[0]?.jpopsWaste ?? 0),
+    },
+    posFoc: {
+      ring: Number(posFocResult.recordset[0]?.ringFoc ?? 0),
+      shell: Number(posFocResult.recordset[0]?.shellFoc ?? 0),
+      jpops: Number(posFocResult.recordset[0]?.jpopsFoc ?? 0),
+      jclub: Number(posFocResult.recordset[0]?.jclubFoc ?? 0),
     },
   }
 }

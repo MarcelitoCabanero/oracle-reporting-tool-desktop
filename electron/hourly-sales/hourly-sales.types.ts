@@ -80,11 +80,19 @@ export interface HourlyPosWasteTotals {
   jpops: number
 }
 
+export interface HourlyPosFocTotals {
+  ring: number
+  shell: number
+  jpops: number
+  jclub: number
+}
+
 export interface HourlyReportSources {
   produce: HourlyReportSourceRow[]
   waste: HourlyReportSourceRow[]
   sales: HourlySalesSourceRow[]
   posWaste: HourlyPosWasteTotals
+  posFoc: HourlyPosFocTotals
 }
 
 export interface HourlyQuantityTotals {
@@ -139,6 +147,7 @@ export interface HourlyDailyReport {
   retardingReceived: HourlyQuantityTotals
   posSales: HourlyPosSalesRow[]
   posWaste: HourlyPosWasteTotals
+  posFoc: HourlyPosFocTotals
   rows: HourlyDailyRow[]
   summary: HourlyDailySummary
 }

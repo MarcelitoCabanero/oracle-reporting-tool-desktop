@@ -190,9 +190,6 @@ interface HourlyPercentageAllocation {
 type ManualFieldKey =
   | 'promotions'
   | 'training'
-  | 'focDonuts'
-  | 'focJpops'
-  | 'focJClub'
   | 'staffMeal'
   | 'wasteDoughGrams'
   | 'wasteFrozenDough'
@@ -206,9 +203,6 @@ type ManualSummaryInputs = Record<ManualFieldKey, { ring: string; shell: string 
 const manualFieldLabels: Record<ManualFieldKey, string> = {
   promotions: 'Promotions (donuts)',
   training: 'Training',
-  focDonuts: 'FOC - Donuts',
-  focJpops: 'FOC - J.Pops',
-  focJClub: 'FOC - J.Club',
   staffMeal: 'Staff meal',
   wasteDoughGrams: 'Waste Dough (Grams)',
   wasteFrozenDough: 'Waste Frozen Dough',
@@ -220,9 +214,6 @@ function emptyManualSummaryInputs(): ManualSummaryInputs {
   return {
     promotions: { ring: '', shell: '' },
     training: { ring: '', shell: '' },
-    focDonuts: { ring: '', shell: '' },
-    focJpops: { ring: '', shell: '' },
-    focJClub: { ring: '', shell: '' },
     staffMeal: { ring: '', shell: '' },
     wasteDoughGrams: { ring: '', shell: '' },
     wasteFrozenDough: { ring: '', shell: '' },
@@ -368,6 +359,12 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
       shell: total.shell + (dailyReport.posWaste?.shell ?? 0),
       jpops: total.jpops + (dailyReport.posWaste?.jpops ?? 0),
     }), { ring: 0, shell: 0, jpops: 0 }),
+    posFoc: reports.reduce((total, dailyReport) => ({
+      ring: total.ring + (dailyReport.posFoc?.ring ?? 0),
+      shell: total.shell + (dailyReport.posFoc?.shell ?? 0),
+      jpops: total.jpops + (dailyReport.posFoc?.jpops ?? 0),
+      jclub: total.jclub + (dailyReport.posFoc?.jclub ?? 0),
+    }), { ring: 0, shell: 0, jpops: 0, jclub: 0 }),
   }
 
   function updateManualInput(
@@ -429,20 +426,13 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     total: number,
   ): SummaryQuantities => ({ ring, shell, total })
   const unavailable: SummaryQuantities = { ring: null, shell: null, total: null }
-  const manualFocKeys: ManualFieldKey[] = ['promotions', 'training', 'focDonuts', 'focJpops', 'focJClub', 'staffMeal']
+  const manualFocKeys: ManualFieldKey[] = ['promotions', 'training', 'staffMeal']
 
   function sumManual(keys: ManualFieldKey[], part: 'ring' | 'shell'): number | null {
     const values = keys.map((key) => manualValue(key, part))
     return values.every((value) => value === null)
       ? null
       : values.reduce<number>((total, value) => total + (value ?? 0), 0)
-  }
-
-  function manualTotals(keys: ManualFieldKey[]): SummaryQuantities {
-    const ring = sumManual(keys, 'ring')
-    const shell = sumManual(keys, 'shell')
-    const total = ring === null && shell === null ? null : (ring ?? 0) + (shell ?? 0)
-    return { ring, shell, total }
   }
 
   function wasteQuantities(waste: typeof report.summary.proofingWaste): SummaryQuantities {
@@ -460,8 +450,9 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     summary.proofingWaste.total + summary.fryingWaste.total + summary.toppingWaste.total +
       bufferJpopsRing + bufferJpopsShell,
   )
-  const focRing = sumManual(manualFocKeys, 'ring') ?? 0
-  const focShell = sumManual(manualFocKeys, 'shell') ?? 0
+  const focRing = (sumManual(manualFocKeys, 'ring') ?? 0) + report.posFoc.ring
+  const focShell = (sumManual(manualFocKeys, 'shell') ?? 0) +
+    report.posFoc.shell + report.posFoc.jpops + report.posFoc.jclub
   const transferredRing = manualValue('transferred', 'ring') ?? 0
   const transferredShell = manualValue('transferred', 'shell') ?? 0
   const totalRing =
@@ -512,14 +503,30 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     {
       title: 'FOC',
       lines: [
-        ...(['promotions', 'training', 'focDonuts', 'focJpops', 'focJClub', 'staffMeal'] as const).map((key) => ({
+        ...(['promotions', 'training', 'staffMeal'] as const).map((key) => ({
           label: manualFieldLabels[key],
           quantities: unavailable,
           manualKey: key,
         })),
         {
-          label: 'Total free of charge (manual)',
-          quantities: manualTotals(manualFocKeys),
+          label: 'FOC - Donuts',
+          quantities: quantities(
+            report.posFoc.ring,
+            report.posFoc.shell,
+            report.posFoc.ring + report.posFoc.shell,
+          ),
+        },
+        {
+          label: 'FOC - J.Pops',
+          quantities: { ring: null, shell: report.posFoc.jpops, total: report.posFoc.jpops },
+        },
+        {
+          label: 'FOC - J.Club',
+          quantities: { ring: null, shell: report.posFoc.jclub, total: report.posFoc.jclub },
+        },
+        {
+          label: 'Total free of charge',
+          quantities: quantities(focRing, focShell, focRing + focShell),
           kind: 'subtotal',
         },
       ],

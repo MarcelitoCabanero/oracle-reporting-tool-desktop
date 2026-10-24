@@ -417,6 +417,13 @@ interface HourlyPosWasteTotals {
   jpops: number
 }
 
+interface HourlyPosFocTotals {
+  ring: number
+  shell: number
+  jpops: number
+  jclub: number
+}
+
 interface HourlyDailyReport {
   businessDate: string
   locationName: string
@@ -424,6 +431,7 @@ interface HourlyDailyReport {
   retardingReceived: HourlyQuantityTotals
   posSales?: HourlyPosSalesRow[]
   posWaste?: HourlyPosWasteTotals
+  posFoc: HourlyPosFocTotals
   rows: HourlyDailyRow[]
   summary: HourlyDailySummary
 }
