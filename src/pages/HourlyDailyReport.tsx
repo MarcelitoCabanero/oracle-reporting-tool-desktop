@@ -36,6 +36,19 @@ function jpopsTrayCount(shellConversion: number) {
   return Math.round(shellConversion / jpopsProduceConversionFactor)
 }
 
+function batchCount(ring: number, shell: number) {
+  return Math.ceil((ring + shell) / 240)
+}
+
+function dailyBatchCount(report: HourlyDailyReportData) {
+  return batchCount(report.retardingProduced.ring, report.retardingProduced.shell) +
+    report.rows.reduce((total, row) => total + batchCount(row.produced.ring, row.produced.shell), 0)
+}
+
+function dailyBatchOutput(report: HourlyDailyReportData) {
+  return dailyBatchCount(report) * 248
+}
+
 type ComparisonCategory = 'ring' | 'shell' | 'jpops'
 
 const comparisonCategories: { key: ComparisonCategory; label: string }[] = [
@@ -171,9 +184,9 @@ interface SummaryQuantities {
 interface SummaryLine {
   label: string
   quantities: SummaryQuantities
+  percentage?: number | null
   kind?: 'subtotal' | 'emphasis'
   manualKey?: ManualFieldKey
-  manualTotalKey?: 'efficiency'
   posSalesKey?: 'jclubSold' | 'jpopsSold'
 }
 
@@ -196,9 +209,7 @@ type ManualFieldKey =
   | 'bufferJpops'
   | 'transferred'
 
-type ManualSummaryInputs = Record<ManualFieldKey, { ring: string; shell: string }> & {
-  efficiency: string
-}
+type ManualSummaryInputs = Record<ManualFieldKey, { ring: string; shell: string }>
 
 const manualFieldLabels: Record<ManualFieldKey, string> = {
   promotions: 'Promotions (donuts)',
@@ -219,7 +230,6 @@ function emptyManualSummaryInputs(): ManualSummaryInputs {
     wasteFrozenDough: { ring: '', shell: '' },
     bufferJpops: { ring: '', shell: '' },
     transferred: { ring: '', shell: '' },
-    efficiency: '',
   }
 }
 
@@ -247,8 +257,6 @@ function readManualSummaryInputs(storageKey: string, reports: HourlyDailyReportD
         }
       }
 
-      const efficiency = (parsed as Record<string, unknown>).efficiency
-      values.efficiency = typeof efficiency === 'string' ? efficiency : ''
       return { values, error: '' }
     }
 
@@ -268,9 +276,6 @@ function readManualSummaryInputs(storageKey: string, reports: HourlyDailyReportD
           ? String(enteredValues.reduce((total, value) => total + value, 0))
           : ''
       }
-    }
-    if (reports.length === 1) {
-      values.efficiency = dailyInputs[0].values.efficiency
     }
     return {
       values,
@@ -368,31 +373,25 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
   }
 
   function updateManualInput(
-    field: ManualFieldKey | 'efficiency',
-    part: 'ring' | 'shell' | 'value',
+    field: ManualFieldKey,
+    part: 'ring' | 'shell',
     value: string,
   ) {
     const numericValue = value === '' ? null : Number(value)
     if (
       numericValue !== null &&
-      (!Number.isFinite(numericValue) ||
-        numericValue < 0 ||
-        (field === 'efficiency' && numericValue > 100))
+      (!Number.isFinite(numericValue) || numericValue < 0)
     ) {
       setStoredInputs((current) => ({
         ...current,
-        error: field === 'efficiency'
-          ? 'Baker efficiency must be between 0 and 100%.'
-          : 'Manual quantities must be zero or greater.',
+        error: 'Manual quantities must be zero or greater.',
       }))
       return
     }
 
     const updated: ManualSummaryInputs = {
       ...manualInputs,
-      ...(field === 'efficiency'
-        ? { efficiency: value }
-        : { [field]: { ...manualInputs[field], [part]: value } }),
+      [field]: { ...manualInputs[field], [part]: value },
     }
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(updated))
@@ -417,6 +416,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
   }
 
   const { summary } = report
+  const batchResult = reports.reduce((total, dailyReport) => total + dailyBatchOutput(dailyReport), 0)
   const posSales = report.posSales ?? []
   const posJclubSold = posSales.reduce((total, row) => total + row.jclubSold, 0)
   const posJpopsSold = posSales.reduce((total, row) => total + row.jpopsSold, 0)
@@ -591,7 +591,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     {
       label: 'Efficiency of baker',
       quantities: unavailable,
-      manualTotalKey: 'efficiency',
+      percentage: batchResult === 0 ? null : summary.produced.total / batchResult,
     },
     {
       label: 'Tolerable wastages (1%)',
@@ -624,22 +624,25 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
       }
       : null
 
-    function renderManualInput(part: 'ring' | 'shell' | 'value', value: string, label: string) {
+    function renderManualInput(
+      key: ManualFieldKey,
+      part: 'ring' | 'shell',
+      value: string,
+      label: string,
+    ) {
       return (
         <input
           aria-label={`${line.label} ${label}`}
           className="hourly-production-manual-input"
           type="number"
           min="0"
-          max={label === 'percentage' ? 100 : undefined}
-          step={label === 'percentage' ? '0.01' : 'any'}
+          step="any"
           value={value}
-          onChange={(event) => updateManualInput(line.manualKey ?? 'efficiency', part, event.target.value)}
+          onChange={(event) => updateManualInput(key, part, event.target.value)}
         />
       )
     }
 
-    const manualEfficiency = line.manualTotalKey === 'efficiency'
     const posSalesValue = line.posSalesKey === 'jclubSold'
       ? posJclubSold
       : line.posSalesKey === 'jpopsSold'
@@ -657,20 +660,15 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
           </>
         ) : manual && line.manualKey ? (
           <>
-            <td>{renderManualInput('ring', manualInputs[line.manualKey].ring, 'ring quantity')}</td>
-            <td>{renderManualInput('shell', manualInputs[line.manualKey].shell, 'shell quantity')}</td>
+            <td>{renderManualInput(line.manualKey, 'ring', manualInputs[line.manualKey].ring, 'ring quantity')}</td>
+            <td>{renderManualInput(line.manualKey, 'shell', manualInputs[line.manualKey].shell, 'shell quantity')}</td>
             <td>{display(manual.total)}</td>
           </>
-        ) : manualEfficiency ? (
+        ) : line.percentage !== undefined ? (
           <>
             <td>—</td>
             <td>—</td>
-            <td>
-              <div className="hourly-production-manual-percent">
-                {renderManualInput('value', manualInputs.efficiency, 'percentage')}
-                <span>%</span>
-              </div>
-            </td>
+            <td>{line.percentage === null ? '—' : `${Math.round(line.percentage * 100)}%`}</td>
           </>
         ) : (
           <>
@@ -1006,6 +1004,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
   const toppingGoodRing = rows.reduce((total, row) => total + row.toppingGood.ring, 0)
   const toppingGoodShell = rows.reduce((total, row) => total + row.toppingGood.shell, 0)
   const toppingGood = rows.reduce((total, row) => total + row.toppingGood.total, 0)
+  const totalBatches = dailyBatchCount(report)
 
   return (
     <section className="hourly-report" aria-label="Hourly production monitoring report">
@@ -1048,7 +1047,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
 
       <div className="hourly-report-manual-note" role="note">
         <AlertCircle size={16} aria-hidden="true" />
-        <span>Batch count, FOC, transfers, and buffer are manual fields in the Excel template and are not stored in the produce, waste, or POS source tables. Baker efficiency and those totals are therefore not calculated here.</span>
+        <span>Batch output and baker efficiency are calculated from produced quantities. FOC, transfers, and buffer are manual fields in the Excel template and are not stored in the produce, waste, or POS source tables.</span>
       </div>
 
       <div className="hourly-report-table-wrap">
@@ -1061,6 +1060,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <th colSpan={2} scope="colgroup">Produced</th>
               <th rowSpan={3} scope="col">JPOPS Tray</th>
               <th rowSpan={3} scope="col">SHELL Conversion</th>
+              <th rowSpan={3} scope="col">Batch</th>
               <th colSpan={5} scope="colgroup">Proofing</th>
               <th colSpan={5} scope="colgroup">Frying</th>
               <th colSpan={5} scope="colgroup">Topping</th>
@@ -1108,6 +1108,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td>{quantity(report.retardingProduced.shell)}</td>
               <td>{quantity(jpopsTrayCount(report.retardingProduced.jpops))}</td>
               <td>{quantity(report.retardingProduced.jpops)}</td>
+              <td>{quantity(Math.ceil((report.retardingProduced.ring + report.retardingProduced.shell) / 240))}</td>
               <td>—</td>
               <td>—</td>
               <td>—</td>
@@ -1139,6 +1140,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
                 <td>{quantity(row.produced.shell)}</td>
                 <td>{quantity(jpopsTrayCount(row.produced.jpops))}</td>
                 <td>{quantity(row.produced.jpops)}</td>
+                <td>{quantity(Math.ceil((row.produced.ring + row.produced.shell) / 240))}</td>
                 <td className="hourly-report-good-cell">{quantity(row.proofingGood.ring)}</td>
                 <td className="hourly-report-good-cell">{quantity(row.proofingGood.shell)}</td>
                 <td className="hourly-report-waste-cell">{quantity(row.proofingWaste.ring)}</td>
@@ -1172,6 +1174,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td>{quantity(summary.produced.shell)}</td>
               <td>{quantity(jpopsTrayCount(summary.produced.jpops))}</td>
               <td>{quantity(summary.produced.jpops)}</td>
+              <td>{quantity(totalBatches * 248)}</td>
               <td className="hourly-report-good-cell">{quantity(proofingGoodRing)}</td>
               <td className="hourly-report-good-cell">{quantity(proofingGoodShell)}</td>
               <td className="hourly-report-waste-cell">{quantity(summary.proofingWaste.ring)}</td>
