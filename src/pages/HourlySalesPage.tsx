@@ -23,6 +23,7 @@ import {
 import HourlyDailyReport, {
   HourlyProductionSummary,
 } from './HourlyDailyReport'
+import HourlySummaryReports from './HourlySummaryReports'
 
 import './HourlySalesPage.css'
 
@@ -804,7 +805,7 @@ type HourlyDailyReportData = Awaited<
 
 function HourlySalesPage() {
   const { user } = useAuth()
-  const [view, setView] = useState<'daily' | 'summary' | 'records' | 'transactions'>('daily')
+  const [view, setView] = useState<'daily' | 'summary' | 'summary-reports' | 'records' | 'transactions'>('daily')
   const [startDate, setStartDate] = useState(todayString)
   const [endDate, setEndDate] = useState(todayString)
   const [transactionDate, setTransactionDate] = useState(todayString)
@@ -823,7 +824,7 @@ function HourlySalesPage() {
       ? 'The start date must be on or before the end date.'
       : reportLoadError
   const reportIsLoading = Boolean(
-    (view === 'daily' || view === 'summary') &&
+    (view === 'daily' || view === 'summary' || view === 'summary-reports') &&
     locationName &&
     !invalidDateRange &&
     reportLoading,
@@ -917,6 +918,16 @@ function HourlySalesPage() {
           <button
             type="button"
             role="tab"
+            aria-selected={view === 'summary-reports'}
+            className={view === 'summary-reports' ? 'active' : ''}
+            onClick={() => setView('summary-reports')}
+          >
+            <BarChart3 size={16} aria-hidden="true" />
+            Summary reports
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={view === 'records'}
             className={view === 'records' ? 'active' : ''}
             onClick={() => setView('records')}
@@ -991,7 +1002,7 @@ function HourlySalesPage() {
                 className="hourly-sales-refresh"
                 type="button"
                 onClick={() => setRefreshCount((count) => count + 1)}
-                disabled={reportLoading && (view === 'daily' || view === 'summary')}
+                disabled={reportLoading && (view === 'daily' || view === 'summary' || view === 'summary-reports')}
                 title={view === 'records' ? 'Refresh records' : 'Refresh report'}
               >
                 <RefreshCw size={16} aria-hidden="true" />
@@ -1002,11 +1013,13 @@ function HourlySalesPage() {
         </div>
       </div>
 
-      {(view === 'daily' || view === 'summary') && (
+      {(view === 'daily' || view === 'summary' || view === 'summary-reports') && (
         <>
           {reportIsLoading && (
             <div className="hourly-sales-report-state">
-              {view === 'summary' ? 'Loading summaries for the selected date range...' : 'Loading reports for the selected date range...'}
+              {view === 'summary' || view === 'summary-reports'
+                ? 'Loading summaries for the selected date range...'
+                : 'Loading reports for the selected date range...'}
             </div>
           )}
           {reportError && <div className="hourly-sales-message error" role="alert">{reportError}</div>}
@@ -1018,6 +1031,12 @@ function HourlySalesPage() {
           ))}
           {!reportIsLoading && !reportError && view === 'summary' && reports.length > 0 && (
             <HourlyProductionSummary
+              key={`${reports[0].locationName}-${reports[0].businessDate}-${reports[reports.length - 1].businessDate}`}
+              reports={reports}
+            />
+          )}
+          {!reportIsLoading && !reportError && view === 'summary-reports' && reports.length > 0 && (
+            <HourlySummaryReports
               key={`${reports[0].locationName}-${reports[0].businessDate}-${reports[reports.length - 1].businessDate}`}
               reports={reports}
             />
