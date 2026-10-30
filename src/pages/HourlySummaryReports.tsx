@@ -434,10 +434,10 @@ function MpparReport({ reports }: { reports: HourlyDailyReportData[] }) {
               </tr>
             )
           })}
-          <tr className="hourly-summary-total-row">
+           <tr className="hourly-summary-total-row">
             <th scope="row">TOTAL</th>
             <td>{quantity(totals.produced)}</td>
-            <td>—</td>
+            <td>{percentage(1)}</td>
             <td>{quantity(totals.sold)}</td>
             <td>{allocation(totals.sold, totals.produced)}</td>
             <td>{quantity(totals.foc)}</td>

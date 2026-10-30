@@ -95,13 +95,39 @@
 .hourly-summary-table thead th {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   background: #f5f1ea;
   text-align: center;
 }
 
+.hourly-summary-table thead tr:first-child th {
+  z-index: 2;
+}
+
+.hourly-summary-table thead tr:last-child th {
+  top: 36px;
+  z-index: 2;
+}
+
+.hourly-summary-table thead th:first-child {
+  z-index: 4;
+  left: 0;
+}
+
+.hourly-summary-table thead tr:last-child th:first-child {
+  z-index: 5;
+  top: 36px;
+}
+
 .hourly-summary-table th:first-child {
   text-align: left;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.hourly-summary-table thead th:first-child {
+  z-index: 3;
 }
 
 .hourly-summary-table tbody th {
