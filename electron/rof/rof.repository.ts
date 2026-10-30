@@ -1,4 +1,5 @@
 import sql from 'mssql'
+import { getHqDbPool } from '../database/hqdb.js'
 import { getLocalDbPool } from '../database/localdb.js'
 
 import type {
@@ -32,7 +33,7 @@ export async function getRofSummary(
   dateTo: string,
   locationName: string,
 ): Promise<RofSummaryRow[]> {
-  const pool = await getLocalDbPool()
+  const pool = await getHqDbPool()
 
   const result = await pool
     .request()
@@ -157,7 +158,7 @@ export async function getNonCashSource(
 export async function getRofStatus(
   businessDate: string,
 ): Promise<RofStatus> {
-  const pool = await getLocalDbPool()
+  const pool = await getHqDbPool()
 
   const result = await pool
     .request()
@@ -185,7 +186,7 @@ export async function getRofStatus(
 export async function getSavedCash(
   businessDate: string,
 ): Promise<RofCashEntry[]> {
-  const pool = await getLocalDbPool()
+  const pool = await getHqDbPool()
 
   const result = await pool
     .request()
@@ -216,7 +217,7 @@ export async function getSavedCash(
 export async function getSavedNonCash(
   businessDate: string,
 ): Promise<RofNonCashEntry[]> {
-  const pool = await getLocalDbPool()
+  const pool = await getHqDbPool()
 
   const result = await pool
     .request()
@@ -243,7 +244,7 @@ export async function getSavedNonCash(
 export async function saveRof(
   input: SaveRofInput,
 ): Promise<number> {
-  const pool = await getLocalDbPool()
+  const pool = await getHqDbPool()
 
   const transaction = new sql.Transaction(pool)
 
@@ -374,7 +375,7 @@ export async function saveRof(
 export async function deleteRofByBusinessDate(
   businessDate: string,
 ): Promise<void> {
-  const pool = await getLocalDbPool()
+  const pool = await getHqDbPool()
 
   const transaction = new sql.Transaction(pool)
 
@@ -426,7 +427,7 @@ export async function getRofCashTotals(
   actualAmount: number
 }> {
   const pool =
-    await getLocalDbPool()
+    await getHqDbPool()
 
   const result =
     await pool
