@@ -9,6 +9,7 @@ import {
 } from '../system-sales/system-sales.export.js'
 
 import {
+  getWorkstations,
   generateSystemSalesReport,
 } from '../system-sales/system-sales.service.js'
 
@@ -18,6 +19,11 @@ import type {
 } from '../system-sales/system-sales.types.js'
 
 export function registerSystemSalesIpc() {
+  ipcMain.handle(
+    'system-sales:workstations',
+    () => getWorkstations(),
+  )
+
   ipcMain.handle(
     'system-sales:generate',
     async (

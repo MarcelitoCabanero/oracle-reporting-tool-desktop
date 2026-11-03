@@ -14,6 +14,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog'
 import type {
   Page,
 } from '../types/navigation'
+import type { Theme } from '../App'
 
 import {
   useAuth,
@@ -22,6 +23,8 @@ import {
 interface AppLayoutProps {
   activePage: Page
   onNavigate: (page: Page) => void
+  theme: Theme
+  onThemeChange: (theme: Theme) => void
   children: ReactNode
 }
 
@@ -52,17 +55,17 @@ function getPageTitle(page: Page): string {
     case 'pos-journal':
       return 'POS Journal'
 
+    case 'tender-listing':
+      return 'Tender Listing'
+
     case 'rof':
-      return 'ROF'
+      return 'Remittance of Funds'
 
     case 'deposit':
       return 'Deposit Monitoring'
 
     case 'maintenance':
       return 'Maintenance'
-
-    case 'settings':
-      return 'Settings'
 
     default:
       return 'Oracle Reporting Tool'
@@ -72,6 +75,8 @@ function getPageTitle(page: Page): string {
 function AppLayout({
   activePage,
   onNavigate,
+  theme,
+  onThemeChange,
   children,
 }: AppLayoutProps) {
   const [appVersion, setAppVersion] = useState('v1.0.0')
@@ -112,6 +117,8 @@ const { user, logout } = useAuth()
       activePage={activePage}
       onNavigate={onNavigate}
       collapsed={sidebarCollapsed}
+      theme={theme}
+      onThemeChange={onThemeChange}
       onLogout={() =>
         setShowLogoutDialog(true)
       }

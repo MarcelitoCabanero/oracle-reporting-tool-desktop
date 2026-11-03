@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useMemo,
   useState,
 } from 'react'
@@ -17,6 +18,17 @@ import {
 import type {
   SystemSalesResult,
 } from '../../../types/system-sales'
+import VarianceCheckingModal from '../variance-checking/VarianceCheckingModal'
+
+interface SalesSummaryState {
+  dateFrom: string
+  dateTo: string
+  report: SystemSalesResult | null
+  error: string
+  status: string
+}
+
+let salesSummaryCache: SalesSummaryState | null = null
 
 function getToday() {
   const now = new Date()
@@ -54,18 +66,30 @@ function formatDate(value: string) {
   }).format(new Date(year, month - 1, day))
 }
 
-export default function SystemSalesPage() {
+export default function SystemSalesPage({ workstationMode = false }: { workstationMode?: boolean }) {
+  const savedState = salesSummaryCache
   const today = getToday()
 
-  const [dateFrom, setDateFrom] = useState(today)
-  const [dateTo, setDateTo] = useState(today)
+  const [dateFrom, setDateFrom] = useState(savedState?.dateFrom ?? today)
+  const [dateTo, setDateTo] = useState(savedState?.dateTo ?? today)
   const [report, setReport] =
-    useState<SystemSalesResult | null>(null)
+    useState<SystemSalesResult | null>(savedState?.report ?? null)
   const [loading, setLoading] = useState(false)
   const [exporting, setExporting] =
     useState<'excel' | 'pdf' | null>(null)
-  const [error, setError] = useState('')
-  const [status, setStatus] = useState('')
+  const [error, setError] = useState(savedState?.error ?? '')
+  const [status, setStatus] = useState(savedState?.status ?? '')
+  const [showVariance, setShowVariance] = useState(false)
+  const [workstations, setWorkstations] = useState<string[]>([])
+  const [workstation, setWorkstation] = useState('')
+
+  useEffect(() => {
+    if (!workstationMode) return
+    void window.api.systemSales.workstations().then(rows => {
+      setWorkstations(rows)
+      setWorkstation(current => current || rows[0] || '')
+    }).catch(() => setError('Unable to load POS workstations.'))
+  }, [workstationMode])
 
   const reportPeriod = useMemo(() => {
     if (!report) return 'Not generated'
@@ -77,9 +101,17 @@ export default function SystemSalesPage() {
     return `${formatDate(dateFrom)} – ${formatDate(dateTo)}`
   }, [report, dateFrom, dateTo])
 
+  useEffect(() => {
+    salesSummaryCache = { dateFrom, dateTo, report, error, status }
+  }, [dateFrom, dateTo, report, error, status])
+
   async function handleGenerate() {
     if (!dateFrom || !dateTo) {
       setError('Please select a valid date range.')
+      return
+    }
+    if (workstationMode && !workstation) {
+      setError('Please select a workstation.')
       return
     }
 
@@ -97,6 +129,7 @@ export default function SystemSalesPage() {
         await window.api.systemSales.generate({
           dateFrom,
           dateTo,
+          workstation: workstationMode ? workstation : undefined,
         })
 
       setReport(result)
@@ -221,6 +254,8 @@ export default function SystemSalesPage() {
             />
           </div>
 
+          {workstationMode && <div className="system-sales-date-field"><label htmlFor="pos-workstation">Workstation</label><select id="pos-workstation" className="form-select form-select-sm" value={workstation} disabled={busy} onChange={event => setWorkstation(event.target.value)}>{workstations.map(item => <option key={item} value={item}>{item}</option>)}</select></div>}
+
           <button
             type="button"
             className="btn btn-primary btn-sm system-sales-generate-btn"
@@ -285,9 +320,9 @@ export default function SystemSalesPage() {
               />
 
               <KpiItem
-                label="Vatable Sales"
-                value={formatMoney(summary.vatableSales)}
-                caption="VAT applicable sales"
+                label="Revenue"
+                value={formatMoney(summary.netSales + summary.taxCollected)}
+                caption="Total Revenue"
               />
 
               <KpiItem
@@ -297,11 +332,12 @@ export default function SystemSalesPage() {
               />
 
               <KpiItem
-                label="Outstanding"
-                value={formatMoney(summary.outstanding)}
-                caption="Open check balance"
+                label="Variance"
+                value={formatMoney(summary.varianceAmount)}
+                caption="Variance Amount"
                 icon={<AlertTriangle size={17} />}
-                warning={summary.outstanding !== 0}
+                warning={summary.varianceAmount !== 0}
+                onClick={() => setShowVariance(true)}
               />
             </div>
           </section>
@@ -529,6 +565,8 @@ export default function SystemSalesPage() {
           </div>
         </div>
       )}
+
+      {showVariance && <VarianceCheckingModal dateFrom={dateFrom} dateTo={dateTo} workstation={workstationMode ? workstation : undefined} onClose={() => setShowVariance(false)} />}
     </div>
   )
 }
@@ -540,6 +578,7 @@ interface KpiItemProps {
   icon?: React.ReactNode
   emphasis?: boolean
   warning?: boolean
+  onClick?: () => void
 }
 
 function KpiItem({
@@ -549,30 +588,35 @@ function KpiItem({
   icon,
   emphasis = false,
   warning = false,
+  onClick,
 }: KpiItemProps) {
-  return (
-    <div
-      className={[
-        'system-sales-kpi-item',
-        emphasis ? 'system-sales-kpi-primary' : '',
-        warning ? 'system-sales-kpi-warning' : '',
-      ].filter(Boolean).join(' ')}
-    >
-      <div className="system-sales-kpi-label">
-        <span>{label}</span>
-        {icon && (
-          <span className="system-sales-kpi-icon">
-            {icon}
-          </span>
-        )}
-      </div>
-      <div className="system-sales-kpi-value">
-        {value}
-      </div>
-      <div className="system-sales-kpi-caption">
-        {caption}
-      </div>
+  const content = <>
+    <div className="system-sales-kpi-label">
+      <span>{label}</span>
+      {icon && (
+        <span className="system-sales-kpi-icon">
+          {icon}
+        </span>
+      )}
     </div>
+    <div className="system-sales-kpi-value">
+      {value}
+    </div>
+    <div className="system-sales-kpi-caption">
+      {caption}
+    </div>
+  </>
+  const className = [
+    'system-sales-kpi-item',
+    emphasis ? 'system-sales-kpi-primary' : '',
+    warning ? 'system-sales-kpi-warning' : '',
+    onClick ? 'system-sales-kpi-button' : '',
+  ].filter(Boolean).join(' ')
+
+  if (onClick) return <button type="button" className={className} onClick={onClick} aria-label="View variance checking">{content}</button>
+
+  return (
+    <div className={className}>{content}</div>
   )
 }
 

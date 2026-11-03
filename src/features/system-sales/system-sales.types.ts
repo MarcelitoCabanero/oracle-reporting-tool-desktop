@@ -1,4 +1,6 @@
 export type SystemSalesView =
   | 'sales-summary'
-  | 'variance-checking'
   | 'employee-sales'
+  | 'pos-sales'
+  | 'sc-pwd-listing'
+  | 'tender-listing'

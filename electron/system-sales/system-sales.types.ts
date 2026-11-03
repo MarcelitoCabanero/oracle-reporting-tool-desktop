@@ -1,6 +1,7 @@
 export interface SystemSalesDateRangeInput {
   dateFrom: string
   dateTo: string
+  workstation?: string
 }
 
 export interface SystemSalesSummary {

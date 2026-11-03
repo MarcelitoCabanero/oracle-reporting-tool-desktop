@@ -10,6 +10,17 @@ import type {
   SystemSalesTender,
 } from './system-sales.types.js'
 
+export async function getWorkstations(): Promise<string[]> {
+  const pool = await getLocalDbPool()
+  const result = await pool.request().query(`
+    SELECT DISTINCT Workstation
+    FROM dbo.v_salesdetails
+    WHERE Workstation IS NOT NULL AND LTRIM(RTRIM(Workstation)) <> ''
+    ORDER BY Workstation
+  `)
+  return result.recordset.map(row => String(row.Workstation).trim())
+}
+
 function toNumber(
   value: unknown,
 ): number {
@@ -45,11 +56,13 @@ export async function getSystemSalesSummary(
       sql.Date,
       input.dateTo,
     )
+    .input('workstation', sql.VarChar, input.workstation ?? null)
     .query(`
      WITH VoidedInvoices AS (
     SELECT FCRInvNumber
     FROM dbo.v_salesdetails
     WHERE BusinessDate Between @dtfrom AND @dtto
+      AND (@workstation IS NULL OR Workstation = @workstation)
     GROUP BY FCRInvNumber
     HAVING COUNT(DISTINCT CheckNumber) > 1
 ),
@@ -61,14 +74,21 @@ GCExcess AS (
         MAX(GC_excess) AS GC_excess
     FROM dbo.v_salesdetails
     WHERE BusinessDate Between @dtfrom AND @dtto
+      AND (@workstation IS NULL OR Workstation = @workstation)
       AND GC_excess <> 0
     GROUP BY FCRInvNumber, CheckNumber
 ),
 
 Outstanding as (
-select  Checknumber, Checkclose , Due
-from CHECKS where  
-checkclose IS NULL
+select  c.Checknumber, c.Checkclose, c.Due
+from CHECKS c
+where c.checkclose IS NULL
+  AND (@workstation IS NULL OR EXISTS (
+    SELECT 1 FROM dbo.v_salesdetails os
+    WHERE os.CheckNumber = c.CheckNumber
+      AND os.BusinessDate BETWEEN @dtfrom AND @dtto
+      AND os.Workstation = @workstation
+  ))
 
 ),
 
@@ -79,6 +99,7 @@ VarianceByCheck AS (
     FROM dbo.v_salesdetails
     WHERE Transtype IN ('Item Sale', 'Tender')
       AND BusinessDate BETWEEN @dtfrom AND @dtto
+      AND (@workstation IS NULL OR Workstation = @workstation)
     GROUP BY BusinessDate, CheckNumber
     HAVING
         SUM(CASE WHEN Transtype = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
@@ -164,6 +185,7 @@ LEFT JOIN VoidedInvoices v
 
 WHERE s.BusinessDate
     BETWEEN @dtfrom AND @dtto
+    AND (@workstation IS NULL OR s.Workstation = @workstation)
 
     `)
 
@@ -210,6 +232,7 @@ export async function getSystemSalesTenders(
       sql.Date,
       input.dateTo,
     )
+    .input('workstation', sql.VarChar, input.workstation ?? null)
     .query(`
       SELECT
         itemname,
@@ -221,6 +244,7 @@ export async function getSystemSalesTenders(
       WHERE Transtype = 'Tender'
         AND BusinessDate
           BETWEEN @dtfrom AND @dtto
+        AND (@workstation IS NULL OR Workstation = @workstation)
 
       GROUP BY
         Transtype,

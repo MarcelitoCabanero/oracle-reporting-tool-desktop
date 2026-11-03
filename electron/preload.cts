@@ -24,6 +24,10 @@ import type {
   UpdateHourlyRecordInput,
 } from './hourly-sales/hourly-sales.types.js'
 
+import type {
+  TenderListingInput,
+} from './tender-listing/tender-listing.repository.js'
+
 
 contextBridge.exposeInMainWorld('api', {
   app: {
@@ -220,6 +224,11 @@ posJournal: {
     ),
 },
 
+tenderListing: {
+  generate: (input: TenderListingInput) =>
+    ipcRenderer.invoke('tender-listing:generate', input),
+},
+
   maintenance: {
     getFtpConfig: () =>
       ipcRenderer.invoke('maintenance:ftp-config') as Promise<FtpConfig>,
@@ -234,6 +243,7 @@ posJournal: {
   },
 
 systemSales: {
+  workstations: () => ipcRenderer.invoke('system-sales:workstations'),
   generate: (
     input: {
       dateFrom: string
@@ -282,7 +292,7 @@ hourlySales: {
 },
 
 varianceChecking: {
-  generate: (input: { dateFrom: string; dateTo: string }) =>
+  generate: (input: { dateFrom: string; dateTo: string; employeeName?: string }) =>
     ipcRenderer.invoke('variance-checking:generate', input),
   receipt: (input: { checkNumber: string }) =>
     ipcRenderer.invoke('variance-checking:receipt', input),
@@ -292,7 +302,12 @@ employeeSales: {
   employees: () => ipcRenderer.invoke('employee-sales:employees'),
   generate: (input: { employeeName: string; dateFrom: string; dateTo: string }) =>
     ipcRenderer.invoke('employee-sales:generate', input),
+  generateAll: (input: { dateFrom: string; dateTo: string }) =>
+    ipcRenderer.invoke('employee-sales:generate-all', input),
+  exportExcel: (input: unknown) => ipcRenderer.invoke('employee-sales:export-excel', input),
+  exportPdf: (input: unknown) => ipcRenderer.invoke('employee-sales:export-pdf', input),
 },
+scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => ipcRenderer.invoke('sc-pwd:generate', input), exportExcel: (input: unknown) => ipcRenderer.invoke('sc-pwd:export-excel', input), exportPdf: (input: unknown) => ipcRenderer.invoke('sc-pwd:export-pdf', input) },
 })
 
 console.log('Electron preload loaded')

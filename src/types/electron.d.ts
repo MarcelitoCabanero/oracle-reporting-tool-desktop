@@ -311,6 +311,19 @@ interface PosJournalRecord {
   journalText: string
 }
 
+interface TenderListingInput {
+  dateFrom: string
+  dateTo: string
+}
+
+interface TenderListingRow {
+  checkNumber: string
+  tenderType: string
+  amount: number
+  reference: string
+  businessDate: string
+}
+
 interface PosJournalExportResult {
   success: boolean
   message: string
@@ -610,6 +623,10 @@ posJournal: {
   ) => Promise<PosJournalExportResult>
 }
 
+tenderListing: {
+  generate: (input: TenderListingInput) => Promise<TenderListingRow[]>
+}
+
 maintenance: {
   getFtpConfig: () => Promise<FtpConfig>
   testFtp: (config: FtpConfig) => Promise<MaintenanceResult>
@@ -619,6 +636,7 @@ maintenance: {
 }
 
 systemSales: {
+  workstations: () => Promise<string[]>
   generate: (
     input: SystemSalesDateRangeInput,
   ) => Promise<SystemSalesResult>
@@ -655,7 +673,11 @@ varianceChecking: {
 employeeSales: {
   employees: () => Promise<EmployeeOption[]>
   generate: (input: EmployeeSalesInput) => Promise<EmployeeSalesResult>
+  generateAll: (input: { dateFrom: string; dateTo: string }) => Promise<EmployeeSalesResult[]>
+  exportExcel: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
+  exportPdf: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
 }
+scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => Promise<Array<Record<string, unknown>>>; exportExcel: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }>; exportPdf: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }> }
 
 
     }

@@ -8,12 +8,14 @@ import { registerRofIpc } from './ipc/rof.ipc.js'
 import {registerDepositIpc} from './ipc/deposit.ipc.js'
 import {registerMenuItemIpc} from './ipc/menuitem.ipc.js'
 import { registerPosJournalIpc } from './ipc/pos-journal.ipc.js'
+import { registerTenderListingIpc } from './ipc/tender-listing.ipc.js'
 import { registerMaintenanceIpc } from './ipc/maintenance.ipc.js'
 import {registerSystemSalesIpc} from './ipc/system-sales.ipc.js'
 import { registerVarianceCheckingIpc } from './ipc/variance-checking.ipc.js'
 import { registerEmployeeSalesIpc } from './ipc/employee-sales.ipc.js'
 import { registerHourlySalesIpc } from './ipc/hourly-sales.ipc.js'
 import { syncPendingHourlyEntries } from './hourly-sales/hourly-sales.repository.js'
+import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -51,10 +53,12 @@ registerRofIpc()
 registerDepositIpc()
 registerMenuItemIpc()
 registerPosJournalIpc()
+registerTenderListingIpc()
 registerMaintenanceIpc()
 registerSystemSalesIpc()
 registerVarianceCheckingIpc()
 registerEmployeeSalesIpc()
+registerScPwdIpc()
 registerHourlySalesIpc()
 
 function retryPendingHourlySync() {

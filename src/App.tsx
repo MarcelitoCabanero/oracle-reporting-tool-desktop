@@ -7,7 +7,6 @@ import AppLayout from './layouts/AppLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import MaintenancePage from './pages/MaintenancePage'
-import SettingsPage from './pages/SettingsPage'
 import RofPage from './pages/RofPage'
 import DepositPage from './pages/DepositPage'
 import MenuItemPage from './pages/MenuItemPage.tsx'
@@ -120,14 +119,6 @@ case 'deposit':
           <MaintenancePage />
         )
 
-      case 'settings':
-        return (
-          <SettingsPage
-            theme={theme}
-            onThemeChange={changeTheme}
-          />
-        )
-
       default:
         return (
           <DashboardPage
@@ -151,6 +142,8 @@ case 'deposit':
       onNavigate={
         setActivePage
       }
+      theme={theme}
+      onThemeChange={changeTheme}
     >
       {renderPage()}
     </AppLayout>

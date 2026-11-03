@@ -8,29 +8,41 @@ import SystemSalesNavigation from
 import SalesSummaryPage from
   './sales-summary/SalesSummaryPage'
 
-import VarianceCheckingPage from
-  './variance-checking/VarianceCheckingPage'
-
 import EmployeeSalesPage from
   './employee-sales/EmployeeSalesPage'
+import ScPwdPage from './sc-pwd/ScPwdPage'
+import TenderListingPage from './tender-listing/TenderListingPage'
 
 import type {
   SystemSalesView,
 } from './system-sales.types'
 
+let systemSalesViewCache: SystemSalesView = 'sales-summary'
+
 export default function SystemSalesPage() {
   const [activeView, setActiveView] =
     useState<SystemSalesView>(
-      'sales-summary',
+      systemSalesViewCache,
     )
+
+  function navigate(view: SystemSalesView) {
+    systemSalesViewCache = view
+    setActiveView(view)
+  }
 
   function renderActiveView() {
     switch (activeView) {
-      case 'variance-checking':
-        return <VarianceCheckingPage />
-
       case 'employee-sales':
         return <EmployeeSalesPage />
+
+      case 'pos-sales':
+        return <SalesSummaryPage workstationMode />
+
+      case 'sc-pwd-listing':
+        return <ScPwdPage />
+
+      case 'tender-listing':
+        return <TenderListingPage />
 
       case 'sales-summary':
       default:
@@ -48,7 +60,7 @@ export default function SystemSalesPage() {
 
       <SystemSalesNavigation
         activeView={activeView}
-        onNavigate={setActiveView}
+        onNavigate={navigate}
       />
 
       <div className="system-sales-workspace-content">

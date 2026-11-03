@@ -2,14 +2,17 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   BarChart3, ChevronDown, ChevronRight, Clock3, FileBarChart,
-  LayoutDashboard, LogOut, Menu, NotebookText, ReceiptText, Settings, ShieldCheck, WalletCards,
+  LayoutDashboard, LogOut, Menu, Moon, NotebookText, ReceiptText, ShieldCheck, Sun, WalletCards,
 } from 'lucide-react'
 import logo from '../../assets/jco-logo.png'
 import type { Page } from '../../types/navigation'
+import type { Theme } from '../../App'
 
 interface SidebarProps {
   activePage: Page
   collapsed: boolean
+  theme: Theme
+  onThemeChange: (theme: Theme) => void
   onNavigate: (page: Page) => void
   onLogout: () => void
 }
@@ -67,7 +70,9 @@ function SidebarSection({ title, collapsed, defaultOpen = true, children }: Side
   )
 }
 
-function Sidebar({ activePage, collapsed, onNavigate, onLogout }: SidebarProps) {
+function Sidebar({ activePage, collapsed, theme, onThemeChange, onNavigate, onLogout }: SidebarProps) {
+  const isDark = theme === 'dark'
+
   return (
     <aside className={`app-sidebar bg-white border-end d-flex flex-column flex-shrink-0 ${collapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-brand d-flex align-items-center gap-2 px-3 py-3 border-bottom">
@@ -95,11 +100,28 @@ function Sidebar({ activePage, collapsed, onNavigate, onLogout }: SidebarProps) 
         </SidebarSection>
         <SidebarSection title="SYSTEM" collapsed={collapsed}>
           <NavItem label="Maintenance" page="maintenance" icon={<ShieldCheck size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
-          <NavItem label="Settings" page="settings" icon={<Settings size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
         </SidebarSection>
       </nav>
 
       <div className="border-top p-2">
+        <div className="sidebar-theme-control d-flex align-items-center justify-content-between rounded-3 px-3 py-2">
+          <span className="sidebar-theme-label small">Mode</span>
+          <button
+            type="button"
+            className={`theme-switch sidebar-theme-switch ${isDark ? 'active' : ''}`}
+            role="switch"
+            aria-checked={isDark}
+            aria-label="Toggle dark mode"
+            title={collapsed ? `${isDark ? 'Dark' : 'Light'} mode` : undefined}
+            onClick={() => onThemeChange(isDark ? 'light' : 'dark')}
+          >
+            <span className="theme-track">
+              <Sun size={14} className="theme-icon theme-icon-light" />
+              <Moon size={14} className="theme-icon theme-icon-dark" />
+              <span className="theme-thumb" />
+            </span>
+          </button>
+        </div>
         <button type="button" className="sidebar-logout btn border-0 w-100 d-flex align-items-center gap-3 text-start rounded-3 px-3 py-2 text-danger" onClick={onLogout} title={collapsed ? 'Logout' : undefined}>
           <LogOut size={18} />
           <span className="sidebar-item-label">Logout</span>

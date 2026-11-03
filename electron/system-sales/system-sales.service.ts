@@ -1,7 +1,10 @@
 import {
+  getWorkstations,
   getSystemSalesSummary,
   getSystemSalesTenders,
 } from './system-sales.repository.js'
+
+export { getWorkstations }
 
 import type {
   SystemSalesDateRangeInput,

@@ -1,5 +1,5 @@
-import { loadEmployeeSales, loadEmployees } from './employee-sales.repository.js'
-import type { EmployeeSalesInput, EmployeeSalesResult } from './employee-sales.types.js'
+import { loadEmployeeSales, loadEmployees, loadEmployeesWithSales } from './employee-sales.repository.js'
+import type { EmployeeSalesAllInput, EmployeeSalesInput, EmployeeSalesResult } from './employee-sales.types.js'
 
 const dateIsValid = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -33,4 +33,17 @@ export async function generateEmployeeSales(input: EmployeeSalesInput): Promise<
     tenderTotal, grossSales, totalDiscounts,
     variance: tenderTotal.amount - grossSales,
   }
+}
+
+export async function generateAllEmployeeSales(input: EmployeeSalesAllInput): Promise<EmployeeSalesResult[]> {
+  if (!input || !dateIsValid(input.dateFrom) || !dateIsValid(input.dateTo) || input.dateFrom > input.dateTo) {
+    throw new Error('Please select a valid date range.')
+  }
+  const employees = await loadEmployeesWithSales(input.dateFrom, input.dateTo)
+  const reports: EmployeeSalesResult[] = []
+  for (const employeeName of employees) {
+    const report = await generateEmployeeSales({ employeeName, dateFrom: input.dateFrom, dateTo: input.dateTo })
+    if (report.hasSales) reports.push(report)
+  }
+  return reports
 }

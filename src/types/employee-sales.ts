@@ -9,6 +9,11 @@ export interface EmployeeSalesInput {
   dateTo: string
 }
 
+export interface EmployeeSalesAllInput {
+  dateFrom: string
+  dateTo: string
+}
+
 export interface EmployeeSalesMetrics {
   netSales: number
   taxCollected: number
@@ -21,6 +26,14 @@ export interface EmployeeSalesMetrics {
   serviceAmount: number
   otherDiscount: number
   voidAmount: number
+  voidCount: number
+  vatableSales: number
+  vatExemptSales: number
+  vatZeroRatedSales: number
+  gcSales: number
+  gcExcess: number
+  outstanding: number
+  varianceAmount: number
 }
 
 export interface EmployeeTender {

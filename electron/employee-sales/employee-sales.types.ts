@@ -4,6 +4,11 @@ export interface EmployeeSalesInput {
   dateTo: string
 }
 
+export interface EmployeeSalesAllInput {
+  dateFrom: string
+  dateTo: string
+}
+
 export interface EmployeeOption {
   employeeId: string
   checkName: string
@@ -21,6 +26,14 @@ export interface EmployeeSalesMetrics {
   serviceAmount: number
   otherDiscount: number
   voidAmount: number
+  voidCount: number
+  vatableSales: number
+  vatExemptSales: number
+  vatZeroRatedSales: number
+  gcSales: number
+  gcExcess: number
+  outstanding: number
+  varianceAmount: number
 }
 
 export interface EmployeeTender {
@@ -40,4 +53,15 @@ export interface EmployeeSalesResult {
   grossSales: number
   totalDiscounts: number
   variance: number
+}
+
+export interface EmployeeSalesExportInput {
+  report: EmployeeSalesResult
+}
+
+export interface EmployeeSalesExportResult {
+  success: boolean
+  canceled: boolean
+  message: string
+  filePath?: string
 }
