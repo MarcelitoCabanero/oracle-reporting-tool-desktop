@@ -12,6 +12,7 @@ import DepositPage from './pages/DepositPage'
 import MenuItemPage from './pages/MenuItemPage.tsx'
 import PosJournalPage from './pages/PosJournalPage.tsx'
 import SystemSalesPage from './features/system-sales/SystemSalesPage'
+import HourlySalesPage from './pages/HourlySalesPage'
 
 
 import {
@@ -96,12 +97,7 @@ function App() {
         )
 
       case 'hourly-sales':
-        return (
-          <PlaceholderPage
-            title="Hourly Sales"
-            description="Hourly POS sales reporting."
-          />
-        )
+        return <HourlySalesPage />
 
     case 'system-sales':
   return <SystemSalesPage />

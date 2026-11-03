@@ -13,6 +13,8 @@ import { registerMaintenanceIpc } from './ipc/maintenance.ipc.js'
 import {registerSystemSalesIpc} from './ipc/system-sales.ipc.js'
 import { registerVarianceCheckingIpc } from './ipc/variance-checking.ipc.js'
 import { registerEmployeeSalesIpc } from './ipc/employee-sales.ipc.js'
+import { registerHourlySalesIpc } from './ipc/hourly-sales.ipc.js'
+import { syncPendingHourlyEntries } from './hourly-sales/hourly-sales.repository.js'
 import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -57,6 +59,13 @@ registerSystemSalesIpc()
 registerVarianceCheckingIpc()
 registerEmployeeSalesIpc()
 registerScPwdIpc()
+registerHourlySalesIpc()
+
+function retryPendingHourlySync() {
+  void syncPendingHourlyEntries().catch((error: unknown) => {
+    console.error('Unable to check pending hourly entries for HEADQ synchronization.', error)
+  })
+}
 
 ipcMain.handle('pos-journal:export-pdf', async (_event, checkNumber: string) => {
   if (!mainWindow) {
@@ -103,6 +112,8 @@ ipcMain.handle('pos-journal:export-pdf', async (_event, checkNumber: string) => 
 
 app.whenReady().then(() => {
   createWindow()
+  retryPendingHourlySync()
+  setInterval(retryPendingHourlySync, 60_000)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -17,6 +17,12 @@ import type {
   FtpConfig,
   MissingMenuItem,
 } from './maintenance/maintenance.types.js'
+import type {
+  CreateHourlyEntriesInput,
+  HourlyDailyReportInput,
+  HourlyRecordsInput,
+  UpdateHourlyRecordInput,
+} from './hourly-sales/hourly-sales.types.js'
 
 import type {
   TenderListingInput,
@@ -258,6 +264,29 @@ systemSales: {
   exportPdf: (input: unknown) =>
     ipcRenderer.invoke(
       'system-sales:export-pdf',
+      input,
+    ),
+},
+
+hourlySales: {
+  getDailyReport: (input: HourlyDailyReportInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:get-daily-report',
+      input,
+    ),
+  createEntries: (input: CreateHourlyEntriesInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:create-entries',
+      input,
+    ),
+  getRecords: (input: HourlyRecordsInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:get-records',
+      input,
+    ),
+  updateRecord: (input: UpdateHourlyRecordInput) =>
+    ipcRenderer.invoke(
+      'hourly-sales:update-record',
       input,
     ),
 },
