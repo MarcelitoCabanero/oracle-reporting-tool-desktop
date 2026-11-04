@@ -130,6 +130,35 @@
   z-index: 3;
 }
 
+.hourly-summary-date-button {
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hourly-summary-date-button:hover,
+.hourly-summary-date-button[aria-pressed='true'] {
+  background: #e8d2b2;
+  color: #6f3218;
+}
+
+.hourly-summary-date-button:focus-visible {
+  outline: 2px solid #a94a23;
+  outline-offset: 2px;
+}
+
+.hourly-summary-table .hourly-summary-selected-date {
+  background: #fff0d6 !important;
+}
+
+.hourly-summary-table .hourly-summary-selected-row > * {
+  background: #fff0d6 !important;
+}
+
 .hourly-summary-table tbody th {
   background: #fffdfa;
 }

@@ -350,7 +350,7 @@ export async function createHourlyEntries(
     throw new Error('Submit between 1 and 100 entries at a time.')
   }
 
-  const seenTimes = new Set<string>()
+  const seenTimeCategories = new Set<string>()
   const normalizedRows: CreateHourlyEntriesInput['rows'] = []
   for (const [index, row] of input.rows.entries()) {
     if (!row.time.trim() || row.time.length > 50) {
@@ -358,11 +358,6 @@ export async function createHourlyEntries(
     }
 
     const normalizedTime = row.time.trim().toUpperCase()
-    if (normalizedTime !== 'RETARDING' && seenTimes.has(normalizedTime)) {
-      throw new Error(`Entry ${index + 1} repeats the ${row.time} time duration. Each duration can only be entered once.`)
-    }
-    if (normalizedTime !== 'RETARDING') seenTimes.add(normalizedTime)
-
     if (!isValidDate(row.entryDate)) {
       throw new Error(`Entry ${index + 1} needs a valid date.`)
     }
@@ -370,6 +365,12 @@ export async function createHourlyEntries(
     if (!row.remarks.trim() || row.remarks.length > 50) {
       throw new Error(`Entry ${index + 1} needs valid remarks.`)
     }
+
+    const timeCategory = `${normalizedTime}\0${row.remarks.trim().toUpperCase()}`
+    if (normalizedTime !== 'RETARDING' && seenTimeCategories.has(timeCategory)) {
+      throw new Error(`Entry ${index + 1} repeats the ${row.time} time duration with the same category. Each category can only be entered once per duration.`)
+    }
+    if (normalizedTime !== 'RETARDING') seenTimeCategories.add(timeCategory)
 
     const shellQty = normalizeEntryQuantity(row.shellQty, index + 1)
     const ringQty = normalizeEntryQuantity(row.ringQty, index + 1)

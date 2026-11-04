@@ -113,6 +113,17 @@ function getErrorMessage(error: unknown) {
     : 'The request could not be completed. Check the database connection and try again.'
 }
 
+function HourlySalesLoading({ message }: { message: string }) {
+  return (
+    <div className="hourly-sales-loading-overlay" role="status" aria-live="polite">
+      <div className="hourly-sales-loading-card">
+        <div className="spinner-border text-primary" aria-hidden="true" />
+        <span>{message}</span>
+      </div>
+    </div>
+  )
+}
+
 function HourlyEntryForm({
   businessDate,
   onSaved,
@@ -248,18 +259,19 @@ function HourlyEntryForm({
       }
     }
 
-    const seenTimes = new Set<string>()
+    const seenTimeCategories = new Set<string>()
     for (const [index, row] of rows.entries()) {
       const normalizedTime = row.time.trim().toUpperCase()
       if (normalizedTime === 'RETARDING') continue
+      const timeCategory = `${normalizedTime}\0${row.remarks.trim().toUpperCase()}`
 
-      if (seenTimes.has(normalizedTime)) {
+      if (seenTimeCategories.has(timeCategory)) {
         setMessageType('error')
-        setMessage(`Entry ${index + 1} repeats the ${row.time} time duration. Each duration can only be entered once.`)
+        setMessage(`Entry ${index + 1} repeats the ${row.time} time duration with the same category. Each category can only be entered once per duration.`)
         fieldRefs.current.get(`${row.id}:time`)?.focus()
         return
       }
-      seenTimes.add(normalizedTime)
+      seenTimeCategories.add(timeCategory)
     }
 
     const preparedRows = rows.map((row) => ({
@@ -680,7 +692,7 @@ function HourlyRecords({
         </div>
       </header>
 
-      {loading && <div className="hourly-sales-report-state">Loading Produce and Waste records...</div>}
+      {loading && <HourlySalesLoading message="Loading Produce and Waste records..." />}
       {loadError && <div className="hourly-sales-message error" role="alert">{loadError}</div>}
       {!loading && !loadError && (
         <div>
@@ -1016,11 +1028,11 @@ function HourlySalesPage() {
       {(view === 'daily' || view === 'summary' || view === 'summary-reports') && (
         <>
           {reportIsLoading && (
-            <div className="hourly-sales-report-state">
-              {view === 'summary' || view === 'summary-reports'
+            <HourlySalesLoading
+              message={view === 'summary' || view === 'summary-reports'
                 ? 'Loading summaries for the selected date range...'
                 : 'Loading reports for the selected date range...'}
-            </div>
+            />
           )}
           {reportError && <div className="hourly-sales-message error" role="alert">{reportError}</div>}
           {!reportIsLoading && !reportError && view === 'daily' && reports.map((report) => (

@@ -915,6 +915,9 @@ export function HourlyPosReport({
 function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
   const { summary } = report
   const rows = report.rows
+  // Keep the comparison available to re-enable when the section is needed again.
+  const showPosSoldProductionWaste = false
+  const showNetProducedSales = false
   const proofingGoodRing = rows.reduce((total, row) => total + row.proofingGood.ring, 0)
   const proofingGoodShell = rows.reduce((total, row) => total + row.proofingGood.shell, 0)
   const proofingGood = rows.reduce((total, row) => total + row.proofingGood.total, 0)
@@ -951,7 +954,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
         </article>
       </div>
 
-      <HourlyPosComparison report={report} />
+      {showPosSoldProductionWaste && <HourlyPosComparison report={report} />}
 
       <div className="hourly-report-retarding">
         <div>
@@ -1120,7 +1123,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
       </div>
 
       <div className="hourly-report-summary">
-        <div><span>Net produced sales (POS less received)</span><strong>{quantity(summary.netProducedSales.total)}</strong><small>{percent(summary.salesAllocation)} of produced quantity</small></div>
+        {showNetProducedSales && <div><span>Net produced sales (POS less received)</span><strong>{quantity(summary.netProducedSales.total)}</strong><small>{percent(summary.salesAllocation)} of produced quantity</small></div>}
         <div><span>Variance</span><strong>{quantity(summary.variance.total)}</strong><small>Produced less net produced sales</small></div>
         <div><span>Actual waste</span><strong>{quantity(summary.totalWaste.total)}</strong><small>Proofing + frying + topping</small></div>
         <div><span>Excess waste</span><strong>{quantity(summary.excessWaste)}</strong><small>Actual less 1% allowance, positive only</small></div>

@@ -59,6 +59,37 @@ function percentage(value: number) {
   return `${(value * 100).toFixed(2)}%`
 }
 
+function formatReportDate(value: string) {
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number)
+  if (!year || !month || !day) return value
+
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function ReportDateButton({
+  date,
+  selected,
+  onSelect,
+}: {
+  date: string
+  selected: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      className="hourly-summary-date-button"
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+    >
+      {formatReportDate(date)}
+    </button>
+  )
+}
+
 function savedManualInputs(report: HourlyDailyReportData) {
   return readManualSummaryInputs(
     `hourly-sales-summary:${report.locationName}:${report.businessDate}`,
@@ -94,7 +125,15 @@ function dailyBatchOutput(report: HourlyDailyReportData) {
   return (retarding + hourly) * 248
 }
 
-function MssdReport({ reports }: { reports: HourlyDailyReportData[] }) {
+function MssdReport({
+  reports,
+  selectedDate,
+  onSelectDate,
+}: {
+  reports: HourlyDailyReportData[]
+  selectedDate: string | null
+  onSelectDate: (date: string) => void
+}) {
   const hours = reports[0]?.rows ?? []
   const totalsByReport = reports.map((report) =>
     report.rows.reduce((totals, row) => ({
@@ -110,7 +149,18 @@ function MssdReport({ reports }: { reports: HourlyDailyReportData[] }) {
           <tr>
             <th scope="col" rowSpan={2}>Hour</th>
             {reports.map((report) => (
-              <th scope="colgroup" colSpan={2} key={report.businessDate}>{report.businessDate}</th>
+              <th
+                scope="colgroup"
+                colSpan={2}
+                className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined}
+                key={report.businessDate}
+              >
+                <ReportDateButton
+                  date={report.businessDate}
+                  selected={selectedDate === report.businessDate}
+                  onSelect={() => onSelectDate(report.businessDate)}
+                />
+              </th>
             ))}
           </tr>
           <tr>
@@ -127,8 +177,8 @@ function MssdReport({ reports }: { reports: HourlyDailyReportData[] }) {
               {reports.flatMap((report) => {
                 const row = report.rows[hourIndex]
                 return [
-                  <td key={`${report.businessDate}-ring-${hourIndex}`}>{quantity(row?.sold.ring ?? 0)}</td>,
-                  <td key={`${report.businessDate}-shell-${hourIndex}`}>{quantity(
+                  <td className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined} key={`${report.businessDate}-ring-${hourIndex}`}>{quantity(row?.sold.ring ?? 0)}</td>,
+                  <td className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined} key={`${report.businessDate}-shell-${hourIndex}`}>{quantity(
                     (row?.sold.shell ?? 0) + (row?.sold.jpops ?? 0),
                   )}</td>,
                 ]
@@ -138,14 +188,18 @@ function MssdReport({ reports }: { reports: HourlyDailyReportData[] }) {
           <tr className="hourly-summary-subtotal-row">
             <th scope="row">TOTAL (Ring / Shell)</th>
             {totalsByReport.flatMap((dayTotal, index) => [
-              <td key={`${reports[index].businessDate}-ring-subtotal`}>{quantity(dayTotal.ring)}</td>,
-              <td key={`${reports[index].businessDate}-shell-subtotal`}>{quantity(dayTotal.shell)}</td>,
+              <td className={selectedDate === reports[index].businessDate ? 'hourly-summary-selected-date' : undefined} key={`${reports[index].businessDate}-ring-subtotal`}>{quantity(dayTotal.ring)}</td>,
+              <td className={selectedDate === reports[index].businessDate ? 'hourly-summary-selected-date' : undefined} key={`${reports[index].businessDate}-shell-subtotal`}>{quantity(dayTotal.shell)}</td>,
             ])}
           </tr>
           <tr className="hourly-summary-total-row">
             <th scope="row">TOTAL DONUTS SOLD</th>
             {totalsByReport.map((dayTotal, index) => (
-              <td colSpan={2} key={`${reports[index].businessDate}-donut-total`}>
+              <td
+                colSpan={2}
+                className={selectedDate === reports[index].businessDate ? 'hourly-summary-selected-date' : undefined}
+                key={`${reports[index].businessDate}-donut-total`}
+              >
                 {quantity(dayTotal.ring + dayTotal.shell)}
               </td>
             ))}
@@ -226,7 +280,15 @@ function bufferLines(report: HourlyDailyReportData): WasteLine[] {
   ]
 }
 
-function MswdReport({ reports }: { reports: HourlyDailyReportData[] }) {
+function MswdReport({
+  reports,
+  selectedDate,
+  onSelectDate,
+}: {
+  reports: HourlyDailyReportData[]
+  selectedDate: string | null
+  onSelectDate: (date: string) => void
+}) {
   const wasteByDate = new Map(reports.map((report) => [report.businessDate, wasteLines(report)]))
   const bufferByDate = new Map(reports.map((report) => [report.businessDate, bufferLines(report)]))
 
@@ -247,8 +309,8 @@ function MswdReport({ reports }: { reports: HourlyDailyReportData[] }) {
               const line = getLines(report).find((item) => item.label === label)
               const value = line?.amounts ?? amounts(0, 0)
               return [
-                <td key={`${report.businessDate}-ring`}>{quantity(value.ring)}</td>,
-                <td key={`${report.businessDate}-shell`}>{quantity(value.shell)}</td>,
+                <td className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined} key={`${report.businessDate}-ring`}>{quantity(value.ring)}</td>,
+                <td className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined} key={`${report.businessDate}-shell`}>{quantity(value.shell)}</td>,
               ]
             })}
           </tr>
@@ -262,8 +324,8 @@ function MswdReport({ reports }: { reports: HourlyDailyReportData[] }) {
               shell: sum.shell + line.amounts.shell,
             }), amounts(0, 0))
             return [
-              <td key={`${report.businessDate}-ring-subtotal`}>{quantity(subtotal.ring)}</td>,
-              <td key={`${report.businessDate}-shell-subtotal`}>{quantity(subtotal.shell)}</td>,
+              <td className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined} key={`${report.businessDate}-ring-subtotal`}>{quantity(subtotal.ring)}</td>,
+              <td className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined} key={`${report.businessDate}-shell-subtotal`}>{quantity(subtotal.shell)}</td>,
             ]
           })}
         </tr>
@@ -271,7 +333,7 @@ function MswdReport({ reports }: { reports: HourlyDailyReportData[] }) {
           <th scope="row">{title === 'WASTE' ? 'TOTAL WASTE DONUTS' : 'TOTAL BUFFER DONUTS'}</th>
           {reports.map((report) => {
             const sum = getLines(report).reduce((value, line) => value + total(line.amounts), 0)
-            return <td key={`${report.businessDate}-total`} colSpan={2}>{quantity(sum)}</td>
+            return <td className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined} key={`${report.businessDate}-total`} colSpan={2}>{quantity(sum)}</td>
           })}
         </tr>
       </tbody>
@@ -294,7 +356,18 @@ function MswdReport({ reports }: { reports: HourlyDailyReportData[] }) {
           <tr>
             <th scope="col" rowSpan={2}>Category</th>
             {reports.map((report) => (
-              <th scope="colgroup" colSpan={2} key={report.businessDate}>{report.businessDate}</th>
+              <th
+                scope="colgroup"
+                colSpan={2}
+                className={selectedDate === report.businessDate ? 'hourly-summary-selected-date' : undefined}
+                key={report.businessDate}
+              >
+                <ReportDateButton
+                  date={report.businessDate}
+                  selected={selectedDate === report.businessDate}
+                  onSelect={() => onSelectDate(report.businessDate)}
+                />
+              </th>
             ))}
           </tr>
           <tr>
@@ -352,7 +425,15 @@ function allocationRows(reports: HourlyDailyReportData[]): AllocationRow[] {
   })
 }
 
-function MpparReport({ reports }: { reports: HourlyDailyReportData[] }) {
+function MpparReport({
+  reports,
+  selectedDate,
+  onSelectDate,
+}: {
+  reports: HourlyDailyReportData[]
+  selectedDate: string | null
+  onSelectDate: (date: string) => void
+}) {
   const rows = allocationRows(reports)
   const totals = rows.reduce((sum, row) => ({
     produced: sum.produced + row.produced,
@@ -409,8 +490,14 @@ function MpparReport({ reports }: { reports: HourlyDailyReportData[] }) {
           {rows.map((row) => {
             const batchOutput = dailyBatchOutput(row.report)
             return (
-              <tr key={row.report.businessDate}>
-                <th scope="row">{row.report.businessDate}</th>
+              <tr className={selectedDate === row.report.businessDate ? 'hourly-summary-selected-row' : undefined} key={row.report.businessDate}>
+                <th scope="row">
+                  <ReportDateButton
+                    date={row.report.businessDate}
+                    selected={selectedDate === row.report.businessDate}
+                    onSelect={() => onSelectDate(row.report.businessDate)}
+                  />
+                </th>
                 <td>{quantity(row.produced)}</td>
                 <td>{allocation(
                   row.sold + row.foc + row.waste + row.buffer + row.variance + row.transferred,
@@ -465,13 +552,17 @@ function MpparReport({ reports }: { reports: HourlyDailyReportData[] }) {
 
 export default function HourlySummaryReports({ reports }: { reports: HourlyDailyReportData[] }) {
   const [selectedReport, setSelectedReport] = useState<ReportName>('MSSD')
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const locationName = reports[0]?.locationName ?? ''
   const manualError = reports
     .map((report) => savedManualInputs(report).error)
     .find(Boolean)
   const dateRange = reports.length === 1
-    ? reports[0].businessDate
-    : `${reports[0]?.businessDate ?? ''} – ${reports.at(-1)?.businessDate ?? ''}`
+    ? formatReportDate(reports[0].businessDate)
+    : `${formatReportDate(reports[0]?.businessDate ?? '')} – ${formatReportDate(reports.at(-1)?.businessDate ?? '')}`
+  const onSelectDate = (date: string) => {
+    setSelectedDate((currentDate) => currentDate === date ? null : date)
+  }
 
   return (
     <section className="hourly-summary-reports" aria-label="Monthly hourly summary reports">
@@ -501,9 +592,15 @@ export default function HourlySummaryReports({ reports }: { reports: HourlyDaily
           {manualError} Manual report inputs could not be loaded; calculations may omit them.
         </p>
       )}
-      {selectedReport === 'MSSD' && <MssdReport reports={reports} />}
-      {selectedReport === 'MSWD' && <MswdReport reports={reports} />}
-      {selectedReport === 'MPPAR' && <MpparReport reports={reports} />}
+      {selectedReport === 'MSSD' && (
+        <MssdReport reports={reports} selectedDate={selectedDate} onSelectDate={onSelectDate} />
+      )}
+      {selectedReport === 'MSWD' && (
+        <MswdReport reports={reports} selectedDate={selectedDate} onSelectDate={onSelectDate} />
+      )}
+      {selectedReport === 'MPPAR' && (
+        <MpparReport reports={reports} selectedDate={selectedDate} onSelectDate={onSelectDate} />
+      )}
     </section>
   )
 }

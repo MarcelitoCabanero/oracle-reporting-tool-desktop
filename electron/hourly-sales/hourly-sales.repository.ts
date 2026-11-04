@@ -191,6 +191,38 @@ async function ensureLocalHourlySyncColumns(pool: sql.ConnectionPool): Promise<v
       CREATE UNIQUE INDEX UX_pos_dts_waste_sync_id
         ON dbo.dts_waste(sync_id) WHERE sync_id IS NOT NULL;
   `)
+
+  await ensureProduceTimeCategoryIndex(pool)
+}
+
+async function ensureProduceTimeCategoryIndex(pool: sql.ConnectionPool): Promise<void> {
+  await pool.request().query(`
+    IF EXISTS
+    (
+      SELECT 1 FROM sys.key_constraints
+      WHERE parent_object_id = OBJECT_ID(N'dbo.dts_produce')
+        AND name = N'UQ_dts_produce_time_date'
+    )
+      ALTER TABLE dbo.dts_produce
+        DROP CONSTRAINT UQ_dts_produce_time_date;
+
+    IF EXISTS
+    (
+      SELECT 1 FROM sys.indexes
+      WHERE object_id = OBJECT_ID(N'dbo.dts_produce')
+        AND name = N'UQ_dts_produce_time_date'
+    )
+      DROP INDEX UQ_dts_produce_time_date ON dbo.dts_produce;
+
+    IF NOT EXISTS
+    (
+      SELECT 1 FROM sys.indexes
+      WHERE object_id = OBJECT_ID(N'dbo.dts_produce')
+        AND name = N'UQ_dts_produce_time_date'
+    )
+      CREATE UNIQUE INDEX UQ_dts_produce_time_date
+        ON dbo.dts_produce(time_mixing, date_mix, Remarks);
+  `)
 }
 
 const createHeadqTablesSchema = `
@@ -545,6 +577,7 @@ async function ensureHeadqHourlySchema(): Promise<void> {
   await headqPool.request().query(addHeadqSyncIdColumnsSchema)
   await headqPool.request().query(headqSyncIdSchema)
   await headqPool.request().query(headqSyncStatusSchema)
+  await ensureProduceTimeCategoryIndex(headqPool)
   headqSchemaReady = true
 }
 
@@ -682,9 +715,18 @@ export async function loadHourlyReportSources(
         SELECT
           LTRIM(RTRIM(time_mixing)) AS time,
           LTRIM(RTRIM(Remarks)) AS remarks,
-          SUM(ISNULL(shell_qty, 0)) AS shellQty,
-          SUM(ISNULL(ring_qty, 0)) AS ringQty,
-          SUM(ISNULL(jpops_qty, 0)) AS jpopsQty
+          SUM(CASE
+            WHEN UPPER(LTRIM(RTRIM(Remarks))) = 'RECEIVED DONUTS' THEN ABS(ISNULL(shell_qty, 0))
+            ELSE ISNULL(shell_qty, 0)
+          END) AS shellQty,
+          SUM(CASE
+            WHEN UPPER(LTRIM(RTRIM(Remarks))) = 'RECEIVED DONUTS' THEN ABS(ISNULL(ring_qty, 0))
+            ELSE ISNULL(ring_qty, 0)
+          END) AS ringQty,
+          SUM(CASE
+            WHEN UPPER(LTRIM(RTRIM(Remarks))) = 'RECEIVED DONUTS' THEN ABS(ISNULL(jpops_qty, 0))
+            ELSE ISNULL(jpops_qty, 0)
+          END) AS jpopsQty
         FROM dbo.dts_produce
         WHERE date_mix = @businessDate
           AND locationname = @locationName
