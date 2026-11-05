@@ -1,0 +1,29 @@
+.rof-web { width: 100%; color: var(--text); }
+.rof-web .rof-view-tabs { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 14px; padding: 0 8px; border-bottom: 1px solid var(--border); }
+.rof-web .rof-view-tab { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; margin-bottom: -1px; padding: 8px 15px 9px; border: 1px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.rof-web .rof-view-tab:hover { background: var(--blue-soft); color: var(--text-strong); }
+.rof-web .rof-view-tab.active { background: var(--surface); color: var(--blue-dark); border-color: var(--border); }
+.rof-web .rof-view-tab:disabled { opacity: .5; cursor: not-allowed; }
+.rof-web .rof-location-badge { background: var(--blue-soft); color: var(--blue-dark); }
+.rof-web .rof-detail-table { min-width: 900px; }
+.rof-web .rof-summary-table-bootstrap { min-width: 1450px; }
+.rof-web .rof-summary-table-bootstrap thead th { white-space: nowrap; }
+.rof-web .rof-money-input { width: 145px; min-width: 145px; }
+.rof-web .card { color: var(--text); background: var(--surface) !important; border-color: var(--border) !important; }
+.rof-web .card-body { color: var(--text); }
+.rof-web .table { --bs-table-bg: var(--surface); --bs-table-color: var(--text); --bs-table-striped-bg: var(--surface-soft); --bs-table-hover-bg: var(--surface-hover); --bs-table-border-color: var(--border); }
+.rof-web .table-light { --bs-table-bg: var(--surface-soft); --bs-table-color: var(--text); }
+.rof-web .form-control, .rof-web .form-select { color: var(--text); background-color: var(--surface); border-color: var(--border-strong); }
+.rof-web .form-control:focus, .rof-web .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 .2rem rgba(255,107,26,.15); }
+.rof-web .text-secondary { color: var(--muted) !important; }
+.rof-web .bg-white { background-color: var(--surface) !important; }
+.rof-web .btn-primary { --bs-btn-bg: var(--blue); --bs-btn-border-color: var(--blue); --bs-btn-hover-bg: var(--blue-dark); --bs-btn-hover-border-color: var(--blue-dark); --bs-btn-active-bg: var(--blue-dark); --bs-btn-active-border-color: var(--blue-dark); }
+html[data-theme='dark'] .rof-web .card { background: var(--surface) !important; color: var(--text); }
+html[data-theme='dark'] .rof-web .table-light { --bs-table-bg: var(--surface-soft); --bs-table-color: var(--text); }
+html[data-theme='dark'] .rof-web .table-light th { background: var(--surface-hover) !important; color: var(--text); }
+html[data-theme='dark'] .rof-web .rof-view-tabs { border-color: var(--border); }
+html[data-theme='dark'] .rof-web .rof-view-tab { color: var(--muted); }
+html[data-theme='dark'] .rof-web .rof-view-tab.active { background: var(--surface); color: var(--blue-dark); border-color: var(--border); }
+html[data-theme='dark'] .rof-web [role='dialog'] { color: var(--text); background: var(--surface) !important; }
+html[data-theme='dark'] .rof-web [role='dialog'] .bg-light { background: var(--surface-soft) !important; }
+@media (max-width: 700px) { .rof-web .rof-view-tabs { overflow-x: auto; } .rof-web .rof-view-tab { flex: 0 0 auto; } }

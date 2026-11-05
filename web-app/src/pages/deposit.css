@@ -1,0 +1,19 @@
+.deposit-web { width: 100%; color: var(--text); }
+.deposit-web .deposit-history-table { min-width: 1500px; }
+.deposit-web .deposit-history-table th { white-space: nowrap; }
+.deposit-web .deposit-page-size { width: 75px; }
+.deposit-web .deposit-location-badge { background: var(--blue-soft); color: var(--blue-dark); }
+.deposit-web .deposit-metric-icon { color: var(--blue); }
+.deposit-web .card { color: var(--text); background: var(--surface) !important; border-color: var(--border) !important; }
+.deposit-web .table { --bs-table-bg: var(--surface); --bs-table-color: var(--text); --bs-table-striped-bg: var(--surface-soft); --bs-table-hover-bg: var(--surface-hover); --bs-table-border-color: var(--border); }
+.deposit-web .table-light { --bs-table-bg: var(--surface-soft); --bs-table-color: var(--text); }
+.deposit-web .form-control, .deposit-web .form-select { color: var(--text); background-color: var(--surface); border-color: var(--border-strong); }
+.deposit-web .form-control:focus, .deposit-web .form-select:focus { border-color: var(--blue); box-shadow: 0 0 0 .2rem rgba(255,107,26,.15); }
+.deposit-web .text-secondary { color: var(--muted) !important; }
+.deposit-web .bg-white { background-color: var(--surface) !important; }
+.deposit-web .btn-primary { --bs-btn-bg: var(--blue); --bs-btn-border-color: var(--blue); --bs-btn-hover-bg: var(--blue-dark); --bs-btn-hover-border-color: var(--blue-dark); --bs-btn-active-bg: var(--blue-dark); --bs-btn-active-border-color: var(--blue-dark); }
+html[data-theme='dark'] .deposit-web .card { background: var(--surface) !important; color: var(--text); }
+html[data-theme='dark'] .deposit-web .table-light { --bs-table-bg: var(--surface-soft); --bs-table-color: var(--text); }
+html[data-theme='dark'] .deposit-web .table-light th { background: var(--surface-hover) !important; color: var(--text); }
+html[data-theme='dark'] .deposit-web [role='dialog'] { color: var(--text); background: var(--surface) !important; }
+html[data-theme='dark'] .deposit-web [role='dialog'] .bg-light { background: var(--surface-soft) !important; }

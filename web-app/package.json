@@ -1,0 +1,29 @@
+{
+  "name": "oracle-reporting-tool-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --pretty"
+  },
+  "dependencies": {
+    "bootstrap": "^5.3.8",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^1.37.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.6.2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "dotenv": "^17.4.2",
+    "mssql": "^12.7.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2"
+  }
+}

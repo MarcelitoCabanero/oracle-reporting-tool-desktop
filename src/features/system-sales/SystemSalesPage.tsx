@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from 'react'
 
@@ -19,15 +20,27 @@ import type {
 
 let systemSalesViewCache: SystemSalesView = 'sales-summary'
 
-export default function SystemSalesPage() {
+interface SystemSalesPageProps {
+  initialView?: SystemSalesView
+  onViewChange?: (view: SystemSalesView) => void
+}
+
+export default function SystemSalesPage({ initialView, onViewChange }: SystemSalesPageProps = {}) {
   const [activeView, setActiveView] =
     useState<SystemSalesView>(
-      systemSalesViewCache,
+      initialView ?? systemSalesViewCache,
     )
+
+  useEffect(() => {
+    if (!initialView) return
+    systemSalesViewCache = initialView
+    setActiveView(initialView)
+  }, [initialView])
 
   function navigate(view: SystemSalesView) {
     systemSalesViewCache = view
     setActiveView(view)
+    onViewChange?.(view)
   }
 
   function renderActiveView() {

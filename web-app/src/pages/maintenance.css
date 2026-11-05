@@ -1,0 +1,29 @@
+.maintenance-web { width: 100%; color: var(--text); }
+.maintenance-web .maintenance-page { display: flex; flex-direction: column; gap: 22px; width: 100%; }
+.maintenance-web .maintenance-grid { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.maintenance-web .maintenance-panel { display: flex; flex-direction: column; min-width: 0; min-height: min(650px, calc(100vh - 175px)); padding: 22px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.maintenance-web .maintenance-panel-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.maintenance-web .maintenance-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 36px; width: 36px; height: 36px; border-radius: 8px; color: var(--blue-dark); background: var(--blue-soft); }
+.maintenance-web .maintenance-heading-text { flex: 1; min-width: 0; }
+.maintenance-web .maintenance-panel-heading h2 { margin: 1px 0 4px; color: var(--text-strong); font-size: 16px; font-weight: 700; }
+.maintenance-web .maintenance-panel-heading p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.maintenance-web .maintenance-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.maintenance-web .maintenance-actions .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; font-size: 12px; font-weight: 600; }
+.maintenance-web .maintenance-status { display: flex; align-items: flex-start; gap: 8px; min-height: 42px; margin-top: 16px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); background: var(--surface-soft); font-size: 12px; line-height: 1.45; }
+.maintenance-web .maintenance-table-wrap { flex: 1; min-height: 360px; overflow: auto; margin-top: 14px; border: 1px solid var(--border); border-radius: 8px; }
+.maintenance-web .maintenance-table { min-width: 710px; font-size: 12px; --bs-table-bg: var(--surface); --bs-table-color: var(--text); --bs-table-border-color: var(--border); --bs-table-striped-bg: var(--surface-soft); }
+.maintenance-web .maintenance-table th { white-space: nowrap; color: var(--muted); background: var(--surface-soft); font-size: 10px; letter-spacing: .35px; text-transform: uppercase; }
+.maintenance-web .maintenance-table td, .maintenance-web .maintenance-table th { padding: 10px 12px; border-color: var(--border); }
+.maintenance-web .maintenance-empty { padding: 34px 12px !important; color: var(--muted); text-align: center; }
+.maintenance-web .maintenance-count { margin-top: 10px; color: var(--muted); font-size: 11px; font-weight: 600; }
+.maintenance-web .spin { animation: maintenance-web-spin .8s linear infinite; }
+@keyframes maintenance-web-spin { to { transform: rotate(360deg); } }
+.maintenance-web .btn-primary { --bs-btn-bg: var(--blue); --bs-btn-border-color: var(--blue); --bs-btn-hover-bg: var(--blue-dark); --bs-btn-hover-border-color: var(--blue-dark); }
+.maintenance-web .btn-outline-primary { --bs-btn-color: var(--blue-dark); --bs-btn-border-color: var(--blue); --bs-btn-hover-bg: var(--blue); --bs-btn-hover-border-color: var(--blue); }
+html[data-theme='dark'] .maintenance-web .maintenance-panel { color: var(--text); background: var(--surface); }
+html[data-theme='dark'] .maintenance-web .maintenance-status,
+html[data-theme='dark'] .maintenance-web .maintenance-table th { background: var(--surface-soft); color: var(--text); }
+html[data-theme='dark'] .maintenance-web .maintenance-table { --bs-table-bg: var(--surface); --bs-table-color: var(--text); --bs-table-striped-bg: var(--surface-soft); }
+html[data-theme='dark'] .maintenance-web [role='dialog'] { color: var(--text); background: var(--surface) !important; }
+html[data-theme='dark'] .maintenance-web [role='dialog'] .bg-light { background: var(--surface-soft) !important; }
+@media (max-width: 700px) { .maintenance-web .maintenance-panel { padding: 16px; } .maintenance-web .maintenance-panel-heading { align-items: flex-start; } .maintenance-web .maintenance-actions { flex: 1 1 100%; } }
