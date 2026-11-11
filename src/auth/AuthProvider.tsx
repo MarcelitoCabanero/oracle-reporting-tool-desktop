@@ -18,7 +18,7 @@ function AuthProvider({
 async function login(
   username: string,
   password: string,
-): Promise<boolean> {
+): Promise<{ success: boolean; message?: string }> {
   try {
     console.log(
       'Starting login for:',
@@ -30,7 +30,7 @@ async function login(
         'window.api is undefined',
       )
 
-      return false
+      return { success: false, message: 'Authentication is unavailable. Restart the application and try again.' }
     }
 
     if (!window.api.auth) {
@@ -38,7 +38,7 @@ async function login(
         'window.api.auth is undefined',
       )
 
-      return false
+      return { success: false, message: 'Authentication is unavailable. Restart the application and try again.' }
     }
 
     if (!window.api.auth.login) {
@@ -46,7 +46,7 @@ async function login(
         'window.api.auth.login is undefined',
       )
 
-      return false
+      return { success: false, message: 'Authentication is unavailable. Restart the application and try again.' }
     }
 
     const result =
@@ -64,7 +64,10 @@ async function login(
       !result.success ||
       !result.user
     ) {
-      return false
+      return {
+        success: false,
+        message: result.message || 'Invalid username or password.',
+      }
     }
 
    setUser({
@@ -84,14 +87,17 @@ async function login(
     result.user.locationId,
 })
 
-return true
+return { success: true }
   } catch (error) {
     console.error(
       'Authentication error:',
       error,
     )
 
-    return false
+    return {
+      success: false,
+      message: 'Unable to connect to the authentication database. Check the Local POS connection settings.',
+    }
   }
 }
 

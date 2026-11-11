@@ -67,6 +67,9 @@ function getPageTitle(page: Page): string {
     case 'maintenance':
       return 'Maintenance'
 
+    case 'settings':
+      return 'Settings'
+
     default:
       return 'Oracle Reporting Tool'
   }
@@ -82,7 +85,7 @@ function AppLayout({
   const [appVersion, setAppVersion] = useState('v1.0.0')
 const { user, logout } = useAuth()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [updateStatus] = useState<UpdateStatus>('idle')
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle')
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
   useEffect(() => {
@@ -111,10 +114,30 @@ const { user, logout } = useAuth()
     loadAppVersion()
   }, [])
 
+  useEffect(() => {
+    const unsubscribe = window.api.app.onUpdateStatus(setUpdateStatus)
+    void window.api.app.getUpdateStatus()
+      .then(setUpdateStatus)
+      .catch((error: unknown) => {
+        console.error('Unable to read application update status:', error)
+      })
+
+    return unsubscribe
+  }, [])
+
+  async function installUpdate() {
+    try {
+      await window.api.app.installUpdate()
+    } catch (error) {
+      console.error('Unable to install application update:', error)
+    }
+  }
+
  return (
   <div className="app-layout">
     <Sidebar
       activePage={activePage}
+      userRole={user?.role ?? ''}
       onNavigate={onNavigate}
       collapsed={sidebarCollapsed}
       theme={theme}
@@ -133,6 +156,7 @@ const { user, logout } = useAuth()
             setSidebarCollapsed((current) => !current)
           }
         updateStatus={updateStatus}
+        onUpdateClick={updateStatus === 'ready' ? () => void installUpdate() : undefined}
         userName={user?.displayName}
         userRole={user?.role}
       />

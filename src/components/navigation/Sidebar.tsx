@@ -10,6 +10,7 @@ import type { Theme } from '../../App'
 
 interface SidebarProps {
   activePage: Page
+  userRole: string
   collapsed: boolean
   theme: Theme
   onThemeChange: (theme: Theme) => void
@@ -70,7 +71,7 @@ function SidebarSection({ title, collapsed, defaultOpen = true, children }: Side
   )
 }
 
-function Sidebar({ activePage, collapsed, theme, onThemeChange, onNavigate, onLogout }: SidebarProps) {
+function Sidebar({ activePage, userRole, collapsed, theme, onThemeChange, onNavigate, onLogout }: SidebarProps) {
   const isDark = theme === 'dark'
 
   return (
@@ -100,6 +101,9 @@ function Sidebar({ activePage, collapsed, theme, onThemeChange, onNavigate, onLo
         </SidebarSection>
         <SidebarSection title="SYSTEM" collapsed={collapsed}>
           <NavItem label="Maintenance" page="maintenance" icon={<ShieldCheck size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
+          {userRole.trim().toLowerCase() === 'admin' && (
+            <NavItem label="Settings" page="settings" icon={<ShieldCheck size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
+          )}
         </SidebarSection>
       </nav>
 

@@ -13,6 +13,7 @@ import MenuItemPage from './pages/MenuItemPage.tsx'
 import PosJournalPage from './pages/PosJournalPage.tsx'
 import SystemSalesPage from './features/system-sales/SystemSalesPage'
 import HourlySalesPage from './pages/HourlySalesPage'
+import SettingsPage from './pages/SettingsPage'
 
 
 import {
@@ -65,6 +66,7 @@ function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
 
   const {
+    user,
     isAuthenticated,
   } = useAuth()
 
@@ -118,6 +120,11 @@ case 'deposit':
         return (
           <MaintenancePage />
         )
+
+      case 'settings':
+        return user?.role.trim().toLowerCase() === 'admin'
+          ? <SettingsPage />
+          : <DashboardPage onNavigate={setActivePage} />
 
       default:
         return (

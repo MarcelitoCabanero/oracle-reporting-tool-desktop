@@ -1,6 +1,6 @@
 import sql from 'mssql'
 
-import { getHqDbPool } from '../database/hqdb.js'
+import { getLocalDbPool } from '../database/localdb.js'
 
 export interface DatabaseUser {
   username: string
@@ -13,7 +13,7 @@ export async function findUserByCredentials(
   username: string,
   password: string,
 ): Promise<DatabaseUser | null> {
-const pool = await getHqDbPool()
+  const pool = await getLocalDbPool()
 
   const result = await pool
     .request()
@@ -33,7 +33,7 @@ const pool = await getHqDbPool()
         access,
         username,
         locationid
-      FROM dts_location
+      FROM dbo.dts_location
       WHERE username = @username
         AND password = @password AND IsActive = 1
     `)
@@ -57,4 +57,20 @@ const pool = await getHqDbPool()
     locationId:
       String(row.locationid ?? ''),
   }
+}
+
+export async function verifyAdminPassword(password: string): Promise<boolean> {
+  const pool = await getLocalDbPool()
+  const result = await pool
+    .request()
+    .input('password', sql.VarChar, password)
+    .query(`
+      SELECT TOP 1 1 AS isAdmin
+      FROM dbo.dts_location
+      WHERE LOWER(LTRIM(RTRIM(access))) = 'admin'
+        AND password = @password
+        AND IsActive = 1
+    `)
+
+  return result.recordset.length > 0
 }

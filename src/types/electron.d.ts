@@ -34,9 +34,40 @@ interface LoginResult {
 interface SystemHealthResult {
   ready: boolean
   localDbConnected: boolean
+  localLocationTableExists: boolean
   hqDbConnected: boolean
   message: string
 }
+type DatabaseKey = 'local' | 'hq' | 'headq' | 'hourly'
+interface DatabaseConnectionSettingsView {
+  server: string
+  database: string
+  username: string
+  password: string
+  passwordConfigured: boolean
+  port: number
+}
+interface ConnectionSettingsView {
+  databases: Record<DatabaseKey, DatabaseConnectionSettingsView>
+  ftp: {
+    host: string
+    username: string
+    password: string
+    passwordConfigured: boolean
+    secure: boolean
+  }
+  encrypt: boolean
+  trustServerCertificate: boolean
+}
+interface ConnectionTestResult {
+  success: boolean
+  message: string
+}
+interface LocationOption {
+  locationId: number
+  locationName: string
+}
+type AppUpdateStatus = 'checking' | 'available' | 'downloading' | 'ready' | 'idle'
 interface VersionCheckResult {
   success: boolean
   currentVersion: string
@@ -487,6 +518,9 @@ declare global {
       app: {
         getVersion: () =>
           Promise<string>
+        getUpdateStatus: () => Promise<AppUpdateStatus>
+        installUpdate: () => Promise<void>
+        onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => () => void
       }
 
       auth: {
@@ -494,6 +528,30 @@ declare global {
           username: string,
           password: string,
         ) => Promise<LoginResult>
+      }
+      settings: {
+        get: () => Promise<ConnectionSettingsView>
+        unlockAdmin: (password: string) => Promise<string>
+        testDatabase: (
+          settings: ConnectionSettingsView,
+          key: DatabaseKey,
+          token?: string,
+        ) => Promise<ConnectionTestResult>
+        testFtp: (
+          settings: ConnectionSettingsView,
+          token?: string,
+        ) => Promise<ConnectionTestResult>
+        getLocationOptions: (
+          settings: ConnectionSettingsView,
+          token?: string,
+        ) => Promise<LocationOption[]>
+        provisionLocalDatabase: (
+          settings: ConnectionSettingsView,
+          locationIds: number[],
+          token?: string,
+        ) => Promise<ConnectionTestResult>
+        saveBootstrap: (settings: ConnectionSettingsView) => Promise<ConnectionTestResult>
+        saveAdmin: (settings: ConnectionSettingsView, token: string) => Promise<ConnectionTestResult>
       }
         system: {
     healthCheck: () => Promise<SystemHealthResult>

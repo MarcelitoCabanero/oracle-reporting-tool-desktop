@@ -1,0 +1,107 @@
+USE [CheckPostingDb]
+GO
+/****** Object:  Table [dbo].[dts_location]    Script Date: 11/7/2026 1:12:54 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[dts_location](
+	[LOCATIONID] [int] NOT NULL,
+	[LOCATIONNAME] [varchar](50) NOT NULL,
+	[ORGLOCATIONREF] [varchar](50) NOT NULL,
+	[username] [varchar](50) NULL,
+	[password] [varchar](50) NULL,
+	[access] [varchar](50) NULL,
+	[IsActive] [bit] NOT NULL,
+	[pos_ip] [varchar](50) NULL
+) ON [PRIMARY]
+GO
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2000, N'Admin', N'Administrator', N'admin', N'admin', N'admin', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2070, N'Training', N'Training', N'test', N'test', N'Store', 0, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2121, N'PH017-VER', N'017', N'VER', N'PH017', N'Store', 0, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2201, N'PH089-LAO', N'089', N'LAO', N'PH089', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2221, N'PH005-FVW', N'005', N'FVW', N'PH005', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2041, N'PH000-HO', N'000', NULL, NULL, N'Store', 0, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2044, N'PH062-SKY', N'062', N'SKY', N'PH062', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2048, N'PH066-SSJ', N'066', N'SSJ', N'PH066', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2052, N'PH070-MAR', N'070', N'MAR', N'PH070', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2055, N'PH073-SSR', N'073', N'SSR', N'PH073', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2059, N'PH077-SBT', N'077', N'SBT', N'PH077', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2065, N'PH083-SCU', N'083', N'SCU', N'PH083', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2067, N'PH085-PITX', N'085', N'PTX', N'PH085', N'Store', 1, N'192.168.85.10 ')
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2222, N'PH018-SML', N'018', N'SML', N'PH018', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2141, N'PH021-BGO', N'021', N'BGO', N'PH021', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2043, N'PH028-SMC', N'028', N'SMC', N'PH028', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2062, N'PH080-AVM', N'080', N'AVM', N'PH080', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2069, N'PH087-JML', N'087', N'JML', N'PH087', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2049, N'PH067-CLK', N'067', N'CLK', N'PH067', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2060, N'PH078-LGM', N'078', N'LGM', N'PH078', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2064, N'PH082-LMC', N'082', N'LMC', N'PH082', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2066, N'PH084-SCC', N'084', N'SCC', N'PH084', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2068, N'PH086-BUT', N'086', N'BUT', N'PH086', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2122, N'PH024-PQE', N'024', N'PQE', N'PH024', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2045, N'PH063-CAL', N'063', N'CAL', N'PH063', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2046, N'PH064-SLU', N'064', N'SLU', N'PH064', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2047, N'PH065-SGC', N'065', N'SGC', N'PH065', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2050, N'PH068-ASG', N'068', N'ASG', N'PH068', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2051, N'PH069-SSX', N'069', N'SSX', N'PH069', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2053, N'PH071-SSM', N'071', N'SSM', N'PH071', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2054, N'PH072-TAN', N'072', N'TAN', N'PH072', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2056, N'PH074-SOR', N'074', N'SOR', N'PH074', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2057, N'PH075-TUG', N'075', N'TUG', N'PH075', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2058, N'PH076-RPA', N'076', N'RPA', N'PH076', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2061, N'PH079-SST', N'079', N'SST', N'PH079', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2063, N'PH081-RBS', N'081', N'RBS', N'PH081', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2081, N'PH088-SBC', N'088', N'SBC', N'PH088', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2123, N'PH011-PMP', N'011', N'PMP', N'PH011', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2082, N'PH002-MOA', N'002', N'MOA', N'PH002', N'Store', 1, N'192.168.5.243')
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2161, N'PH042-SMM', N'042', N'SMM', N'PH042', N'Store', 0, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2241, N'PH044-SMB', N'044', N'SMB', N'PH044', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2242, N'PH058-DGP', N'058', N'DGP', N'PH058', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2243, N'PH059-SMT', N'059', N'SMT', N'PH059', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2244, N'PH060-BG2', N'060', N'BG2', N'PH060', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2261, N'PH001-MGM', N'001', N'MGM', N'PH001', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2281, N'PH037-KDZ', N'037', N'KDZ', N'PH037', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2282, N'PH039-TMR', N'039', N'TMR', N'PH039', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2283, N'PH048-BBL', N'048', N'BBL', N'PH048', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2284, N'PH050-DDM', N'050', N'DDM', N'PH050', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2285, N'PH055-CUB', N'055', N'CUB', N'PH055', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2321, N'PH020-AYB', N'020', N'AYB', N'PH020', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2322, N'PH033-SMI', N'033', N'SMI', N'PH033', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2323, N'PH035-SMD', N'035', N'SMD', N'PH035', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2324, N'PH041-ZMB', N'041', N'ZMB', N'PH041', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2325, N'PH046-SMI2', N'046', N'SMI2', N'PH046', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2326, N'PH047-ABH', N'047', N'ABH', N'PH047', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2301, N'PH032-RBI', N'032', N'RBI', N'PH032', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2341, N'PH004-TNM', N'004', N'TNM', N'PH004', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2342, N'PH006-ATC', N'006', N'ATC', N'PH006', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2343, N'PH008-DCT', N'008', N'DCT', N'PH008', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2344, N'PH012-GL2', N'012', N'GL2', N'PH012', N'Store', 1, N'192.168.12.10')
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2345, N'PH015-UPS', N'015', N'UPS', N'PH015', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2346, N'PH022-FTR', N'022', N'FTR', N'PH022', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2347, N'PH023-MQM', N'023', N'MQM', N'PH023', N'Store', 1, N'192.168.23.10')
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2349, N'PH027-AYC', N'027', N'AYC', N'PH027', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2348, N'PH038-MKT', N'038', N'MKT', N'PH038', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2350, N'PH090-NT3', N'090', N'NT3', N'PH090', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2351, N'PH091-SLN', N'091', N'SLN', N'PH091', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2352, N'PH092-PMC', N'092', N'PMC', N'PH092', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2353, N'PH093-COT', N'093', N'COT', N'PH093', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2383, N'PH009-CNT', N'009', N'CNT', N'PH009', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2362, N'PH043-AYL', N'043', N'AYL', N'PH043', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2382, N'PH029-AYD', N'029', N'AYD', N'PH029', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2401, N'PH094-SMN', N'094', N'SMN', N'PH094', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2441, N'PH025-PSC', N'025', N'PSC', N'PH025', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2461, N'PH095-RBP', N'095', N'RBP', N'PH095', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2481, N'PH096-SMZ', N'096', N'SMZ', N'PH096', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2501, N'PH097-SMMR', N'097', N'SMMR', N'PH097', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2521, N'PH098-VMP', N'098', N'VMP', N'PH098', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2561, N'PH099-YCM', N'099', N'YCM', N'PH099', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2581, N'PH100-CAB', N'100', N'CAB', N'PH100', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (1, N'Josan Carandang', N'AM', N'Josan', N'Josan', N'Area Manager', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2223, N'PH030-RBG', N'030', N'RBG', N'PH030', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2224, N'PH045-SEO', N'045', N'SEO', N'PH045', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2225, N'PH053-NED', N'053', N'NED', N'PH053', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2226, N'PH057-SMO', N'057', N'SMO', N'PH057', N'Store', 1, NULL)
+INSERT [dbo].[dts_location] ([LOCATIONID], [LOCATIONNAME], [ORGLOCATIONREF], [username], [password], [access], [IsActive], [pos_ip]) VALUES (2227, N'PH061-RPM', N'061', N'RPM', N'PH061', N'Store', 1, NULL)
+ALTER TABLE [dbo].[dts_location] ADD  DEFAULT ((1)) FOR [IsActive]
+GO

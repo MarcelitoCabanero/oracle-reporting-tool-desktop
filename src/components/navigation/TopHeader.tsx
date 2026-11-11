@@ -8,6 +8,7 @@ interface TopHeaderProps {
   userName?: string
   userRole?: string
   updateStatus?: 'idle' | 'checking' | 'available' | 'downloading' | 'ready'
+  onUpdateClick?: () => void
 }
 
 function TopHeader({
@@ -18,6 +19,7 @@ function TopHeader({
   userName = 'User',
   userRole = 'System User',
   updateStatus = 'idle',
+  onUpdateClick,
 }: TopHeaderProps) {
   function getUpdateLabel() {
     switch (updateStatus) {
@@ -40,10 +42,16 @@ function TopHeader({
         </div>
         <div className="d-flex align-items-center gap-2">
           {updateStatus !== 'idle' && (
-            <div className="header-update-status d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className="header-update-status d-flex align-items-center gap-2 border-0 bg-transparent"
+              onClick={onUpdateClick}
+              disabled={!onUpdateClick}
+              title={onUpdateClick ? 'Restart the app to install the downloaded update' : undefined}
+            >
               <RefreshCw size={14} className={updateStatus === 'checking' || updateStatus === 'downloading' ? 'spin' : ''} />
               <span>{getUpdateLabel()}</span>
-            </div>
+            </button>
           )}
           <span className="header-version">{version}</span>
           <button type="button" className="btn header-notification header-minimal-icon d-flex align-items-center justify-content-center" aria-label="Notifications" title="Notifications">

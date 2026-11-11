@@ -27,16 +27,59 @@ import type {
 import type {
   TenderListingInput,
 } from './tender-listing/tender-listing.repository.js'
+import type {
+  ConnectionSettingsView,
+  DatabaseKey,
+  LocationOption,
+} from './settings/settings.types.js'
 
+type AppUpdateStatus =
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'idle'
 
 contextBridge.exposeInMainWorld('api', {
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
+    getUpdateStatus: () => ipcRenderer.invoke('app:get-update-status') as Promise<AppUpdateStatus>,
+    installUpdate: () => ipcRenderer.invoke('app:install-update'),
+    onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, status: AppUpdateStatus) => callback(status)
+      ipcRenderer.on('app:update-status', listener)
+      return () => ipcRenderer.removeListener('app:update-status', listener)
+    },
   },
 
   auth: {
     login: (username: string, password: string) =>
       ipcRenderer.invoke('auth:login', username, password),
+  },
+
+  settings: {
+    get: () =>
+      ipcRenderer.invoke('settings:get') as Promise<ConnectionSettingsView>,
+    unlockAdmin: (password: string) =>
+      ipcRenderer.invoke('settings:admin-unlock', password) as Promise<string>,
+    testDatabase: (
+      settings: ConnectionSettingsView,
+      key: DatabaseKey,
+      token?: string,
+    ) => ipcRenderer.invoke('settings:test-database', settings, key, token),
+    testFtp: (settings: ConnectionSettingsView, token?: string) =>
+      ipcRenderer.invoke('settings:test-ftp', settings, token),
+    getLocationOptions: (settings: ConnectionSettingsView, token?: string) =>
+      ipcRenderer.invoke('settings:location-options', settings, token) as Promise<LocationOption[]>,
+    provisionLocalDatabase: (
+      settings: ConnectionSettingsView,
+      locationIds: number[],
+      token?: string,
+    ) => ipcRenderer.invoke('settings:provision-local-db', settings, locationIds, token),
+    saveBootstrap: (settings: ConnectionSettingsView) =>
+      ipcRenderer.invoke('settings:save-bootstrap', settings),
+    saveAdmin: (settings: ConnectionSettingsView, token: string) =>
+      ipcRenderer.invoke('settings:save-admin', settings, token),
   },
 
   system: {

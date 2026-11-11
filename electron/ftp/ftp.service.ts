@@ -5,6 +5,7 @@ import {
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { Writable } from 'node:stream'
+import { getConnectionSettings } from '../settings/settings.service.js'
 
 const allowedExtensions =
   new Set([
@@ -15,21 +16,6 @@ const allowedExtensions =
     '.bmp',
     '.tiff',
   ])
-
-function getRequiredEnv(
-  key: string,
-): string {
-  const value =
-    process.env[key]?.trim()
-
-  if (!value) {
-    throw new Error(
-      `${key} is not configured.`,
-    )
-  }
-
-  return value
-}
 
 function safeRemoteFileName(fileName: string): string {
   const safeName = path.basename(fileName)
@@ -67,6 +53,11 @@ export function validateDepositImagePath(
 }
 
 async function createFtpClient() {
+  const { ftp } = await getConnectionSettings()
+  if (!ftp.host.trim() || !ftp.username.trim() || !ftp.password) {
+    throw new Error('FTP connection settings are incomplete. Configure them in Settings.')
+  }
+
   const client =
     new Client()
 
@@ -75,24 +66,16 @@ async function createFtpClient() {
 
   await client.access({
     host:
-      getRequiredEnv(
-        'FTP_HOST',
-      ),
+      ftp.host.trim(),
 
     user:
-      getRequiredEnv(
-        'FTP_USER',
-      ),
+      ftp.username.trim(),
 
     password:
-      getRequiredEnv(
-        'FTP_PASSWORD',
-      ),
+      ftp.password,
 
     secure:
-      process.env
-        .FTP_SECURE ===
-      'true',
+      ftp.secure,
   })
 
   return client
@@ -222,4 +205,3 @@ export async function replaceDepositImage(
     client.close()
   }
 }
-

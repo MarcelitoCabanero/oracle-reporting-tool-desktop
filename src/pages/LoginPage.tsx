@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 
 import logo from '../assets/jco-logo.png'
+import ConnectionSettingsForm from '../components/settings/ConnectionSettingsForm'
 
 import {
   useAuth,
@@ -57,6 +58,8 @@ function LoginPage() {
     setCheckingSystem,
   ] = useState(true)
 
+  const [showConnectionSettings, setShowConnectionSettings] = useState(false)
+
   useEffect(() => {
     async function runStartupChecks() {
       try {
@@ -72,7 +75,7 @@ function LoginPage() {
           await window.api.system
             .healthCheck()
 
-        if (!health.ready) {
+        if (!health.localDbConnected || !health.localLocationTableExists) {
           setSystemReady(
             false,
           )
@@ -81,6 +84,14 @@ function LoginPage() {
             health.message,
           )
 
+          return
+        }
+
+        if (!health.hqDbConnected) {
+          setSystemReady(true)
+          setSystemStatus(
+            health.message,
+          )
           return
         }
 
@@ -157,31 +168,34 @@ function LoginPage() {
 
     setLoading(true)
 
-    const success =
+    const result =
       await login(
         username,
         password,
       )
 
-    if (success) {
+    if (result.success) {
       return
     }
 
     setLoading(false)
 
     setError(
-      'Invalid username or password.',
+      result.message || 'Login failed.',
     )
   }
 
   const statusClass =
     systemReady
-      ? 'text-success'
+      ? systemStatus.startsWith('Unable to connect')
+        ? 'text-warning'
+        : 'text-success'
       : checkingSystem
         ? 'text-secondary'
         : 'text-danger'
 
   return (
+    <>
     <div
       className="
         min-vh-100
@@ -409,7 +423,9 @@ function LoginPage() {
                     login-status-dot
                     ${
                       systemReady
-                        ? 'bg-success'
+                        ? systemStatus.startsWith('Unable to connect')
+                          ? 'bg-warning'
+                          : 'bg-success'
                         : 'bg-danger'
                     }
                   `}
@@ -426,6 +442,16 @@ function LoginPage() {
 
             </div>
 
+            {!checkingSystem && !systemReady && (
+              <button
+                type="button"
+                className="btn btn-outline-primary w-100 mb-3"
+                onClick={() => setShowConnectionSettings(true)}
+              >
+                Configure database connections
+              </button>
+            )}
+
             {/* Submit */}
 
             <button
@@ -439,8 +465,7 @@ function LoginPage() {
               "
               disabled={
                 loading ||
-                checkingSystem ||
-                !systemReady
+                checkingSystem
               }
             >
               {checkingSystem
@@ -476,6 +501,41 @@ function LoginPage() {
 
       </div>
     </div>
+    {showConnectionSettings && (
+      <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 1050 }}>
+        <div className="bg-white rounded-3 shadow p-4 w-100 overflow-auto" style={{ maxWidth: 1100, maxHeight: '95vh' }}>
+          <div className="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+              <h2 className="h5 mb-1">Connection setup</h2>
+              <p className="text-secondary mb-0">Configure and test database connections to enable login.</p>
+            </div>
+            <button type="button" className="btn-close" aria-label="Close settings" onClick={() => setShowConnectionSettings(false)} />
+          </div>
+          <ConnectionSettingsForm
+            mode="bootstrap"
+            onCancel={() => setShowConnectionSettings(false)}
+            onSaved={() => {
+              setShowConnectionSettings(false)
+              setCheckingSystem(true)
+              void window.api.system.healthCheck()
+                .then((health) => {
+                  setSystemReady(health.localDbConnected && health.localLocationTableExists)
+                  setSystemStatus(health.message)
+                  if (health.localLocationTableExists) {
+                    setShowConnectionSettings(false)
+                  }
+                })
+                .catch((healthError: unknown) => {
+                  setSystemReady(false)
+                  setSystemStatus(healthError instanceof Error ? healthError.message : 'Unable to check database connections.')
+                })
+                .finally(() => setCheckingSystem(false))
+            }}
+          />
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 
