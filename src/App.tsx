@@ -1,5 +1,7 @@
 import {
+  useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 
@@ -7,6 +9,7 @@ import AppLayout from './layouts/AppLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import MaintenancePage from './pages/MaintenancePage'
+import type { MissingMenuItem } from './pages/MaintenancePage'
 import RofPage from './pages/RofPage'
 import DepositPage from './pages/DepositPage'
 import MenuItemPage from './pages/MenuItemPage.tsx'
@@ -27,6 +30,7 @@ import type {
 export type Theme = 'light' | 'dark'
 
 const themeStorageKey = 'oracle-reporting-tool-theme'
+const notificationPollIntervalMs = 15 * 60 * 1000
 
 function getInitialTheme(): Theme {
   const savedTheme = window.localStorage.getItem(themeStorageKey)
@@ -64,11 +68,64 @@ function App() {
     )
 
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const [missingMenuItems, setMissingMenuItems] = useState<MissingMenuItem[]>([])
+  const [checkingNotifications, setCheckingNotifications] = useState(false)
+  const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
+  const [maintenanceAutoLoadTrigger, setMaintenanceAutoLoadTrigger] = useState(0)
+  const checkingRef = useRef(false)
 
   const {
     user,
     isAuthenticated,
   } = useAuth()
+
+  const checkMissingMenuItems = useCallback(async () => {
+    if (checkingRef.current || !window.api?.maintenance?.loadMissingItems) {
+      return
+    }
+
+    checkingRef.current = true
+    setCheckingNotifications(true)
+
+    try {
+      const rows = await window.api.maintenance.loadMissingItems()
+      setMissingMenuItems(rows)
+      setLastCheckedAt(new Date())
+    } catch {
+      // Fail silently during background checks so the UI is never disrupted
+    } finally {
+      checkingRef.current = false
+      setCheckingNotifications(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setMissingMenuItems([])
+      setLastCheckedAt(null)
+      return
+    }
+
+    void checkMissingMenuItems()
+
+    const timer = window.setInterval(() => {
+      void checkMissingMenuItems()
+    }, notificationPollIntervalMs)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [isAuthenticated, checkMissingMenuItems])
+
+  function handleNotificationClick() {
+    setActivePage('maintenance')
+    setMaintenanceAutoLoadTrigger((prev) => prev + 1)
+  }
+
+  const handleMissingItemsChange = useCallback((items: MissingMenuItem[]) => {
+    setMissingMenuItems(items)
+    setLastCheckedAt(new Date())
+  }, [])
 
   function changeTheme(nextTheme: Theme) {
     setTheme(nextTheme)
@@ -118,7 +175,11 @@ case 'deposit':
 
       case 'maintenance':
         return (
-          <MaintenancePage />
+          <MaintenancePage
+            initialMissingItems={missingMenuItems}
+            autoLoadTrigger={maintenanceAutoLoadTrigger}
+            onMissingItemsChange={handleMissingItemsChange}
+          />
         )
 
       case 'settings':
@@ -151,6 +212,11 @@ case 'deposit':
       }
       theme={theme}
       onThemeChange={changeTheme}
+      missingMenuItems={missingMenuItems}
+      checkingNotifications={checkingNotifications}
+      lastCheckedAt={lastCheckedAt}
+      onRefreshNotifications={() => void checkMissingMenuItems()}
+      onNotificationClick={handleNotificationClick}
     >
       {renderPage()}
     </AppLayout>

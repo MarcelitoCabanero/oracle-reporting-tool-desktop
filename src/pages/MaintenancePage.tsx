@@ -1,4 +1,6 @@
 import {
+  useCallback,
+  useEffect,
   useState,
 } from 'react'
 
@@ -11,7 +13,7 @@ import {
 
 import ConfirmDialog from '../components/common/ConfirmDialog'
 
-interface MissingMenuItem {
+export interface MissingMenuItem {
   itemnumber: string
   itemname: string
   transtype: string
@@ -19,22 +21,35 @@ interface MissingMenuItem {
   familygroup: string
 }
 
-function MaintenancePage() {
-  const [missingItems, setMissingItems] = useState<MissingMenuItem[]>([])
+interface MaintenancePageProps {
+  initialMissingItems?: MissingMenuItem[]
+  autoLoadTrigger?: number
+  onMissingItemsChange?: (items: MissingMenuItem[]) => void
+}
+
+function MaintenancePage({
+  initialMissingItems = [],
+  autoLoadTrigger = 0,
+  onMissingItemsChange,
+}: MaintenancePageProps) {
+  const [missingItems, setMissingItems] = useState<MissingMenuItem[]>(initialMissingItems)
   const [loadingItems, setLoadingItems] = useState(false)
   const [syncingItems, setSyncingItems] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [syncMessage, setSyncMessage] = useState(
-    'Ready - load missing items to compare HQ with the local POS database.',
+    initialMissingItems.length > 0
+      ? `${initialMissingItems.length} missing item(s) found - review the list, then sync to POS.`
+      : 'Ready - load missing items to compare HQ with the local POS database.',
   )
 
-  async function loadMissingItems() {
+  const loadMissingItems = useCallback(async () => {
     setLoadingItems(true)
     setSyncMessage('Comparing HQ menu items against the local POS database...')
 
     try {
       const rows = await window.api.maintenance.loadMissingItems()
       setMissingItems(rows)
+      onMissingItemsChange?.(rows)
       setSyncMessage(
         rows.length === 0
           ? 'All data is already in sync. No missing items found.'
@@ -46,7 +61,22 @@ function MaintenancePage() {
     } finally {
       setLoadingItems(false)
     }
-  }
+  }, [onMissingItemsChange])
+
+  useEffect(() => {
+    if (autoLoadTrigger > 0) {
+      void loadMissingItems()
+    }
+  }, [autoLoadTrigger, loadMissingItems])
+
+  useEffect(() => {
+    if (!loadingItems && !syncingItems && initialMissingItems.length > 0 && missingItems.length === 0) {
+      setMissingItems(initialMissingItems)
+      setSyncMessage(
+        `${initialMissingItems.length} missing item(s) found - review the list, then sync to POS.`,
+      )
+    }
+  }, [initialMissingItems, loadingItems, syncingItems, missingItems.length])
 
   async function syncItems() {
     if (missingItems.length === 0) {
