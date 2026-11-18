@@ -47,6 +47,7 @@ export interface EmployeeSalesResult {
   dateFrom: string
   dateTo: string
   hasSales: boolean
+  warning?: string
   metrics: EmployeeSalesMetrics
   tenders: EmployeeTender[]
   tenderTotal: { qty: number; amount: number }

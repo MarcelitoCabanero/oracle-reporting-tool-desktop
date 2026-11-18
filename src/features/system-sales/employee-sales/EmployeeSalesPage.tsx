@@ -139,6 +139,7 @@ export default function EmployeeSalesPage() {
     </div>
 
     {error && <div role="alert" className="alert alert-danger py-2 px-3 d-flex align-items-center gap-2 mb-3"><AlertTriangle size={16} />{error}</div>}
+    {report?.warning && <div role="alert" className="alert alert-warning py-2 px-3 d-flex align-items-center gap-2 mb-3"><AlertTriangle size={16} /><span className="small">{report.warning}</span></div>}
     {loading && <div role="status" className="employee-sales-message">Reading employee sales and tender information...</div>}
     {!report && !loading && !error && <div className="system-sales-empty-state"><ReceiptText size={38} strokeWidth={1.4} /><h6>No report generated</h6><p>Select a date range and employee, then click Generate.</p></div>}
     {report && !report.hasSales && <div className="system-sales-empty-state"><ReceiptText size={38} strokeWidth={1.4} /><h6>No sales found</h6><p>No records for {report.employeeName} in the selected period.</p></div>}

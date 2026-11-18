@@ -1,5 +1,6 @@
 import sql from 'mssql'
 import { getHqDbPool } from '../database/hqdb.js'
+import { splitDateRangeByHqPosted } from '../database/hybrid-date-split.js'
 import { getLocalDbPool } from '../database/localdb.js'
 
 import type {
@@ -102,6 +103,44 @@ export async function getRofSummary(
 export async function getCashSource(
   businessDate: string,
 ): Promise<RofCashSource[]> {
+  const split = await splitDateRangeByHqPosted(businessDate, businessDate, {
+    sourceTable: 'v_salesdetails',
+  })
+
+  if (split.hqDates.includes(businessDate) && split.locationName) {
+    try {
+      const hqPool = await getHqDbPool()
+      const hqResult = await hqPool
+        .request()
+        .input('locationName', sql.VarChar(50), split.locationName)
+        .input('businessDate', sql.Date, businessDate)
+        .query(`
+          SELECT
+            CHECKEMPNAME AS emp_name,
+            COALESCE(NULLIF(LTRIM(RTRIM(TENDERNAME)), ''), LTRIM(RTRIM(ITEMNAME))) AS Itemname,
+            SUM(LINETOTAL) AS posreading
+          FROM dbo.v_salesdetails
+          WHERE locationname = @locationName
+            AND TRANSACTIONTYPE = 'Tender'
+            AND UPPER(COALESCE(NULLIF(LTRIM(RTRIM(TENDERNAME)), ''), LTRIM(RTRIM(ITEMNAME)))) = 'CASH'
+            AND businessdate = @businessDate
+          GROUP BY
+            CHECKEMPNAME,
+            COALESCE(NULLIF(LTRIM(RTRIM(TENDERNAME)), ''), LTRIM(RTRIM(ITEMNAME)))
+          HAVING SUM(LINETOTAL) <> 0
+          ORDER BY CHECKEMPNAME
+        `)
+
+      return hqResult.recordset.map((row) => ({
+        cashierName: String(row.emp_name ?? ''),
+        tenderName: String(row.Itemname ?? ''),
+        posAmount: Number(row.posreading ?? 0),
+      }))
+    } catch (error) {
+      console.warn('HQDB getCashSource failed; falling back to LocalDB:', error)
+    }
+  }
+
   const pool = await getLocalDbPool()
 
   const result = await pool
@@ -131,6 +170,40 @@ export async function getCashSource(
 export async function getNonCashSource(
   businessDate: string,
 ): Promise<RofNonCashSource[]> {
+  const split = await splitDateRangeByHqPosted(businessDate, businessDate, {
+    sourceTable: 'v_salesdetails',
+  })
+
+  if (split.hqDates.includes(businessDate) && split.locationName) {
+    try {
+      const hqPool = await getHqDbPool()
+      const hqResult = await hqPool
+        .request()
+        .input('locationName', sql.VarChar(50), split.locationName)
+        .input('businessDate', sql.Date, businessDate)
+        .query(`
+          SELECT
+            COALESCE(NULLIF(LTRIM(RTRIM(TENDERNAME)), ''), LTRIM(RTRIM(ITEMNAME))) AS Itemname,
+            SUM(LINETOTAL) AS posreading
+          FROM dbo.v_salesdetails
+          WHERE locationname = @locationName
+            AND TRANSACTIONTYPE = 'Tender'
+            AND UPPER(COALESCE(NULLIF(LTRIM(RTRIM(TENDERNAME)), ''), LTRIM(RTRIM(ITEMNAME)))) <> 'CASH'
+            AND businessdate = @businessDate
+          GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(TENDERNAME)), ''), LTRIM(RTRIM(ITEMNAME)))
+          HAVING SUM(LINETOTAL) <> 0
+          ORDER BY Itemname
+        `)
+
+      return hqResult.recordset.map((row) => ({
+        tenderName: String(row.Itemname ?? ''),
+        posAmount: Number(row.posreading ?? 0),
+      }))
+    } catch (error) {
+      console.warn('HQDB getNonCashSource failed; falling back to LocalDB:', error)
+    }
+  }
+
   const pool = await getLocalDbPool()
 
   const result = await pool

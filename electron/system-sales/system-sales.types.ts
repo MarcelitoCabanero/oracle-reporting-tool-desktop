@@ -39,6 +39,7 @@ export interface SystemSalesTenderTotal {
 export interface SystemSalesResult {
   success: boolean
   message: string
+  warning?: string
   summary: SystemSalesSummary
   tenders: SystemSalesTender[]
   tenderTotal: SystemSalesTenderTotal

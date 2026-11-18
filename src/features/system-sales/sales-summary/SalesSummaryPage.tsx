@@ -282,6 +282,13 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
         </div>
       )}
 
+      {report?.warning && (
+        <div className="alert alert-warning py-2 px-3 d-flex align-items-center gap-2 mb-3">
+          <AlertTriangle size={16} />
+          <span className="small">{report.warning}</span>
+        </div>
+      )}
+
       {status && (
         <div className="alert alert-success py-2 px-3 mb-3 small">
           {status}
