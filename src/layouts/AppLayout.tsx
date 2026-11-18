@@ -15,6 +15,7 @@ import type {
   Page,
 } from '../types/navigation'
 import type { Theme } from '../App'
+import type { MissingMenuItem } from '../pages/MaintenancePage'
 
 import {
   useAuth,
@@ -25,6 +26,11 @@ interface AppLayoutProps {
   onNavigate: (page: Page) => void
   theme: Theme
   onThemeChange: (theme: Theme) => void
+  missingMenuItems?: MissingMenuItem[]
+  checkingNotifications?: boolean
+  lastCheckedAt?: Date | null
+  onRefreshNotifications?: () => void
+  onNotificationClick?: () => void
   children: ReactNode
 }
 
@@ -80,6 +86,11 @@ function AppLayout({
   onNavigate,
   theme,
   onThemeChange,
+  missingMenuItems,
+  checkingNotifications,
+  lastCheckedAt,
+  onRefreshNotifications,
+  onNotificationClick,
   children,
 }: AppLayoutProps) {
   const [appVersion, setAppVersion] = useState('v1.0.0')
@@ -151,14 +162,19 @@ const { user, logout } = useAuth()
       <TopHeader
         title={getPageTitle(activePage)}
         version={appVersion}
-          sidebarCollapsed={sidebarCollapsed}
-          onToggleSidebar={() =>
-            setSidebarCollapsed((current) => !current)
-          }
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() =>
+          setSidebarCollapsed((current) => !current)
+        }
         updateStatus={updateStatus}
         onUpdateClick={updateStatus === 'ready' ? () => void installUpdate() : undefined}
         userName={user?.displayName}
         userRole={user?.role}
+        missingMenuItems={missingMenuItems}
+        checkingNotifications={checkingNotifications}
+        lastCheckedAt={lastCheckedAt}
+        onRefreshNotifications={onRefreshNotifications}
+        onNotificationClick={onNotificationClick}
       />
 
       <main className="main-content">
