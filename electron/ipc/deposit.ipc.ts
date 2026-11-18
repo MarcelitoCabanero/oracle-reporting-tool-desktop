@@ -11,6 +11,8 @@ import {
   loadDeposits,
   loadDepositThread,
   removeDeposit,
+  requestDeleteDeposit,
+  revertDeleteDepositRequest,
   submitPettyCashReplenishment,
 } from '../deposit/deposit.service.js'
 
@@ -19,6 +21,8 @@ import type {
   CreateDepositInput,
   DepositListInput,
   ReplenishPettyCashInput,
+  RequestDeleteDepositInput,
+  RevertDeleteDepositInput,
   UpdateDepositInput,
 } from '../deposit/deposit.types.js'
 
@@ -105,6 +109,30 @@ export function registerDepositIpc() {
       return removeDeposit(
         depositId,
         locationName,
+      )
+    },
+  )
+
+  ipcMain.handle(
+    'deposit:request-delete',
+    async (
+      _event,
+      input: RequestDeleteDepositInput,
+    ) => {
+      return requestDeleteDeposit(
+        input,
+      )
+    },
+  )
+
+  ipcMain.handle(
+    'deposit:revert-delete',
+    async (
+      _event,
+      input: RevertDeleteDepositInput,
+    ) => {
+      return revertDeleteDepositRequest(
+        input,
       )
     },
   )

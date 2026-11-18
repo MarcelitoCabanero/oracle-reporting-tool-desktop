@@ -169,6 +169,12 @@ type DepositApprovalStatus =
   | 'Approved'
   | 'Rejected'
 
+type DepositDeleteStatus =
+  | 'None'
+  | 'Pending Delete'
+  | 'Delete Approved'
+  | 'Delete Rejected'
+
 type PettyCashStatus =
   | 'N/A'
   | 'Unreplenished'
@@ -180,6 +186,7 @@ type DepositThreadCategory =
   | 'OPEN_SALES'
   | 'DEPT_EXPENSE'
   | 'APPROVAL'
+  | 'DELETE_REQUEST'
   | 'GENERAL'
 
 interface CreateDepositInput {
@@ -240,6 +247,13 @@ interface DepositRecord {
   approvedBy: string
   approvedAt: string
 
+  deleteStatus: DepositDeleteStatus
+  deleteReason: string
+  deleteRequestedBy: string
+  deleteRequestedAt: string
+  deleteApprovedBy: string
+  deleteApprovedAt: string
+
   pettyCashStatus: PettyCashStatus
   pettyCashReplenishedAt: string
 
@@ -295,6 +309,32 @@ interface UpdateDepositInput {
 }
 
 interface UpdateDepositResult {
+  success: boolean
+  message: string
+}
+
+interface RequestDeleteDepositInput {
+  depositId: number
+  locationName: string
+  authorName: string
+  authorRole: string
+  reason: string
+}
+
+interface RequestDeleteDepositResult {
+  success: boolean
+  message: string
+}
+
+interface RevertDeleteDepositInput {
+  depositId: number
+  locationName: string
+  authorName: string
+  authorRole: string
+  remarks?: string
+}
+
+interface RevertDeleteDepositResult {
   success: boolean
   message: string
 }
@@ -746,6 +786,14 @@ delete: (
   depositId: number,
   locationName: string,
 ) => Promise<DeleteDepositResult>
+
+requestDelete: (
+  input: RequestDeleteDepositInput,
+) => Promise<RequestDeleteDepositResult>
+
+revertDelete: (
+  input: RevertDeleteDepositInput,
+) => Promise<RevertDeleteDepositResult>
 
 selectAttachment: () =>
   Promise<SelectDepositAttachmentResult>

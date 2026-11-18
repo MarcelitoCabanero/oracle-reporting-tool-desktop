@@ -62,6 +62,50 @@ BEGIN
 END
 GO
 
+-- Delete approval & revert tracking columns on dbo.dts_depo
+IF COL_LENGTH('dbo.dts_depo', 'delete_status') IS NULL
+BEGIN
+    ALTER TABLE dbo.dts_depo
+    ADD delete_status VARCHAR(30) NOT NULL
+        CONSTRAINT DF_dts_depo_delete_status DEFAULT ('None');
+END
+GO
+
+IF COL_LENGTH('dbo.dts_depo', 'delete_reason') IS NULL
+BEGIN
+    ALTER TABLE dbo.dts_depo
+    ADD delete_reason NVARCHAR(500) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.dts_depo', 'delete_requested_by') IS NULL
+BEGIN
+    ALTER TABLE dbo.dts_depo
+    ADD delete_requested_by VARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.dts_depo', 'delete_requested_at') IS NULL
+BEGIN
+    ALTER TABLE dbo.dts_depo
+    ADD delete_requested_at DATETIME2 NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.dts_depo', 'delete_approved_by') IS NULL
+BEGIN
+    ALTER TABLE dbo.dts_depo
+    ADD delete_approved_by VARCHAR(100) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.dts_depo', 'delete_approved_at') IS NULL
+BEGIN
+    ALTER TABLE dbo.dts_depo
+    ADD delete_approved_at DATETIME2 NULL;
+END
+GO
+
 -- Backfill existing records where deductions > 0 if needed
 UPDATE dbo.dts_depo
 SET

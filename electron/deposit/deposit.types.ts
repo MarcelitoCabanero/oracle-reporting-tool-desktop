@@ -4,6 +4,12 @@ export type DepositApprovalStatus =
   | 'Approved'
   | 'Rejected'
 
+export type DepositDeleteStatus =
+  | 'None'
+  | 'Pending Delete'
+  | 'Delete Approved'
+  | 'Delete Rejected'
+
 export type PettyCashStatus =
   | 'N/A'
   | 'Unreplenished'
@@ -15,6 +21,7 @@ export type DepositThreadCategory =
   | 'OPEN_SALES'
   | 'DEPT_EXPENSE'
   | 'APPROVAL'
+  | 'DELETE_REQUEST'
   | 'GENERAL'
 
 export interface CreateDepositInput {
@@ -111,6 +118,13 @@ export interface DepositRecord {
   approvedBy: string
   approvedAt: string
 
+  deleteStatus: DepositDeleteStatus
+  deleteReason: string
+  deleteRequestedBy: string
+  deleteRequestedAt: string
+  deleteApprovedBy: string
+  deleteApprovedAt: string
+
   pettyCashStatus: PettyCashStatus
   pettyCashReplenishedAt: string
 
@@ -166,6 +180,32 @@ export interface UpdateDepositInput {
 }
 
 export interface UpdateDepositResult {
+  success: boolean
+  message: string
+}
+
+export interface RequestDeleteDepositInput {
+  depositId: number
+  locationName: string
+  authorName: string
+  authorRole: string
+  reason: string
+}
+
+export interface RequestDeleteDepositResult {
+  success: boolean
+  message: string
+}
+
+export interface RevertDeleteDepositInput {
+  depositId: number
+  locationName: string
+  authorName: string
+  authorRole: string
+  remarks?: string
+}
+
+export interface RevertDeleteDepositResult {
   success: boolean
   message: string
 }

@@ -8,6 +8,8 @@ import type {
   CreateDepositInput,
   DepositListInput,
   ReplenishPettyCashInput,
+  RequestDeleteDepositInput,
+  RevertDeleteDepositInput,
   UpdateDepositInput,
 } from './deposit/deposit.types.js'
 
@@ -191,6 +193,22 @@ deposit: {
       'deposit:delete',
       depositId,
       locationName,
+    ),
+
+  requestDelete: (
+    input: RequestDeleteDepositInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:request-delete',
+      input,
+    ),
+
+  revertDelete: (
+    input: RevertDeleteDepositInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:revert-delete',
+      input,
     ),
 
   selectAttachment: () =>

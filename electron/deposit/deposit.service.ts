@@ -7,6 +7,8 @@ import {
   getDepositSupportingFilenames,
   getDepositThreadEntries,
   replenishDepositPettyCash,
+  requestDepositDeletion,
+  revertDepositDeletionRequest,
   saveDeposit,
   updateDeposit,
 } from './deposit.repository.js'
@@ -36,6 +38,10 @@ import type {
   PettyCashStatus,
   ReplenishPettyCashInput,
   ReplenishPettyCashResult,
+  RequestDeleteDepositInput,
+  RequestDeleteDepositResult,
+  RevertDeleteDepositInput,
+  RevertDeleteDepositResult,
   SaveDepositResult,
   UpdateDepositInput,
   UpdateDepositResult,
@@ -1121,6 +1127,16 @@ export async function removeDeposit(
       }
     }
 
+    if (existing.deleteStatus !== 'Delete Approved') {
+      return {
+        success: false,
+        message:
+          existing.deleteStatus === 'Pending Delete'
+            ? 'This deposit is currently Pending Delete approval by the Area Manager.'
+            : 'Delete request must be submitted and approved by the Area Manager before deleting this deposit.',
+      }
+    }
+
     const supportingFilenames =
       await getDepositSupportingFilenames(
         depositId,
@@ -1163,7 +1179,7 @@ export async function removeDeposit(
 
     return {
       success: true,
-      message: `Deposit deleted successfully.${attachmentWarning}`,
+      message: `Deposit record, monitoring threads, and FTP server attachment(s) deleted successfully.${attachmentWarning}`,
     }
   } catch (error) {
     console.error(
@@ -1177,6 +1193,206 @@ export async function removeDeposit(
         error instanceof Error
           ? error.message
           : 'Unable to delete deposit.',
+    }
+  }
+}
+
+export async function requestDeleteDeposit(
+  input: RequestDeleteDepositInput,
+): Promise<RequestDeleteDepositResult> {
+  try {
+    if (
+      !Number.isInteger(input.depositId) ||
+      input.depositId <= 0
+    ) {
+      return {
+        success: false,
+        message: 'Invalid deposit ID.',
+      }
+    }
+
+    const locationName =
+      input.locationName.trim()
+    const reason =
+      input.reason.trim()
+    const authorName =
+      input.authorName.trim() || locationName
+    const authorRole =
+      input.authorRole.trim() || 'Store'
+
+    if (!locationName) {
+      return {
+        success: false,
+        message: 'Location is required.',
+      }
+    }
+
+    if (!reason) {
+      return {
+        success: false,
+        message:
+          'Please provide a reason for requesting deposit deletion.',
+      }
+    }
+
+    const existing =
+      await getDepositById(
+        input.depositId,
+        locationName,
+      )
+
+    if (!existing) {
+      return {
+        success: false,
+        message:
+          'Deposit record was not found.',
+      }
+    }
+
+    if (existing.deleteStatus === 'Pending Delete') {
+      return {
+        success: false,
+        message:
+          'A delete request is already pending approval for this deposit.',
+      }
+    }
+
+    const requested =
+      await requestDepositDeletion(
+        input.depositId,
+        locationName,
+        reason,
+        authorName,
+        {
+          category: 'DELETE_REQUEST',
+          authorName,
+          authorRole,
+          message: `Requested Deposit Deletion (Subject for Area Manager Approval).\nReason: ${reason}`,
+          filenames: [],
+        },
+      )
+
+    if (!requested) {
+      return {
+        success: false,
+        message:
+          'Unable to submit delete request.',
+      }
+    }
+
+    return {
+      success: true,
+      message:
+        'Delete request submitted and marked as Pending Delete for Area Manager approval.',
+    }
+  } catch (error) {
+    console.error(
+      'Request delete deposit failed:',
+      error,
+    )
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Unable to request deposit deletion.',
+    }
+  }
+}
+
+export async function revertDeleteDepositRequest(
+  input: RevertDeleteDepositInput,
+): Promise<RevertDeleteDepositResult> {
+  try {
+    if (
+      !Number.isInteger(input.depositId) ||
+      input.depositId <= 0
+    ) {
+      return {
+        success: false,
+        message: 'Invalid deposit ID.',
+      }
+    }
+
+    const locationName =
+      input.locationName.trim()
+    const authorName =
+      input.authorName.trim() || locationName
+    const authorRole =
+      input.authorRole.trim() || 'Store'
+    const remarks =
+      input.remarks?.trim() ?? ''
+
+    if (!locationName) {
+      return {
+        success: false,
+        message: 'Location is required.',
+      }
+    }
+
+    const existing =
+      await getDepositById(
+        input.depositId,
+        locationName,
+      )
+
+    if (!existing) {
+      return {
+        success: false,
+        message:
+          'Deposit record was not found.',
+      }
+    }
+
+    if (existing.deleteStatus === 'None') {
+      return {
+        success: false,
+        message:
+          'There is no active delete request to revert for this deposit.',
+      }
+    }
+
+    const reverted =
+      await revertDepositDeletionRequest(
+        input.depositId,
+        locationName,
+        {
+          category: 'DELETE_REQUEST',
+          authorName,
+          authorRole,
+          message: `Reverted / Cancelled Deposit Delete Request (previous status: ${existing.deleteStatus}).${
+            remarks ? `\nRemarks: ${remarks}` : ''
+          }`,
+          filenames: [],
+        },
+      )
+
+    if (!reverted) {
+      return {
+        success: false,
+        message:
+          'Unable to revert delete request.',
+      }
+    }
+
+    return {
+      success: true,
+      message:
+        'Delete request reverted successfully. The deposit record and FTP attachments are retained.',
+    }
+  } catch (error) {
+    console.error(
+      'Revert delete deposit request failed:',
+      error,
+    )
+
+    return {
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Unable to revert delete request.',
     }
   }
 }

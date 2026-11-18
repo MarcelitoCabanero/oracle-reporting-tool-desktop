@@ -6,6 +6,7 @@ import {
 
 import type {
   DepositApprovalStatus,
+  DepositDeleteStatus,
   DepositInsert,
   DepositListInput,
   DepositRecord,
@@ -76,6 +77,43 @@ export async function ensureDepositMonitoringSchema(): Promise<void> {
     BEGIN
       ALTER TABLE dbo.dts_depo
       ADD dept_exp_borrower VARCHAR(100) NULL;
+    END
+
+    IF COL_LENGTH('dbo.dts_depo', 'delete_status') IS NULL
+    BEGIN
+      ALTER TABLE dbo.dts_depo
+      ADD delete_status VARCHAR(30) NOT NULL
+        CONSTRAINT DF_dts_depo_delete_status DEFAULT ('None');
+    END
+
+    IF COL_LENGTH('dbo.dts_depo', 'delete_reason') IS NULL
+    BEGIN
+      ALTER TABLE dbo.dts_depo
+      ADD delete_reason NVARCHAR(500) NULL;
+    END
+
+    IF COL_LENGTH('dbo.dts_depo', 'delete_requested_by') IS NULL
+    BEGIN
+      ALTER TABLE dbo.dts_depo
+      ADD delete_requested_by VARCHAR(100) NULL;
+    END
+
+    IF COL_LENGTH('dbo.dts_depo', 'delete_requested_at') IS NULL
+    BEGIN
+      ALTER TABLE dbo.dts_depo
+      ADD delete_requested_at DATETIME2 NULL;
+    END
+
+    IF COL_LENGTH('dbo.dts_depo', 'delete_approved_by') IS NULL
+    BEGIN
+      ALTER TABLE dbo.dts_depo
+      ADD delete_approved_by VARCHAR(100) NULL;
+    END
+
+    IF COL_LENGTH('dbo.dts_depo', 'delete_approved_at') IS NULL
+    BEGIN
+      ALTER TABLE dbo.dts_depo
+      ADD delete_approved_at DATETIME2 NULL;
     END
 
     IF OBJECT_ID('dbo.dts_depo_threads', 'U') IS NULL
@@ -196,6 +234,21 @@ function normalizePettyCashStatus(
   return 'Unreplenished'
 }
 
+function normalizeDeleteStatus(
+  rawStatus: unknown,
+): DepositDeleteStatus {
+  const status = String(rawStatus ?? '').trim()
+  if (
+    status === 'Pending Delete' ||
+    status === 'Delete Approved' ||
+    status === 'Delete Rejected'
+  ) {
+    return status
+  }
+
+  return 'None'
+}
+
 function mapRowToDepositRecord(
   row: Record<string, unknown>,
 ): DepositRecord {
@@ -256,6 +309,22 @@ function mapRowToDepositRecord(
     approvedAt:
       formatSqlDateTime(
         row.approved_at as Date | string | null,
+      ),
+    deleteStatus:
+      normalizeDeleteStatus(row.delete_status),
+    deleteReason:
+      String(row.delete_reason ?? ''),
+    deleteRequestedBy:
+      String(row.delete_requested_by ?? ''),
+    deleteRequestedAt:
+      formatSqlDateTime(
+        row.delete_requested_at as Date | string | null,
+      ),
+    deleteApprovedBy:
+      String(row.delete_approved_by ?? ''),
+    deleteApprovedAt:
+      formatSqlDateTime(
+        row.delete_approved_at as Date | string | null,
       ),
     pettyCashStatus:
       normalizePettyCashStatus(
@@ -638,6 +707,9 @@ export async function getDeposits(
         OR ISNULL(d.approval_status, '')
           LIKE @keyword
 
+        OR ISNULL(d.delete_status, '')
+          LIKE @keyword
+
         OR ISNULL(d.pettycash_status, '')
           LIKE @keyword
 
@@ -742,6 +814,12 @@ export async function getDeposits(
         ISNULL(d.approval_status, 'Not Required') AS approval_status,
         ISNULL(d.approved_by, '') AS approved_by,
         d.approved_at,
+        ISNULL(d.delete_status, 'None') AS delete_status,
+        ISNULL(d.delete_reason, '') AS delete_reason,
+        ISNULL(d.delete_requested_by, '') AS delete_requested_by,
+        d.delete_requested_at,
+        ISNULL(d.delete_approved_by, '') AS delete_approved_by,
+        d.delete_approved_at,
         ISNULL(d.pettycash_status, 'N/A') AS pettycash_status,
         d.pettycash_replenished_at,
         d.opensales_source_date,
@@ -823,6 +901,12 @@ export async function getDepositById(
           ISNULL(d.approval_status, 'Not Required') AS approval_status,
           ISNULL(d.approved_by, '') AS approved_by,
           d.approved_at,
+          ISNULL(d.delete_status, 'None') AS delete_status,
+          ISNULL(d.delete_reason, '') AS delete_reason,
+          ISNULL(d.delete_requested_by, '') AS delete_requested_by,
+          d.delete_requested_at,
+          ISNULL(d.delete_approved_by, '') AS delete_approved_by,
+          d.delete_approved_at,
           ISNULL(d.pettycash_status, 'N/A') AS pettycash_status,
           d.pettycash_replenished_at,
           d.opensales_source_date,
@@ -1242,6 +1326,114 @@ export async function replenishDepositPettyCash(
           SET
             pettycash_status = 'Replenished',
             pettycash_replenished_at = SYSDATETIME()
+          WHERE depo_id = @depositId
+            AND locationname = @locationName
+        `)
+
+    if (updateResult.rowsAffected[0] <= 0) {
+      await transaction.rollback()
+      return false
+    }
+
+    await insertThreadWithAttachments(
+      transaction,
+      depositId,
+      entry,
+    )
+
+    await transaction.commit()
+    return true
+  } catch (error) {
+    await transaction.rollback()
+    throw error
+  }
+}
+
+export async function requestDepositDeletion(
+  depositId: number,
+  locationName: string,
+  reason: string,
+  requestedBy: string,
+  entry: InitialDepositThreadInsert,
+): Promise<boolean> {
+  await ensureDepositMonitoringSchema()
+
+  const pool =
+    await getHqDbPool()
+
+  const transaction =
+    new sql.Transaction(pool)
+
+  await transaction.begin()
+
+  try {
+    const updateResult =
+      await new sql.Request(transaction)
+        .input('depositId', sql.Int, depositId)
+        .input('locationName', sql.VarChar, locationName)
+        .input('reason', sql.NVarChar(500), reason)
+        .input('requestedBy', sql.VarChar(100), requestedBy)
+        .query(`
+          UPDATE dbo.dts_depo
+          SET
+            delete_status = 'Pending Delete',
+            delete_reason = @reason,
+            delete_requested_by = @requestedBy,
+            delete_requested_at = SYSDATETIME(),
+            delete_approved_by = NULL,
+            delete_approved_at = NULL
+          WHERE depo_id = @depositId
+            AND locationname = @locationName
+        `)
+
+    if (updateResult.rowsAffected[0] <= 0) {
+      await transaction.rollback()
+      return false
+    }
+
+    await insertThreadWithAttachments(
+      transaction,
+      depositId,
+      entry,
+    )
+
+    await transaction.commit()
+    return true
+  } catch (error) {
+    await transaction.rollback()
+    throw error
+  }
+}
+
+export async function revertDepositDeletionRequest(
+  depositId: number,
+  locationName: string,
+  entry: InitialDepositThreadInsert,
+): Promise<boolean> {
+  await ensureDepositMonitoringSchema()
+
+  const pool =
+    await getHqDbPool()
+
+  const transaction =
+    new sql.Transaction(pool)
+
+  await transaction.begin()
+
+  try {
+    const updateResult =
+      await new sql.Request(transaction)
+        .input('depositId', sql.Int, depositId)
+        .input('locationName', sql.VarChar, locationName)
+        .query(`
+          UPDATE dbo.dts_depo
+          SET
+            delete_status = 'None',
+            delete_reason = NULL,
+            delete_requested_by = NULL,
+            delete_requested_at = NULL,
+            delete_approved_by = NULL,
+            delete_approved_at = NULL
           WHERE depo_id = @depositId
             AND locationname = @locationName
         `)

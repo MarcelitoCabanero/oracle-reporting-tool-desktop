@@ -26,6 +26,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   RotateCw,
   Save,
   Search,
@@ -51,6 +52,12 @@ type DepositApprovalStatus =
   | 'Approved'
   | 'Rejected'
 
+type DepositDeleteStatus =
+  | 'None'
+  | 'Pending Delete'
+  | 'Delete Approved'
+  | 'Delete Rejected'
+
 type PettyCashStatus =
   | 'N/A'
   | 'Unreplenished'
@@ -62,6 +69,7 @@ type DepositThreadCategory =
   | 'OPEN_SALES'
   | 'DEPT_EXPENSE'
   | 'APPROVAL'
+  | 'DELETE_REQUEST'
   | 'GENERAL'
 
 interface SelectedAttachmentItem {
@@ -87,6 +95,12 @@ interface DepositRecord {
   approvalStatus: DepositApprovalStatus
   approvedBy: string
   approvedAt: string
+  deleteStatus: DepositDeleteStatus
+  deleteReason: string
+  deleteRequestedBy: string
+  deleteRequestedAt: string
+  deleteApprovedBy: string
+  deleteApprovedAt: string
   pettyCashStatus: PettyCashStatus
   pettyCashReplenishedAt: string
   openSalesSourceDate: string
@@ -652,6 +666,36 @@ function DepositPage() {
       DepositRecord | null
     >(null)
 
+  const [
+    requestDeleteTarget,
+    setRequestDeleteTarget,
+  ] =
+    useState<DepositRecord | null>(null)
+
+  const [
+    deleteRequestReason,
+    setDeleteRequestReason,
+  ] =
+    useState('')
+
+  const [
+    requestingDelete,
+    setRequestingDelete,
+  ] =
+    useState(false)
+
+  const [
+    revertDeleteTarget,
+    setRevertDeleteTarget,
+  ] =
+    useState<DepositRecord | null>(null)
+
+  const [
+    revertingDelete,
+    setRevertingDelete,
+  ] =
+    useState(false)
+
   const isEditing =
     editingDepositId !==
     null
@@ -660,7 +704,9 @@ function DepositPage() {
     loadingRof ||
     loadingRecord ||
     saving ||
-    deleting
+    deleting ||
+    requestingDelete ||
+    revertingDelete
 
   const requiresApproval =
     pettyCash > 0 ||
@@ -683,10 +729,14 @@ function DepositPage() {
         ? 'Updating deposit & uploading attachments...'
         : 'Saving deposit & uploading attachments...'
       : deleting
-        ? 'Deleting deposit...'
-        : loadingRof
-          ? 'Loading ROF...'
-          : ''
+        ? 'Deleting deposit & FTP attachments...'
+        : requestingDelete
+          ? 'Submitting delete request for approval...'
+          : revertingDelete
+            ? 'Reverting delete request...'
+            : loadingRof
+              ? 'Loading ROF...'
+              : ''
 
   const variance =
     useMemo(
@@ -2335,8 +2385,117 @@ function DepositPage() {
   }
 
   // =========================================================
-  // DELETE
+  // DELETE REQUEST, REVERT & FINAL DELETE
   // =========================================================
+
+  function handleDeleteActionClick(
+    row: DepositRecord,
+  ) {
+    if (row.deleteStatus === 'Delete Approved') {
+      setDeleteTarget(row)
+      return
+    }
+
+    setDeleteRequestReason('')
+    setRequestDeleteTarget(row)
+  }
+
+  async function submitDeleteRequest() {
+    if (!user || !requestDeleteTarget) {
+      return
+    }
+
+    const reason =
+      deleteRequestReason.trim()
+
+    if (!reason) {
+      setHistoryMessage(
+        'Please enter a reason for requesting deposit deletion.',
+      )
+      return
+    }
+
+    const target =
+      requestDeleteTarget
+    setRequestDeleteTarget(null)
+    setDeleteRequestReason('')
+
+    try {
+      setRequestingDelete(true)
+
+      const result =
+        await window.api.deposit.requestDelete({
+          depositId: target.depositId,
+          locationName: user.locationName,
+          authorName:
+            user.displayName || user.username,
+          authorRole:
+            user.role || 'Store',
+          reason,
+        })
+
+      setHistoryMessage(result.message)
+
+      if (!result.success) {
+        return
+      }
+
+      if (editingDepositId === target.depositId) {
+        setShowFormModal(false)
+        resetForm()
+      }
+
+      await loadHistory(page, pageSize)
+    } catch (error) {
+      setHistoryMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to submit delete request.',
+      )
+    } finally {
+      setRequestingDelete(false)
+    }
+  }
+
+  async function submitRevertDeleteRequest() {
+    if (!user || !revertDeleteTarget) {
+      return
+    }
+
+    const target =
+      revertDeleteTarget
+    setRevertDeleteTarget(null)
+
+    try {
+      setRevertingDelete(true)
+
+      const result =
+        await window.api.deposit.revertDelete({
+          depositId: target.depositId,
+          locationName: user.locationName,
+          authorName:
+            user.displayName || user.username,
+          authorRole:
+            user.role || 'Store',
+        })
+
+      setHistoryMessage(result.message)
+
+      if (!result.success) {
+        return
+      }
+
+      await loadHistory(page, pageSize)
+    } catch (error) {
+      setHistoryMessage(
+        error instanceof Error
+          ? error.message
+          : 'Unable to revert delete request.',
+      )
+    } finally {
+      setRevertingDelete(false)
+    }
+  }
 
   async function deleteDeposit() {
     if (
@@ -2855,20 +3014,60 @@ function DepositPage() {
                             />
                           </button>
 
+                          {row.deleteStatus !== 'None' && (
+                            <button
+                              type="button"
+                              className="
+                                btn
+                                btn-sm
+                                btn-outline-warning
+                              "
+                              title={`Revert / Cancel Delete Request (${row.deleteStatus})`}
+                              disabled={
+                                loadingRecord ||
+                                deleting ||
+                                requestingDelete ||
+                                revertingDelete
+                              }
+                              onClick={() =>
+                                setRevertDeleteTarget(
+                                  row,
+                                )
+                              }
+                            >
+                              <RotateCcw
+                                size={15}
+                              />
+                            </button>
+                          )}
+
                           <button
                             type="button"
-                            className="
+                            className={`
                               btn
                               btn-sm
-                              btn-outline-danger
-                            "
-                            title="Delete deposit"
+                              ${
+                                row.deleteStatus === 'Delete Approved'
+                                  ? 'btn-danger'
+                                  : 'btn-outline-danger'
+                              }
+                            `}
+                            title={
+                              row.deleteStatus === 'Delete Approved'
+                                ? 'Delete Approved — Click to Confirm Permanent Delete (DB + FTP)'
+                                : row.deleteStatus === 'Pending Delete'
+                                  ? 'Pending Area Manager Delete Approval'
+                                  : 'Request Delete (Subject for Area Manager Approval)'
+                            }
                             disabled={
                               loadingRecord ||
-                              deleting
+                              deleting ||
+                              requestingDelete ||
+                              revertingDelete ||
+                              row.deleteStatus === 'Pending Delete'
                             }
                             onClick={() =>
-                              setDeleteTarget(
+                              handleDeleteActionClick(
                                 row,
                               )
                             }
@@ -2885,11 +3084,20 @@ function DepositPage() {
                       </td>
 
                       <td>
-                        <ApprovalBadge
-                          status={row.approvalStatus}
-                          approvedBy={row.approvedBy}
-                          approvedAt={row.approvedAt}
-                        />
+                        <div className="d-flex flex-column gap-1 align-items-start">
+                          <ApprovalBadge
+                            status={row.approvalStatus}
+                            approvedBy={row.approvedBy}
+                            approvedAt={row.approvedAt}
+                          />
+                          {row.deleteStatus !== 'None' && (
+                            <DeleteStatusBadge
+                              status={row.deleteStatus}
+                              approvedBy={row.deleteApprovedBy}
+                              reason={row.deleteReason}
+                            />
+                          )}
+                        </div>
                       </td>
 
                       <td>
@@ -3903,7 +4111,7 @@ function DepositPage() {
                           )
 
                         if (current) {
-                          setDeleteTarget(
+                          handleDeleteActionClick(
                             current,
                           )
                         }
@@ -3913,7 +4121,9 @@ function DepositPage() {
                         size={17}
                       />
 
-                      Delete
+                      {originalEditRecord?.deleteStatus === 'Delete Approved'
+                        ? 'Confirm Delete'
+                        : 'Request Delete'}
                     </button>
                   )}
 
@@ -4764,12 +4974,96 @@ function DepositPage() {
         </>
       )}
 
-      {(saving || deleting || loadingRof) && (
+      {(saving || deleting || requestingDelete || revertingDelete || loadingRof) && (
         <BusyOverlay
           message={
             busyOverlayMessage
           }
         />
+      )}
+
+      {/* =====================================================
+          REQUEST DELETE APPROVAL MODAL
+          ===================================================== */}
+
+      {requestDeleteTarget && (
+        <>
+          <div
+            className="modal fade show d-block"
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+            style={{ zIndex: 1075 }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content border-0 shadow">
+                <div className="modal-header">
+                  <div>
+                    <h2 className="modal-title h6 fw-bold mb-1 d-flex align-items-center gap-2 text-danger">
+                      <Trash2 size={18} />
+                      Request Deposit Deletion (#{requestDeleteTarget.depositId})
+                    </h2>
+                    <div className="small text-secondary">
+                      Business Date: {formatDate(requestDeleteTarget.businessDate)} · Ref#: {requestDeleteTarget.depositReference}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border rounded-circle p-2 d-flex"
+                    aria-label="Close"
+                    disabled={requestingDelete}
+                    onClick={() => setRequestDeleteTarget(null)}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="modal-body">
+                  <div className="alert alert-warning small py-2 px-3 mb-3">
+                    <strong>Approval Restriction:</strong> Deleting a deposit requires Area Manager approval in the Web Portal. Once approved, you can confirm the final deletion (which will permanently remove the database record, threads/remarks, and FTP attachments), or you can revert the request at any time before confirming.
+                  </div>
+
+                  <label className="form-label fw-semibold small">
+                    Reason / Remarks for Deletion <span className="text-danger">*</span>
+                  </label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    placeholder="Explain why this deposit needs to be deleted..."
+                    value={deleteRequestReason}
+                    disabled={requestingDelete}
+                    onChange={(e) => setDeleteRequestReason(e.target.value)}
+                  />
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    disabled={requestingDelete}
+                    onClick={() => setRequestDeleteTarget(null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger d-flex align-items-center gap-2"
+                    disabled={requestingDelete || !deleteRequestReason.trim()}
+                    onClick={() => void submitDeleteRequest()}
+                  >
+                    <Trash2 size={16} />
+                    Submit Delete Request
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="modal-backdrop fade show"
+            style={{ zIndex: 1072 }}
+          />
+        </>
       )}
 
       {/* =====================================================
@@ -4816,18 +5110,43 @@ function DepositPage() {
 
       <ConfirmDialog
         open={
+          revertDeleteTarget !==
+          null
+        }
+        title="Revert / Cancel Delete Request?"
+        message={
+          revertDeleteTarget
+            ? `Cancel the delete request (${revertDeleteTarget.deleteStatus}) for Deposit #${revertDeleteTarget.depositId} (${formatDate(
+                revertDeleteTarget.businessDate,
+              )})? The deposit record, threads, and FTP attachments will be kept.`
+            : ''
+        }
+        confirmText="Revert Delete Request"
+        cancelText="Keep Request"
+        onConfirm={() => {
+          void submitRevertDeleteRequest()
+        }}
+        onCancel={() =>
+          setRevertDeleteTarget(
+            null,
+          )
+        }
+      />
+
+      <ConfirmDialog
+        open={
           deleteTarget !==
           null
         }
-        title="Delete Deposit?"
+        title="Confirm Permanent Delete (DB + FTP)?"
         message={
           deleteTarget
-            ? `Deposit #${deleteTarget.depositId} for ${formatDate(
+            ? `Area Manager has approved deleting Deposit #${deleteTarget.depositId} for ${formatDate(
                 deleteTarget.businessDate,
-              )} will be permanently deleted along with its monitoring thread and supporting attachments. This action cannot be undone.`
+              )}. Confirming will permanently delete the database record, all monitoring threads/remarks, AND delete all attachment files from the FTP server. This action cannot be undone.`
             : ''
         }
-        confirmText="Delete Deposit"
+        confirmText="Confirm Delete (DB + FTP)"
         cancelText="Cancel"
         variant="danger"
         onConfirm={() => {
@@ -4919,6 +5238,53 @@ function ApprovalBadge({
   )
 }
 
+function DeleteStatusBadge({
+  status,
+  approvedBy,
+  reason,
+}: {
+  status: DepositDeleteStatus
+  approvedBy?: string
+  reason?: string
+}) {
+  if (status === 'Delete Approved') {
+    return (
+      <span
+        className="badge text-bg-danger d-inline-flex align-items-center gap-1"
+        title={`Delete approved${approvedBy ? ` by ${approvedBy}` : ''}. Click the red Trash button to confirm permanent deletion.`}
+      >
+        <Trash2 size={11} />
+        Delete Approved (Confirm)
+      </span>
+    )
+  }
+
+  if (status === 'Pending Delete') {
+    return (
+      <span
+        className="badge text-bg-warning border border-danger-subtle text-danger-emphasis d-inline-flex align-items-center gap-1"
+        title={reason ? `Delete Reason: ${reason}` : 'Waiting for Area Manager delete approval'}
+      >
+        <Clock size={11} />
+        Pending Delete Approval
+      </span>
+    )
+  }
+
+  if (status === 'Delete Rejected') {
+    return (
+      <span
+        className="badge text-bg-secondary d-inline-flex align-items-center gap-1"
+        title={`Delete request rejected${approvedBy ? ` by ${approvedBy}` : ''}`}
+      >
+        Delete Rejected
+      </span>
+    )
+  }
+
+  return null
+}
+
 function formatCategoryLabel(category: DepositThreadCategory): string {
   switch (category) {
     case 'PETTY_CASH':
@@ -4931,6 +5297,8 @@ function formatCategoryLabel(category: DepositThreadCategory): string {
       return 'Dept. Expense'
     case 'APPROVAL':
       return 'Area Manager Approval'
+    case 'DELETE_REQUEST':
+      return 'Delete Request'
     default:
       return 'General'
   }
@@ -4970,6 +5338,12 @@ function ThreadCategoryBadge({
       return (
         <span className="badge text-bg-primary">
           Area Manager Review
+        </span>
+      )
+    case 'DELETE_REQUEST':
+      return (
+        <span className="badge text-bg-danger">
+          Delete Request
         </span>
       )
     default:
