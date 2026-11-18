@@ -16,6 +16,25 @@ export interface LoginResult {
   message?: string
 }
 
+let activeSessionUser: {
+  username: string
+  role: string
+  locationName: string
+  locationId: string
+} | null = null
+
+export function getActiveSessionLocationName(): string | null {
+  if (!activeSessionUser) {
+    return null
+  }
+  const role = activeSessionUser.role.trim().toLowerCase()
+  const loc = activeSessionUser.locationName.trim()
+  if (!loc || role === 'admin' || loc.toLowerCase() === 'admin') {
+    return null
+  }
+  return loc
+}
+
 export async function loginUser(
   username: string,
   password: string,
@@ -60,6 +79,13 @@ export async function loginUser(
     console.log(
       `Authentication successful: ${dbUser.username}`,
     )
+
+    activeSessionUser = {
+      username: dbUser.username,
+      role: dbUser.access,
+      locationName: dbUser.locationName,
+      locationId: dbUser.locationId,
+    }
 
     return {
       success: true,

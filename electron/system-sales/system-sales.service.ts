@@ -1,7 +1,6 @@
 import {
   getWorkstations,
-  getSystemSalesSummary,
-  getSystemSalesTenders,
+  loadSystemSalesReportData,
 } from './system-sales.repository.js'
 
 export { getWorkstations }
@@ -41,13 +40,11 @@ export async function generateSystemSalesReport(
     )
   }
 
-  const [
+  const {
     summary,
     tenders,
-  ] = await Promise.all([
-    getSystemSalesSummary(input),
-    getSystemSalesTenders(input),
-  ])
+    warning,
+  } = await loadSystemSalesReportData(input)
 
   const tenderTotal =
     tenders.reduce(
@@ -70,6 +67,7 @@ export async function generateSystemSalesReport(
     message:
       'System Sales report generated successfully.',
 
+    warning,
     summary,
     tenders,
     tenderTotal,
