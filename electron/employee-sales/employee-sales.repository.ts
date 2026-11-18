@@ -298,8 +298,16 @@ async function queryLocalEmployeeSalesForRanges(
         FROM EmployeeSales
         WHERE Transtype IN ('Item Sale', 'Tender')
         GROUP BY BusinessDate, CheckNumber
-        HAVING SUM(CASE WHEN Transtype = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
-             - SUM(CASE WHEN Transtype = 'Tender' THEN amt ELSE 0 END) <> 0
+        HAVING
+          ABS(
+            CAST(
+              ROUND(
+                SUM(CASE WHEN Transtype = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
+                - SUM(CASE WHEN Transtype = 'Tender' THEN amt ELSE 0 END),
+                2
+              ) AS DECIMAL(18, 2)
+            )
+          ) > 0.01
       )
       SELECT SUM(s.NetSales) AS netSales,
         SUM(s.TaxCollected) AS taxCollected,
@@ -428,11 +436,15 @@ async function queryHqEmployeeSalesForRanges(
         WHERE TRANSACTIONTYPE IN ('Item Sale', 'Tender')
         GROUP BY businessdate, GUESTCHECKID
         HAVING
-          ROUND(
-            SUM(CASE WHEN TRANSACTIONTYPE = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
-            - SUM(CASE WHEN TRANSACTIONTYPE = 'Tender' THEN LINETOTAL ELSE 0 END),
-            2
-          ) <> 0
+          ABS(
+            CAST(
+              ROUND(
+                SUM(CASE WHEN TRANSACTIONTYPE = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
+                - SUM(CASE WHEN TRANSACTIONTYPE = 'Tender' THEN LINETOTAL ELSE 0 END),
+                2
+              ) AS DECIMAL(18, 2)
+            )
+          ) > 0.01
       )
       SELECT
         SUM(s.NetSales) AS netSales,

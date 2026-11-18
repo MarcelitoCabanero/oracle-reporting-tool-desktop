@@ -205,8 +205,15 @@ async function queryLocalSummaryForRanges(
         AND (@workstation IS NULL OR Workstation = @workstation)
       GROUP BY BusinessDate, CheckNumber
       HAVING
-        SUM(CASE WHEN Transtype = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
-        - SUM(CASE WHEN Transtype = 'Tender' THEN amt ELSE 0 END) <> 0
+        ABS(
+          CAST(
+            ROUND(
+              SUM(CASE WHEN Transtype = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
+              - SUM(CASE WHEN Transtype = 'Tender' THEN amt ELSE 0 END),
+              2
+            ) AS DECIMAL(18, 2)
+          )
+        ) > 0.01
     )
     SELECT
       SUM(s.NetSales) AS netSales,
@@ -364,11 +371,15 @@ async function queryHqStoreWideSummaryForRanges(
           AND ${varDateFilter}
         GROUP BY businessdate, GUESTCHECKID
         HAVING
-          ROUND(
-            SUM(CASE WHEN TRANSACTIONTYPE = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
-            - SUM(CASE WHEN TRANSACTIONTYPE = 'Tender' THEN LINETOTAL ELSE 0 END),
-            2
-          ) <> 0
+          ABS(
+            CAST(
+              ROUND(
+                SUM(CASE WHEN TRANSACTIONTYPE = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
+                - SUM(CASE WHEN TRANSACTIONTYPE = 'Tender' THEN LINETOTAL ELSE 0 END),
+                2
+              ) AS DECIMAL(18, 2)
+            )
+          ) > 0.01
       )
       SELECT ISNULL(SUM(Gross - TotalTender), 0) AS varianceAmount
       FROM VarianceByCheck
@@ -428,11 +439,15 @@ async function queryHqLineSummaryForRanges(
         AND (@workstation IS NULL OR uwsid = @workstation)
       GROUP BY businessdate, GUESTCHECKID
       HAVING
-        ROUND(
-          SUM(CASE WHEN TRANSACTIONTYPE = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
-          - SUM(CASE WHEN TRANSACTIONTYPE = 'Tender' THEN LINETOTAL ELSE 0 END),
-          2
-        ) <> 0
+        ABS(
+          CAST(
+            ROUND(
+              SUM(CASE WHEN TRANSACTIONTYPE = 'Item Sale' THEN NetSales + TaxCollected ELSE 0 END)
+              - SUM(CASE WHEN TRANSACTIONTYPE = 'Tender' THEN LINETOTAL ELSE 0 END),
+              2
+            ) AS DECIMAL(18, 2)
+          )
+        ) > 0.01
     )
     SELECT
       ISNULL(SUM(vs.NetSales), 0) AS netSales,

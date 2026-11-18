@@ -72,18 +72,28 @@ async function queryLocalVarianceForRanges(
       AND (@employeeName IS NULL OR emp_name = @employeeName)
       AND (@workstation IS NULL OR Workstation = @workstation)
     GROUP BY BusinessDate, CheckNumber
-    HAVING SUM(CASE WHEN Transtype='Item Sale' THEN NetSales+TaxCollected ELSE 0 END)
-      - SUM(CASE WHEN Transtype='Tender' THEN amt ELSE 0 END) <> 0
+    HAVING
+      ABS(
+        CAST(
+          ROUND(
+            SUM(CASE WHEN Transtype='Item Sale' THEN NetSales+TaxCollected ELSE 0 END)
+            - SUM(CASE WHEN Transtype='Tender' THEN amt ELSE 0 END),
+            2
+          ) AS DECIMAL(18, 2)
+        )
+      ) > 0.01
     ORDER BY BusinessDate DESC, CheckNumber
   `)
 
-  return result.recordset.map((row) => ({
-    checkNumber: String(row.checkNumber ?? ''),
-    businessDate: toDateString(row.businessDate),
-    gross: toNumber(row.gross),
-    totalTender: toNumber(row.totalTender),
-    variance: toNumber(row.variance),
-  }))
+  return result.recordset
+    .map((row) => ({
+      checkNumber: String(row.checkNumber ?? ''),
+      businessDate: toDateString(row.businessDate),
+      gross: toNumber(row.gross),
+      totalTender: toNumber(row.totalTender),
+      variance: toNumber(row.variance),
+    }))
+    .filter((row) => isRealVariance(row.variance))
 }
 
 async function queryHqVarianceForRanges(
@@ -133,21 +143,31 @@ async function queryHqVarianceForRanges(
       AND (@workstation IS NULL OR v.uwsid = @workstation)
     GROUP BY v.businessdate, v.GUESTCHECKID, f.checknum
     HAVING
-      ROUND(
-        SUM(CASE WHEN v.TRANSACTIONTYPE = 'Item Sale' THEN v.NetSales + v.TaxCollected ELSE 0 END)
-        - SUM(CASE WHEN v.TRANSACTIONTYPE = 'Tender' THEN v.LINETOTAL ELSE 0 END),
-        2
-      ) <> 0
+      ABS(
+        CAST(
+          ROUND(
+            SUM(CASE WHEN v.TRANSACTIONTYPE = 'Item Sale' THEN v.NetSales + v.TaxCollected ELSE 0 END)
+            - SUM(CASE WHEN v.TRANSACTIONTYPE = 'Tender' THEN v.LINETOTAL ELSE 0 END),
+            2
+          ) AS DECIMAL(18, 2)
+        )
+      ) > 0.01
     ORDER BY v.businessdate DESC, checkNumber
   `)
 
-  return result.recordset.map((row) => ({
-    checkNumber: String(row.checkNumber ?? ''),
-    businessDate: toDateString(row.businessDate),
-    gross: toNumber(row.gross),
-    totalTender: toNumber(row.totalTender),
-    variance: toNumber(row.variance),
-  }))
+  return result.recordset
+    .map((row) => ({
+      checkNumber: String(row.checkNumber ?? ''),
+      businessDate: toDateString(row.businessDate),
+      gross: toNumber(row.gross),
+      totalTender: toNumber(row.totalTender),
+      variance: toNumber(row.variance),
+    }))
+    .filter((row) => isRealVariance(row.variance))
+}
+
+function isRealVariance(variance: number): boolean {
+  return Math.abs(Math.round(variance * 100)) > 1
 }
 
 export async function getVarianceRows(
@@ -184,11 +204,13 @@ export async function getVarianceRows(
     input.workstation,
   )
 
-  return [...hqRows, ...localRows].sort((a, b) => {
-    const dateCompare = b.businessDate.localeCompare(a.businessDate)
-    if (dateCompare !== 0) return dateCompare
-    return a.checkNumber.localeCompare(b.checkNumber, undefined, { numeric: true })
-  })
+  return [...hqRows, ...localRows]
+    .filter((row) => isRealVariance(row.variance))
+    .sort((a, b) => {
+      const dateCompare = b.businessDate.localeCompare(a.businessDate)
+      if (dateCompare !== 0) return dateCompare
+      return a.checkNumber.localeCompare(b.checkNumber, undefined, { numeric: true })
+    })
 }
 
 export async function getVarianceReceipt(checkNumber: string): Promise<string[]> {
