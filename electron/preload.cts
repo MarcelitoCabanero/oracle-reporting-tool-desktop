@@ -4,8 +4,10 @@ import {
 } from 'electron'
 
 import type {
+  AddDepositThreadReplyInput,
   CreateDepositInput,
   DepositListInput,
+  ReplenishPettyCashInput,
   UpdateDepositInput,
 } from './deposit/deposit.types.js'
 
@@ -196,6 +198,11 @@ deposit: {
     'deposit:select-attachment',
   ),
 
+  selectMultipleAttachments: () =>
+  ipcRenderer.invoke(
+    'deposit:select-multiple-attachments',
+  ),
+
   getAttachment: (fileName: string) =>
   ipcRenderer.invoke(
     'deposit:get-attachment',
@@ -214,6 +221,31 @@ replaceAttachment: (fileName: string) =>
     fileName,
   ),
 
+  getThread: (
+    depositId: number,
+    locationName: string,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:get-thread',
+      depositId,
+      locationName,
+    ),
+
+  addThreadReply: (
+    input: AddDepositThreadReplyInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:add-thread-reply',
+      input,
+    ),
+
+  replenishPettyCash: (
+    input: ReplenishPettyCashInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:replenish-petty-cash',
+      input,
+    ),
 
 },
 
