@@ -277,3 +277,16 @@ export interface ReplenishPettyCashResult {
   success: boolean
   message: string
 }
+
+export interface DepositApprovalNotificationItem {
+  depositId: number
+  businessDate: string
+  depositReference: string
+  approvalStatus: DepositApprovalStatus
+  approvedBy: string
+  approvedAt: string
+  deleteStatus: DepositDeleteStatus
+  deleteApprovedBy: string
+  deleteApprovedAt: string
+  deleteReason: string
+}

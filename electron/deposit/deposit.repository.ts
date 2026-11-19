@@ -5,6 +5,7 @@ import {
 } from '../database/hqdb.js'
 
 import type {
+  DepositApprovalNotificationItem,
   DepositApprovalStatus,
   DepositDeleteStatus,
   DepositInsert,
@@ -180,16 +181,18 @@ function formatSqlDateTime(
     return ''
   }
 
-  const date =
-    value instanceof Date
-      ? value
-      : new Date(value)
+  if (typeof value === 'string') {
+    return value.replace(/Z$/i, '')
+  }
 
-  if (Number.isNaN(date.getTime())) {
+  if (Number.isNaN(value.getTime())) {
     return ''
   }
 
-  return date.toISOString()
+  // tedious/mssql reads DATETIME2 wall-clock values into UTC fields by default.
+  // Stripping the trailing 'Z' preserves the exact local server wall-clock time
+  // without adding a second timezone offset in the renderer.
+  return value.toISOString().slice(0, 19)
 }
 
 function normalizeApprovalStatus(
@@ -1455,4 +1458,75 @@ export async function revertDepositDeletionRequest(
     await transaction.rollback()
     throw error
   }
+}
+
+export async function getDepositApprovalNotifications(
+  locationName: string,
+): Promise<DepositApprovalNotificationItem[]> {
+  await ensureDepositMonitoringSchema()
+
+  const pool =
+    await getHqDbPool()
+
+  const result =
+    await pool
+      .request()
+      .input('locationName', sql.VarChar, locationName)
+      .query(`
+        SELECT TOP 15
+          d.depo_id,
+          d.busidate,
+          ISNULL(d.deporef, '') AS deporef,
+          ISNULL(d.approval_status, 'Not Required') AS approval_status,
+          ISNULL(d.approved_by, '') AS approved_by,
+          d.approved_at,
+          ISNULL(d.delete_status, 'None') AS delete_status,
+          ISNULL(d.delete_approved_by, '') AS delete_approved_by,
+          d.delete_approved_at,
+          ISNULL(d.delete_reason, '') AS delete_reason,
+          ISNULL(d.pettycash, 0) AS pettycash,
+          ISNULL(d.opensales, 0) AS opensales,
+          ISNULL(d.otherdeptexp, 0) AS otherdeptexp
+        FROM dbo.dts_depo d
+        WHERE d.locationname = @locationName
+          AND (
+            ISNULL(d.delete_status, 'None') <> 'None'
+            OR ISNULL(d.approval_status, 'Not Required') IN ('Pending', 'Approved', 'Rejected')
+          )
+        ORDER BY
+          CASE
+            WHEN ISNULL(d.delete_status, 'None') = 'Delete Approved' THEN 1
+            WHEN ISNULL(d.approval_status, 'Not Required') IN ('Approved', 'Rejected') THEN 2
+            WHEN ISNULL(d.delete_status, 'None') IN ('Delete Rejected', 'Pending Delete') THEN 3
+            ELSE 4
+          END ASC,
+          d.busidate DESC,
+          d.depo_id DESC
+      `)
+
+  return result.recordset.map((row) => {
+    const pettyCash = Number(row.pettycash ?? 0)
+    const openSales = Number(row.opensales ?? 0)
+    const otherDeptExp = Number(row.otherdeptexp ?? 0)
+
+    return {
+      depositId: Number(row.depo_id),
+      businessDate: formatSqlDate(row.busidate as Date | string | null),
+      depositReference: String(row.deporef ?? ''),
+      approvalStatus: normalizeApprovalStatus(
+        row.approval_status,
+        pettyCash,
+        openSales,
+        otherDeptExp,
+      ),
+      approvedBy: String(row.approved_by ?? ''),
+      approvedAt: formatSqlDateTime(row.approved_at as Date | string | null),
+      deleteStatus: normalizeDeleteStatus(row.delete_status),
+      deleteApprovedBy: String(row.delete_approved_by ?? ''),
+      deleteApprovedAt: formatSqlDateTime(
+        row.delete_approved_at as Date | string | null,
+      ),
+      deleteReason: String(row.delete_reason ?? ''),
+    }
+  })
 }

@@ -446,6 +446,19 @@ interface ReplenishPettyCashResult {
   message: string
 }
 
+interface DepositApprovalNotificationItem {
+  depositId: number
+  businessDate: string
+  depositReference: string
+  approvalStatus: DepositApprovalStatus
+  approvedBy: string
+  approvedAt: string
+  deleteStatus: DepositDeleteStatus
+  deleteApprovedBy: string
+  deleteApprovedAt: string
+  deleteReason: string
+}
+
 interface MenuItemDateRangeInput {
   dateFrom: string
   dateTo: string
@@ -825,6 +838,10 @@ addThreadReply: (
 replenishPettyCash: (
   input: ReplenishPettyCashInput,
 ) => Promise<ReplenishPettyCashResult>
+
+getNotifications: (
+  locationName: string,
+) => Promise<DepositApprovalNotificationItem[]>
 
 }
 

@@ -464,7 +464,12 @@ function DepositPage() {
     month,
     setMonth,
   ] =
-    useState('')
+    useState(
+      String(
+        new Date()
+          .getMonth() + 1,
+      ),
+    )
 
   const [
     year,
@@ -1267,6 +1272,10 @@ function DepositPage() {
         page: 1,
 
         pageSize: 10,
+
+        month:
+          new Date()
+            .getMonth() + 1,
 
         year:
           new Date()
@@ -2964,33 +2973,6 @@ function DepositPage() {
                             )}
                           </button>
 
-                          {row.pettyCash > 0 &&
-                            row.pettyCashStatus === 'Unreplenished' && (
-                              <button
-                                type="button"
-                                className="
-                                  btn
-                                  btn-sm
-                                  btn-outline-success
-                                "
-                                title="Replenish Petty Cash (Upload supporting document)"
-                                disabled={
-                                  loadingThread ||
-                                  deleting
-                                }
-                                onClick={() =>
-                                  void openThreadModal(
-                                    row,
-                                    true,
-                                  )
-                                }
-                              >
-                                <CheckCircle2
-                                  size={15}
-                                />
-                              </button>
-                            )}
-
                           <button
                             type="button"
                             className="
@@ -3054,7 +3036,7 @@ function DepositPage() {
                             `}
                             title={
                               row.deleteStatus === 'Delete Approved'
-                                ? 'Delete Approved — Click to Confirm Permanent Delete (DB + FTP)'
+                                ? 'Delete Approved — Click to Confirm Permanent Delete'
                                 : row.deleteStatus === 'Pending Delete'
                                   ? 'Pending Area Manager Delete Approval'
                                   : 'Request Delete (Subject for Area Manager Approval)'
@@ -4226,20 +4208,6 @@ function DepositPage() {
                       />
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-light border rounded-circle p-2 d-flex"
-                    aria-label="Close"
-                    disabled={
-                      loadingThread ||
-                      submittingReply ||
-                      submittingReplenish
-                    }
-                    onClick={closeThreadModal}
-                  >
-                    <X size={18} />
-                  </button>
                 </div>
 
                 <div className="modal-body">

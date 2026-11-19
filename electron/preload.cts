@@ -265,6 +265,14 @@ replaceAttachment: (fileName: string) =>
       input,
     ),
 
+  getNotifications: (
+    locationName: string,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:get-notifications',
+      locationName,
+    ),
+
 },
 
 menuItem: {

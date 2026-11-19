@@ -7,6 +7,7 @@ import {
   createDeposit,
   createDepositThreadReply,
   editDeposit,
+  loadDepositApprovalNotifications,
   loadDepositById,
   loadDeposits,
   loadDepositThread,
@@ -206,6 +207,18 @@ export function registerDepositIpc() {
     ) => {
       return submitPettyCashReplenishment(
         input,
+      )
+    },
+  )
+
+  ipcMain.handle(
+    'deposit:get-notifications',
+    async (
+      _event,
+      locationName: string,
+    ) => {
+      return loadDepositApprovalNotifications(
+        locationName,
       )
     },
   )

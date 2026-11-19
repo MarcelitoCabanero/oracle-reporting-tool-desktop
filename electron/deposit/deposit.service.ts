@@ -1,6 +1,7 @@
 import {
   addDepositThreadEntry,
   deleteDeposit,
+  getDepositApprovalNotifications,
   getDepositById,
   getDeposits,
   getDepositStatus,
@@ -28,6 +29,7 @@ import type {
   AddDepositThreadReplyResult,
   CreateDepositInput,
   DeleteDepositResult,
+  DepositApprovalNotificationItem,
   DepositApprovalStatus,
   DepositInsert,
   DepositListInput,
@@ -540,6 +542,26 @@ export async function checkDepositStatus(
     businessDate,
     locationName,
   )
+}
+
+export async function loadDepositApprovalNotifications(
+  locationName: string,
+): Promise<DepositApprovalNotificationItem[]> {
+  try {
+    if (!locationName.trim()) {
+      return []
+    }
+
+    return await getDepositApprovalNotifications(
+      locationName.trim(),
+    )
+  } catch (error) {
+    console.error(
+      'Load deposit approval notifications failed:',
+      error,
+    )
+    return []
+  }
 }
 
 export async function loadDeposits(

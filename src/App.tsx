@@ -6,6 +6,7 @@ import {
 } from 'react'
 
 import AppLayout from './layouts/AppLayout'
+import type { DepositNotificationItem } from './components/navigation/TopHeader'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import MaintenancePage from './pages/MaintenancePage'
@@ -69,6 +70,7 @@ function App() {
 
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [missingMenuItems, setMissingMenuItems] = useState<MissingMenuItem[]>([])
+  const [depositNotifications, setDepositNotifications] = useState<DepositNotificationItem[]>([])
   const [checkingNotifications, setCheckingNotifications] = useState(false)
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
   const [maintenanceAutoLoadTrigger, setMaintenanceAutoLoadTrigger] = useState(0)
@@ -80,7 +82,7 @@ function App() {
   } = useAuth()
 
   const checkMissingMenuItems = useCallback(async () => {
-    if (checkingRef.current || !window.api?.maintenance?.loadMissingItems) {
+    if (checkingRef.current) {
       return
     }
 
@@ -88,8 +90,17 @@ function App() {
     setCheckingNotifications(true)
 
     try {
-      const rows = await window.api.maintenance.loadMissingItems()
-      setMissingMenuItems(rows)
+      const [menuRows, depoRows] = await Promise.all([
+        window.api?.maintenance?.loadMissingItems
+          ? window.api.maintenance.loadMissingItems().catch(() => [])
+          : Promise.resolve([]),
+        user?.locationName && window.api?.deposit?.getNotifications
+          ? window.api.deposit.getNotifications(user.locationName).catch(() => [])
+          : Promise.resolve([]),
+      ])
+
+      setMissingMenuItems(menuRows)
+      setDepositNotifications(depoRows)
       setLastCheckedAt(new Date())
     } catch {
       // Fail silently during background checks so the UI is never disrupted
@@ -97,11 +108,12 @@ function App() {
       checkingRef.current = false
       setCheckingNotifications(false)
     }
-  }, [])
+  }, [user?.locationName])
 
   useEffect(() => {
     if (!isAuthenticated) {
       setMissingMenuItems([])
+      setDepositNotifications([])
       setLastCheckedAt(null)
       return
     }
@@ -120,6 +132,10 @@ function App() {
   function handleNotificationClick() {
     setActivePage('maintenance')
     setMaintenanceAutoLoadTrigger((prev) => prev + 1)
+  }
+
+  function handleDepositNotificationClick() {
+    setActivePage('deposit')
   }
 
   const handleMissingItemsChange = useCallback((items: MissingMenuItem[]) => {
@@ -213,10 +229,12 @@ case 'deposit':
       theme={theme}
       onThemeChange={changeTheme}
       missingMenuItems={missingMenuItems}
+      depositNotifications={depositNotifications}
       checkingNotifications={checkingNotifications}
       lastCheckedAt={lastCheckedAt}
       onRefreshNotifications={() => void checkMissingMenuItems()}
       onNotificationClick={handleNotificationClick}
+      onDepositNotificationClick={handleDepositNotificationClick}
     >
       {renderPage()}
     </AppLayout>
