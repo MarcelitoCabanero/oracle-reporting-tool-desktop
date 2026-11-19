@@ -4,6 +4,7 @@ import {
   Monitor,
   HeartHandshake,
   CreditCard,
+  XCircle,
 } from 'lucide-react'
 
 import type {
@@ -48,6 +49,7 @@ SystemSalesNavigationItem[] = [
   },
   { id: 'sc-pwd-listing', label: 'SC / PWD Listing', description: 'Discount transaction details', icon: <HeartHandshake size={17} /> },
   { id: 'tender-listing', label: 'Tender Listing', description: 'Tender reference details', icon: <CreditCard size={17} /> },
+  { id: 'void-summary', label: 'Void Summary', description: 'Void transactions & cancelled items', icon: <XCircle size={17} /> },
 ]
 
 export default function SystemSalesNavigation({

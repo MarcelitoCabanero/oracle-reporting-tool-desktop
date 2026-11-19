@@ -408,6 +408,11 @@ employeeSales: {
   exportExcel: (input: unknown) => ipcRenderer.invoke('employee-sales:export-excel', input),
   exportPdf: (input: unknown) => ipcRenderer.invoke('employee-sales:export-pdf', input),
 },
+voidSummary: {
+  generate: (input: { dateFrom: string; dateTo: string }) => ipcRenderer.invoke('void-summary:generate', input),
+  exportExcel: (input: unknown) => ipcRenderer.invoke('void-summary:export-excel', input),
+  exportPdf: (input: unknown) => ipcRenderer.invoke('void-summary:export-pdf', input),
+},
 scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => ipcRenderer.invoke('sc-pwd:generate', input), exportExcel: (input: unknown) => ipcRenderer.invoke('sc-pwd:export-excel', input), exportPdf: (input: unknown) => ipcRenderer.invoke('sc-pwd:export-pdf', input) },
 })
 

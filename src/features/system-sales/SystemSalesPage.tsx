@@ -12,6 +12,7 @@ import EmployeeSalesPage from
   './employee-sales/EmployeeSalesPage'
 import ScPwdPage from './sc-pwd/ScPwdPage'
 import TenderListingPage from './tender-listing/TenderListingPage'
+import VoidSummaryPage from './void-summary/VoidSummaryPage'
 
 import type {
   SystemSalesView,
@@ -43,6 +44,9 @@ export default function SystemSalesPage() {
 
       case 'tender-listing':
         return <TenderListingPage />
+
+      case 'void-summary':
+        return <VoidSummaryPage />
 
       case 'sales-summary':
       default:

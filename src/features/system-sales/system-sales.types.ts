@@ -4,3 +4,4 @@ export type SystemSalesView =
   | 'pos-sales'
   | 'sc-pwd-listing'
   | 'tender-listing'
+  | 'void-summary'

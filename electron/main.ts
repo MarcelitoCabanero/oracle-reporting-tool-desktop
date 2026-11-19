@@ -18,6 +18,7 @@ import { registerHourlySalesIpc } from './ipc/hourly-sales.ipc.js'
 import { syncPendingHourlyEntries } from './hourly-sales/hourly-sales.repository.js'
 import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
 import { registerSettingsIpc } from './ipc/settings.ipc.js'
+import { registerVoidSummaryIpc } from './ipc/void-summary.ipc.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -90,6 +91,7 @@ registerSystemSalesIpc()
 registerVarianceCheckingIpc()
 registerEmployeeSalesIpc()
 registerScPwdIpc()
+registerVoidSummaryIpc()
 registerSettingsIpc()
 registerHourlySalesIpc()
 

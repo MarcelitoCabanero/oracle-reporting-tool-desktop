@@ -943,6 +943,11 @@ employeeSales: {
   exportExcel: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
   exportPdf: (input: { report: EmployeeSalesResult }) => Promise<{ success: boolean; canceled: boolean; message: string }>
 }
+voidSummary: {
+  generate: (input: import('./void-summary').VoidSummaryInput) => Promise<import('./void-summary').VoidSummaryResult>
+  exportExcel: (input: import('./void-summary').VoidSummaryExportInput) => Promise<import('./void-summary').VoidSummaryExportResult>
+  exportPdf: (input: import('./void-summary').VoidSummaryExportInput) => Promise<import('./void-summary').VoidSummaryExportResult>
+}
 scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => Promise<Array<Record<string, unknown>>>; exportExcel: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }>; exportPdf: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }> }
 
 
