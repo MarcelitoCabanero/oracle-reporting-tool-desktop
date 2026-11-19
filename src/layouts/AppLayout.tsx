@@ -34,6 +34,7 @@ interface AppLayoutProps {
   onRefreshNotifications?: () => void
   onNotificationClick?: () => void
   onDepositNotificationClick?: (depositId: number) => void
+  onMarkDepositNotificationsSeen?: (depositIds?: number[]) => void
   children: ReactNode
 }
 
@@ -96,6 +97,7 @@ function AppLayout({
   onRefreshNotifications,
   onNotificationClick,
   onDepositNotificationClick,
+  onMarkDepositNotificationsSeen,
   children,
 }: AppLayoutProps) {
   const [appVersion, setAppVersion] = useState('v1.0.0')
@@ -182,6 +184,7 @@ const { user, logout } = useAuth()
         onRefreshNotifications={onRefreshNotifications}
         onNotificationClick={onNotificationClick}
         onDepositNotificationClick={onDepositNotificationClick}
+        onMarkDepositNotificationsSeen={onMarkDepositNotificationsSeen}
       />
 
       <main className="main-content">

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react'
@@ -31,7 +32,44 @@ import type {
 export type Theme = 'light' | 'dark'
 
 const themeStorageKey = 'oracle-reporting-tool-theme'
+const seenDepositNotifKeyPrefix = 'oracle-reporting-tool-seen-depo-notifs:'
 const notificationPollIntervalMs = 15 * 60 * 1000
+
+function getDepositNotificationSignature(
+  item: DepositNotificationItem,
+): string {
+  return `${item.depositId}|${item.approvalStatus}|${item.approvedAt}|${item.deleteStatus}|${item.deleteApprovedAt}`
+}
+
+function loadSeenDepositSignatures(locationName?: string): string[] {
+  if (!locationName) return []
+  try {
+    const raw = window.localStorage.getItem(
+      `${seenDepositNotifKeyPrefix}${locationName}`,
+    )
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.map(String) : []
+  } catch {
+    return []
+  }
+}
+
+function saveSeenDepositSignatures(
+  locationName: string,
+  signatures: string[],
+): void {
+  try {
+    // Keep most recent 200 signatures to prevent unbounded growth
+    const trimmed = signatures.slice(-200)
+    window.localStorage.setItem(
+      `${seenDepositNotifKeyPrefix}${locationName}`,
+      JSON.stringify(trimmed),
+    )
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 function getInitialTheme(): Theme {
   const savedTheme = window.localStorage.getItem(themeStorageKey)
@@ -71,6 +109,7 @@ function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [missingMenuItems, setMissingMenuItems] = useState<MissingMenuItem[]>([])
   const [depositNotifications, setDepositNotifications] = useState<DepositNotificationItem[]>([])
+  const [seenDepositSignatures, setSeenDepositSignatures] = useState<string[]>([])
   const [checkingNotifications, setCheckingNotifications] = useState(false)
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
   const [maintenanceAutoLoadTrigger, setMaintenanceAutoLoadTrigger] = useState(0)
@@ -80,6 +119,50 @@ function App() {
     user,
     isAuthenticated,
   } = useAuth()
+
+  useEffect(() => {
+    setSeenDepositSignatures(
+      loadSeenDepositSignatures(user?.locationName),
+    )
+  }, [user?.locationName])
+
+  const unreadDepositNotifications = useMemo(() => {
+    if (depositNotifications.length === 0) {
+      return []
+    }
+    const seenSet = new Set(seenDepositSignatures)
+    return depositNotifications.filter(
+      (item) => !seenSet.has(getDepositNotificationSignature(item)),
+    )
+  }, [depositNotifications, seenDepositSignatures])
+
+  const markDepositNotificationsSeen = useCallback(
+    (depositIds?: number[]) => {
+      if (!user?.locationName || depositNotifications.length === 0) {
+        return
+      }
+
+      const idSet =
+        depositIds && depositIds.length > 0
+          ? new Set(depositIds)
+          : null
+
+      const newSigs = depositNotifications
+        .filter((item) => (idSet ? idSet.has(item.depositId) : true))
+        .map(getDepositNotificationSignature)
+
+      if (newSigs.length === 0) {
+        return
+      }
+
+      setSeenDepositSignatures((prev) => {
+        const merged = Array.from(new Set([...prev, ...newSigs]))
+        saveSeenDepositSignatures(user.locationName, merged)
+        return merged
+      })
+    },
+    [user?.locationName, depositNotifications],
+  )
 
   const checkMissingMenuItems = useCallback(async () => {
     if (checkingRef.current) {
@@ -134,7 +217,8 @@ function App() {
     setMaintenanceAutoLoadTrigger((prev) => prev + 1)
   }
 
-  function handleDepositNotificationClick() {
+  function handleDepositNotificationClick(depositId: number) {
+    markDepositNotificationsSeen([depositId])
     setActivePage('deposit')
   }
 
@@ -229,12 +313,13 @@ case 'deposit':
       theme={theme}
       onThemeChange={changeTheme}
       missingMenuItems={missingMenuItems}
-      depositNotifications={depositNotifications}
+      depositNotifications={unreadDepositNotifications}
       checkingNotifications={checkingNotifications}
       lastCheckedAt={lastCheckedAt}
       onRefreshNotifications={() => void checkMissingMenuItems()}
       onNotificationClick={handleNotificationClick}
       onDepositNotificationClick={handleDepositNotificationClick}
+      onMarkDepositNotificationsSeen={markDepositNotificationsSeen}
     >
       {renderPage()}
     </AppLayout>

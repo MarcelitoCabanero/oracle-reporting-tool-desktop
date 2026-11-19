@@ -44,6 +44,7 @@ interface TopHeaderProps {
   onRefreshNotifications?: () => void
   onNotificationClick?: () => void
   onDepositNotificationClick?: (depositId: number) => void
+  onMarkDepositNotificationsSeen?: (depositIds?: number[]) => void
 }
 
 function formatCheckTime(date: Date | null | undefined): string {
@@ -76,6 +77,7 @@ function TopHeader({
   onRefreshNotifications,
   onNotificationClick,
   onDepositNotificationClick,
+  onMarkDepositNotificationsSeen,
 }: TopHeaderProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement | null>(null)
@@ -88,6 +90,15 @@ function TopHeader({
   const previewItems = missingMenuItems.slice(0, 3)
   const remainingCount = Math.max(0, missingCount - previewItems.length)
 
+  function closeDropdownAndClearSeen() {
+    setDropdownOpen(false)
+    if (depositNotifications.length > 0) {
+      onMarkDepositNotificationsSeen?.(
+        depositNotifications.map((item) => item.depositId),
+      )
+    }
+  }
+
   useEffect(() => {
     if (!dropdownOpen) return
 
@@ -97,12 +108,22 @@ function TopHeader({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setDropdownOpen(false)
+        if (depositNotifications.length > 0) {
+          onMarkDepositNotificationsSeen?.(
+            depositNotifications.map((item) => item.depositId),
+          )
+        }
       }
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setDropdownOpen(false)
+        if (depositNotifications.length > 0) {
+          onMarkDepositNotificationsSeen?.(
+            depositNotifications.map((item) => item.depositId),
+          )
+        }
       }
     }
 
@@ -113,7 +134,7 @@ function TopHeader({
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [dropdownOpen])
+  }, [dropdownOpen, depositNotifications, onMarkDepositNotificationsSeen])
 
   function getUpdateLabel() {
     switch (updateStatus) {
@@ -170,7 +191,13 @@ function TopHeader({
                   ? `${totalBadgeCount} notification(s)`
                   : 'Notifications'
               }
-              onClick={() => setDropdownOpen((prev) => !prev)}
+              onClick={() => {
+                if (dropdownOpen) {
+                  closeDropdownAndClearSeen()
+                } else {
+                  setDropdownOpen(true)
+                }
+              }}
             >
               <Bell size={18} />
               {hasNotifications && (
