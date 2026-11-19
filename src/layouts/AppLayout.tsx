@@ -9,6 +9,7 @@ import type {
 
 import Sidebar from '../components/navigation/Sidebar'
 import TopHeader from '../components/navigation/TopHeader'
+import type { DepositNotificationItem } from '../components/navigation/TopHeader'
 import ConfirmDialog from '../components/common/ConfirmDialog'
 
 import type {
@@ -27,10 +28,13 @@ interface AppLayoutProps {
   theme: Theme
   onThemeChange: (theme: Theme) => void
   missingMenuItems?: MissingMenuItem[]
+  depositNotifications?: DepositNotificationItem[]
   checkingNotifications?: boolean
   lastCheckedAt?: Date | null
   onRefreshNotifications?: () => void
   onNotificationClick?: () => void
+  onDepositNotificationClick?: (depositId: number) => void
+  onMarkDepositNotificationsSeen?: (depositIds?: number[]) => void
   children: ReactNode
 }
 
@@ -87,10 +91,13 @@ function AppLayout({
   theme,
   onThemeChange,
   missingMenuItems,
+  depositNotifications,
   checkingNotifications,
   lastCheckedAt,
   onRefreshNotifications,
   onNotificationClick,
+  onDepositNotificationClick,
+  onMarkDepositNotificationsSeen,
   children,
 }: AppLayoutProps) {
   const [appVersion, setAppVersion] = useState('v1.0.0')
@@ -171,10 +178,13 @@ const { user, logout } = useAuth()
         userName={user?.displayName}
         userRole={user?.role}
         missingMenuItems={missingMenuItems}
+        depositNotifications={depositNotifications}
         checkingNotifications={checkingNotifications}
         lastCheckedAt={lastCheckedAt}
         onRefreshNotifications={onRefreshNotifications}
         onNotificationClick={onNotificationClick}
+        onDepositNotificationClick={onDepositNotificationClick}
+        onMarkDepositNotificationsSeen={onMarkDepositNotificationsSeen}
       />
 
       <main className="main-content">

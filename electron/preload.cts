@@ -4,8 +4,12 @@ import {
 } from 'electron'
 
 import type {
+  AddDepositThreadReplyInput,
   CreateDepositInput,
   DepositListInput,
+  ReplenishPettyCashInput,
+  RequestDeleteDepositInput,
+  RevertDeleteDepositInput,
   UpdateDepositInput,
 } from './deposit/deposit.types.js'
 
@@ -191,9 +195,30 @@ deposit: {
       locationName,
     ),
 
+  requestDelete: (
+    input: RequestDeleteDepositInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:request-delete',
+      input,
+    ),
+
+  revertDelete: (
+    input: RevertDeleteDepositInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:revert-delete',
+      input,
+    ),
+
   selectAttachment: () =>
   ipcRenderer.invoke(
     'deposit:select-attachment',
+  ),
+
+  selectMultipleAttachments: () =>
+  ipcRenderer.invoke(
+    'deposit:select-multiple-attachments',
   ),
 
   getAttachment: (fileName: string) =>
@@ -214,6 +239,39 @@ replaceAttachment: (fileName: string) =>
     fileName,
   ),
 
+  getThread: (
+    depositId: number,
+    locationName: string,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:get-thread',
+      depositId,
+      locationName,
+    ),
+
+  addThreadReply: (
+    input: AddDepositThreadReplyInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:add-thread-reply',
+      input,
+    ),
+
+  replenishPettyCash: (
+    input: ReplenishPettyCashInput,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:replenish-petty-cash',
+      input,
+    ),
+
+  getNotifications: (
+    locationName: string,
+  ) =>
+    ipcRenderer.invoke(
+      'deposit:get-notifications',
+      locationName,
+    ),
 
 },
 

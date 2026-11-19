@@ -163,8 +163,36 @@ interface RofDepositSource {
   message: string
 }
 
+type DepositApprovalStatus =
+  | 'Not Required'
+  | 'Pending'
+  | 'Approved'
+  | 'Rejected'
+
+type DepositDeleteStatus =
+  | 'None'
+  | 'Pending Delete'
+  | 'Delete Approved'
+  | 'Delete Rejected'
+
+type PettyCashStatus =
+  | 'N/A'
+  | 'Unreplenished'
+  | 'Replenished'
+
+type DepositThreadCategory =
+  | 'PETTY_CASH'
+  | 'PETTY_CASH_REPLENISH'
+  | 'OPEN_SALES'
+  | 'DEPT_EXPENSE'
+  | 'APPROVAL'
+  | 'DELETE_REQUEST'
+  | 'GENERAL'
+
 interface CreateDepositInput {
   locationName: string
+  authorName?: string
+  authorRole?: string
   businessDate: string
   depositDate: string
   depositReference: string
@@ -174,6 +202,17 @@ interface CreateDepositInput {
   otherDepartmentExpense: number
 
   localFilePath: string
+
+  pettyCashRemarks?: string
+  pettyCashAttachmentPaths?: string[]
+
+  openSalesSourceDate?: string
+  openSalesRemarks?: string
+
+  deptExpenseDepartment?: string
+  deptExpenseBorrower?: string
+  deptExpenseRemarks?: string
+  deptExpenseAttachmentPaths?: string[]
 }
 
 
@@ -203,6 +242,27 @@ interface DepositRecord {
 
   variance: number
   filename: string
+
+  approvalStatus: DepositApprovalStatus
+  approvedBy: string
+  approvedAt: string
+
+  deleteStatus: DepositDeleteStatus
+  deleteReason: string
+  deleteRequestedBy: string
+  deleteRequestedAt: string
+  deleteApprovedBy: string
+  deleteApprovedAt: string
+
+  pettyCashStatus: PettyCashStatus
+  pettyCashReplenishedAt: string
+
+  openSalesSourceDate: string
+  deptExpenseDepartment: string
+  deptExpenseBorrower: string
+
+  threadCount: number
+  supportingAttachmentCount: number
 }
 
 interface DepositListInput {
@@ -225,6 +285,8 @@ interface DepositListResult {
 interface UpdateDepositInput {
   depositId: number
   locationName: string
+  authorName?: string
+  authorRole?: string
 
   depositDate: string
   depositReference: string
@@ -233,9 +295,46 @@ interface UpdateDepositInput {
   bir2307: number
   openSales: number
   otherDepartmentExpense: number
+
+  pettyCashRemarks?: string
+  pettyCashAttachmentPaths?: string[]
+
+  openSalesSourceDate?: string
+  openSalesRemarks?: string
+
+  deptExpenseDepartment?: string
+  deptExpenseBorrower?: string
+  deptExpenseRemarks?: string
+  deptExpenseAttachmentPaths?: string[]
 }
 
 interface UpdateDepositResult {
+  success: boolean
+  message: string
+}
+
+interface RequestDeleteDepositInput {
+  depositId: number
+  locationName: string
+  authorName: string
+  authorRole: string
+  reason: string
+}
+
+interface RequestDeleteDepositResult {
+  success: boolean
+  message: string
+}
+
+interface RevertDeleteDepositInput {
+  depositId: number
+  locationName: string
+  authorName: string
+  authorRole: string
+  remarks?: string
+}
+
+interface RevertDeleteDepositResult {
   success: boolean
   message: string
 }
@@ -251,11 +350,22 @@ interface GetDepositResult {
   message: string
 }
 
+interface SelectedDepositAttachmentItem {
+  filePath: string
+  fileName: string
+  previewDataUrl: string
+}
+
 interface SelectDepositAttachmentResult {
   canceled: boolean
   filePath: string
   fileName: string
   previewDataUrl: string
+}
+
+interface SelectMultipleDepositAttachmentsResult {
+  canceled: boolean
+  files: SelectedDepositAttachmentItem[]
 }
 
 interface DepositAttachmentPreviewResult {
@@ -277,6 +387,76 @@ interface DepositAttachmentReplaceResult {
   canceled: boolean
   previewDataUrl: string
   message: string
+}
+
+interface DepositThreadAttachment {
+  attachmentId: number
+  depositId: number
+  threadId: number | null
+  category: DepositThreadCategory
+  filename: string
+  uploadedBy: string
+  uploadedAt: string
+}
+
+interface DepositThreadEntry {
+  threadId: number
+  depositId: number
+  category: DepositThreadCategory
+  authorName: string
+  authorRole: string
+  message: string
+  createdAt: string
+  attachments: DepositThreadAttachment[]
+}
+
+interface GetDepositThreadResult {
+  success: boolean
+  deposit: DepositRecord | null
+  threads: DepositThreadEntry[]
+  message: string
+}
+
+interface AddDepositThreadReplyInput {
+  depositId: number
+  locationName: string
+  category: DepositThreadCategory
+  authorName: string
+  authorRole: string
+  message: string
+  attachmentPaths?: string[]
+}
+
+interface AddDepositThreadReplyResult {
+  success: boolean
+  message: string
+}
+
+interface ReplenishPettyCashInput {
+  depositId: number
+  locationName: string
+  authorName: string
+  authorRole: string
+  remarks: string
+  attachmentPaths: string[]
+}
+
+interface ReplenishPettyCashResult {
+  success: boolean
+  message: string
+}
+
+interface DepositApprovalNotificationItem {
+  depositId: number
+  businessDate: string
+  depositReference: string
+  approvalStatus: DepositApprovalStatus
+  approvedBy: string
+  approvedAt: string
+  deleteStatus: DepositDeleteStatus
+  deleteApprovedBy: string
+  deleteApprovedAt: string
+  deleteReason: string
 }
 
 interface MenuItemDateRangeInput {
@@ -620,8 +800,19 @@ delete: (
   locationName: string,
 ) => Promise<DeleteDepositResult>
 
+requestDelete: (
+  input: RequestDeleteDepositInput,
+) => Promise<RequestDeleteDepositResult>
+
+revertDelete: (
+  input: RevertDeleteDepositInput,
+) => Promise<RevertDeleteDepositResult>
+
 selectAttachment: () =>
   Promise<SelectDepositAttachmentResult>
+
+selectMultipleAttachments: () =>
+  Promise<SelectMultipleDepositAttachmentsResult>
 
 getAttachment: (
   fileName: string,
@@ -634,6 +825,23 @@ downloadAttachment: (
 replaceAttachment: (
   fileName: string,
 ) => Promise<DepositAttachmentReplaceResult>
+
+getThread: (
+  depositId: number,
+  locationName: string,
+) => Promise<GetDepositThreadResult>
+
+addThreadReply: (
+  input: AddDepositThreadReplyInput,
+) => Promise<AddDepositThreadReplyResult>
+
+replenishPettyCash: (
+  input: ReplenishPettyCashInput,
+) => Promise<ReplenishPettyCashResult>
+
+getNotifications: (
+  locationName: string,
+) => Promise<DepositApprovalNotificationItem[]>
 
 }
 
