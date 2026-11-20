@@ -97,7 +97,7 @@ registerHourlySalesIpc()
 
 function retryPendingHourlySync() {
   void syncPendingHourlyEntries().catch((error: unknown) => {
-    console.error('Unable to check pending hourly entries for HEADQ synchronization.', error)
+    console.error('Unable to check pending hourly entries for OracleDB synchronization.', error)
   })
 }
 

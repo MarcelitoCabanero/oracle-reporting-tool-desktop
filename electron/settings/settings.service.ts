@@ -48,11 +48,11 @@ function environmentSettings(): ConnectionSettings {
         port,
       },
       hourly: {
-        server: process.env.HQ_DB_SERVER || '209.141.7.222',
+        server: process.env.HOURLY_DB_SERVER || '192.168.5.201',
         database: process.env.HOURLY_DB_DATABASE || 'oracledb',
-        username: hqUser,
-        password: hqPassword,
-        port,
+        username: process.env.HOURLY_DB_USER ?? hqUser,
+        password: process.env.HOURLY_DB_PASSWORD ?? hqPassword,
+        port: Number(process.env.HOURLY_DB_PORT || 1433),
       },
     },
     ftp: {
@@ -96,7 +96,7 @@ export async function getConnectionSettings(): Promise<ConnectionSettings> {
     }
   }
 
-  for (const key of ['headq', 'hourly'] as const) {
+  for (const key of ['headq'] as const) {
     databases[key] = {
       ...databases[key],
       server: databases.hq.server,
@@ -104,6 +104,12 @@ export async function getConnectionSettings(): Promise<ConnectionSettings> {
       password: databases.hq.password,
       port: databases.hq.port,
     }
+  }
+
+  const savedHourlyServer = stored.databases?.hourly?.server?.trim()
+  if (savedHourlyServer && savedHourlyServer === databases.hq.server) {
+    databases.hourly.server = defaults.databases.hourly.server
+    databases.hourly.port = defaults.databases.hourly.port
   }
 
   return {
@@ -146,11 +152,11 @@ function mergeSettings(
       password: String(candidate.password || current.databases[key].password),
       port: Number(candidate.port),
     }
-    if (key === 'local' || key === 'hq') {
+    if (key === 'local' || key === 'hq' || key === 'hourly') {
       if (!Number.isInteger(databases[key].port) || databases[key].port < 1 || databases[key].port > 65535) {
         throw new Error(`${key} database port must be between 1 and 65535.`)
       }
-    } else {
+    } else if (key === 'headq') {
       databases[key] = {
         ...databases[key],
         server: databases.hq.server,
@@ -288,38 +294,27 @@ const localLocationTableSql = `
     pos_ip varchar(50) NULL
   )
 
-  CREATE TABLE dbo.dts_produce (
-    time_mixing varchar(50) NOT NULL,
-    date_mix date NOT NULL,
+  CREATE TABLE dbo.dts_hourly_entry (
+    entry_id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_dts_hourly_entry PRIMARY KEY CLUSTERED,
+    category varchar(10) NOT NULL
+      CONSTRAINT CK_dts_hourly_entry_category CHECK (category IN ('produce', 'waste')),
+    time_value varchar(50) NOT NULL,
+    entry_date date NOT NULL,
     shell_qty int NOT NULL,
     ring_qty int NOT NULL,
     jpops_qty int NOT NULL,
     Remarks varchar(50) NULL,
     locationname varchar(50) NULL,
     businessdate date NOT NULL,
-    created_at datetime NULL,
-    produce_id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_dts_produce PRIMARY KEY CLUSTERED,
-    sync_id uniqueidentifier NULL CONSTRAINT DF_pos_dts_produce_sync_id DEFAULT (newid()),
-    headq_synced_at datetime2(7) NULL,
-    headq_sync_error nvarchar(1000) NULL
-  )
-
-  CREATE TABLE dbo.dts_waste (
-    time_waste varchar(50) NOT NULL,
-    date_waste date NOT NULL,
-    shell_qty int NOT NULL,
-    ring_qty int NOT NULL,
-    jpops_qty int NOT NULL,
-    Remarks varchar(50) NULL,
-    locationname varchar(50) NULL,
-    businessdate date NOT NULL,
-    created_at datetime NULL,
-    waste_id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_dts_waste PRIMARY KEY CLUSTERED,
-    sync_id uniqueidentifier NULL CONSTRAINT DF_pos_dts_waste_sync_id DEFAULT (newid()),
+    created_at datetime2(7) NULL,
+    sync_id uniqueidentifier NULL CONSTRAINT DF_dts_hourly_entry_sync_id DEFAULT (newid()),
     headq_synced_at datetime2(7) NULL,
     headq_sync_error nvarchar(1000) NULL,
-    CONSTRAINT UQ_dts_waste_time_date UNIQUE (time_waste, date_waste, Remarks)
+    CONSTRAINT UQ_dts_hourly_entry_location_time_category
+      UNIQUE (locationname, time_value, entry_date, Remarks, category)
   )
+  CREATE UNIQUE INDEX UX_dts_hourly_entry_sync_id
+    ON dbo.dts_hourly_entry(sync_id) WHERE sync_id IS NOT NULL
 `
 
 export async function provisionLocalDatabase(
@@ -375,6 +370,7 @@ export async function provisionLocalDatabase(
     await transaction.begin()
     try {
       await new sql.Request(transaction).batch(`
+        IF OBJECT_ID(N'dbo.dts_hourly_entry', N'U') IS NOT NULL DROP TABLE dbo.dts_hourly_entry;
         IF OBJECT_ID(N'dbo.dts_waste', N'U') IS NOT NULL DROP TABLE dbo.dts_waste;
         IF OBJECT_ID(N'dbo.dts_produce', N'U') IS NOT NULL DROP TABLE dbo.dts_produce;
         IF OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL DROP TABLE dbo.dts_location;
@@ -411,7 +407,7 @@ export async function provisionLocalDatabase(
     }
 
     return {
-      message: `Recreated dts_location, dts_produce, and dts_waste. Added the admin account and ${locationsResult.recordset.length} selected store(s).`,
+      message: `Recreated dts_location and dts_hourly_entry. Added the admin account and ${locationsResult.recordset.length} selected store(s).`,
       selectedCount: locationsResult.recordset.length,
     }
   } finally {

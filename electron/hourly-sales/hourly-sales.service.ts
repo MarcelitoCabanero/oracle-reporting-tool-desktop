@@ -405,7 +405,7 @@ export async function createHourlyEntries(
   return {
     success: true,
     insertedCount: input.rows.length,
-    message: `${input.rows.length} ${input.kind} ${input.rows.length === 1 ? 'entry' : 'entries'} saved on this POS and queued for HEADQ synchronization.`,
+    message: `${input.rows.length} ${input.kind} ${input.rows.length === 1 ? 'entry' : 'entries'} saved on this POS and queued for OracleDB synchronization.`,
   }
 }
 
