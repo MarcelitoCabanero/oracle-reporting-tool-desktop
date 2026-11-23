@@ -406,7 +406,7 @@ function allocationRows(reports: HourlyDailyReportData[]): AllocationRow[] {
       sumManual(manual, ['wasteFrozenDough'])
     const buffer = report.summary.totalWaste.total +
       sumManual(manual, ['bufferJpops']) * bufferJpopsConversionFactor
-    const transferred = sumManual(manual, ['transferred'])
+    const transferred = report.summary.transferred.total
     const variance = produced - sold - foc - waste - buffer - transferred
     const excessWaste = waste - produced * 0.01
 
@@ -544,7 +544,7 @@ function MpparReport({
         </tbody>
       </table>
       <p className="hourly-summary-note">
-        Percentages use the workbook formula allocation ÷ produced. Variance is produced − sold − FOC − waste − buffer − transferred. Tolerable waste is 1% of produced; excess waste is actual waste − tolerable waste, multiplied by ₱27 per piece. Manual FOC, waste, buffer, and transfer values use saved per-date Donut summary inputs. {manualFieldLabels.wasteDoughGrams} uses grams ÷ 35; manual Waste JPops uses quantity × 24 × 7 ÷ 35.
+        Percentages use the workbook formula allocation ÷ produced. Variance is produced − sold − FOC − waste − buffer − transferred. Tolerable waste is 1% of produced; excess waste is actual waste − tolerable waste, multiplied by ₱27 per piece. Manual FOC, waste, and buffer values use saved per-date Donut summary inputs; transfers come from the Transactions tab. {manualFieldLabels.wasteDoughGrams} uses grams ÷ 35; manual Waste JPops uses quantity × 24 × 7 ÷ 35.
       </p>
     </div>
   )

@@ -645,6 +645,11 @@
   color: #9a4b24;
 }
 
+.hourly-record-kind.transfers {
+  background: #e9e8f8;
+  color: #514b95;
+}
+
 .hourly-record-actions {
   display: flex;
   align-items: center;

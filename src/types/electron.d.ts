@@ -569,7 +569,7 @@ interface HourlyEntryRow {
 }
 
 interface CreateHourlyEntriesInput {
-  kind: 'produce' | 'waste'
+  kind: 'produce' | 'waste' | 'transfers'
   businessDate: string
   locationName: string
   rows: HourlyEntryRow[]
@@ -578,6 +578,7 @@ interface CreateHourlyEntriesInput {
 interface CreateHourlyEntriesResult {
   success: boolean
   insertedCount: number
+  syncStatus: 'synced' | 'pending'
   message: string
 }
 
@@ -603,6 +604,7 @@ interface HourlyDailyRow {
   toppingGood: HourlyQuantityTotals
   toppingWasteRate: number
   sold: HourlyQuantityTotals
+  transfers: HourlyQuantityTotals
   ending: HourlyQuantityTotals
 }
 
@@ -610,6 +612,7 @@ interface HourlyDailySummary {
   produced: HourlyQuantityTotals
   received: HourlyQuantityTotals
   sold: HourlyQuantityTotals
+  transferred: HourlyQuantityTotals
   netProducedSales: HourlyQuantityTotals
   variance: HourlyQuantityTotals
   tolerableVariance: number
@@ -673,7 +676,7 @@ interface HourlyRecordsInput {
 
 interface HourlyRecord {
   id: number
-  kind: 'produce' | 'waste'
+  kind: 'produce' | 'waste' | 'transfers'
   entryDate: string
   time: string
   shellQty: number
@@ -688,6 +691,7 @@ interface UpdateHourlyRecordInput extends HourlyRecord {
 
 interface UpdateHourlyRecordResult {
   success: boolean
+  syncStatus: 'synced' | 'pending'
   message: string
 }
 

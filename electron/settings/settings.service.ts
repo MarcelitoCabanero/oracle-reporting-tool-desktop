@@ -297,7 +297,7 @@ const localLocationTableSql = `
   CREATE TABLE dbo.dts_hourly_entry (
     entry_id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_dts_hourly_entry PRIMARY KEY CLUSTERED,
     category varchar(10) NOT NULL
-      CONSTRAINT CK_dts_hourly_entry_category CHECK (category IN ('produce', 'waste')),
+      CONSTRAINT CK_dts_hourly_entry_category CHECK (category IN ('produce', 'waste', 'transfers')),
     time_value varchar(50) NOT NULL,
     entry_date date NOT NULL,
     shell_qty int NOT NULL,

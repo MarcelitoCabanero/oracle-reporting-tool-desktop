@@ -238,6 +238,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     produced: addQuantities(total.produced, report.summary.produced),
     received: addQuantities(total.received, report.summary.received),
     sold: addQuantities(total.sold, report.summary.sold),
+    transferred: addQuantities(total.transferred, report.summary.transferred),
     netProducedSales: addQuantities(total.netProducedSales, report.summary.netProducedSales),
     variance: addQuantities(total.variance, report.summary.variance),
     tolerableVariance: total.tolerableVariance + report.summary.tolerableVariance,
@@ -256,6 +257,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     produced: { ring: 0, shell: 0, jpops: 0, total: 0 },
     received: { ring: 0, shell: 0, jpops: 0, total: 0 },
     sold: { ring: 0, shell: 0, jpops: 0, total: 0 },
+    transferred: { ring: 0, shell: 0, jpops: 0, total: 0 },
     netProducedSales: { ring: 0, shell: 0, jpops: 0, total: 0 },
     variance: { ring: 0, shell: 0, jpops: 0, total: 0 },
     tolerableVariance: 0,
@@ -373,8 +375,8 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
   const focRing = (sumManual(manualFocKeys, 'ring') ?? 0) + report.posFoc.ring
   const focShell = (sumManual(manualFocKeys, 'shell') ?? 0) +
     report.posFoc.shell + report.posFoc.jpops + report.posFoc.jclub
-  const transferredRing = manualValue('transferred', 'ring') ?? 0
-  const transferredShell = manualValue('transferred', 'shell') ?? 0
+  const transferredRing = summary.transferred.ring
+  const transferredShell = summary.transferred.shell + summary.transferred.jpops
   const totalRing =
     summary.sold.ring - summary.received.ring +
     focRing +
@@ -488,7 +490,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     {
       title: 'TRANSFER',
       lines: [
-        { label: manualFieldLabels.transferred, quantities: unavailable, manualKey: 'transferred' },
+        { label: 'Transferred to other stores', quantities: quantities(transferredRing, transferredShell, transferredRing + transferredShell) },
         { label: 'Total', quantities: quantities(totalRing, totalShell, summaryRangeTotal), kind: 'subtotal' },
       ],
     },
@@ -970,7 +972,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
 
       <div className="hourly-report-manual-note" role="note">
         <AlertCircle size={16} aria-hidden="true" />
-        <span>Batch output and baker efficiency are calculated from produced quantities. FOC, transfers, and buffer are manual fields in the Excel template and are not stored in the produce, waste, or POS source tables.</span>
+        <span>Transfers recorded in the Transactions tab are deducted from hourly ending stock. FOC and buffer remain manual fields in the Excel template.</span>
       </div>
 
       <div className="hourly-report-table-wrap">
@@ -988,6 +990,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <th colSpan={5} scope="colgroup">Frying</th>
               <th colSpan={5} scope="colgroup">Topping</th>
               <th colSpan={2} scope="colgroup">POS sold</th>
+              <th colSpan={2} scope="colgroup">Transfers</th>
               <th colSpan={2} scope="colgroup">Ending balance</th>
             </tr>
             <tr>
@@ -996,7 +999,7 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <th rowSpan={2} scope="col">Ring</th>
               <th rowSpan={2} scope="col">Shell eq.</th>
               <th rowSpan={2} scope="col">Ring</th>
-              <th rowSpan={2} scope="col">Shell</th>
+              <th rowSpan={2} scope="col">Shell eq.</th>
               <th className="hourly-report-good-heading" colSpan={2} scope="colgroup">Good</th>
               <th className="hourly-report-waste-heading" colSpan={2} scope="colgroup">Bad/Waste</th>
               <th className="hourly-report-waste-heading" rowSpan={2} scope="col">Waste %</th>
@@ -1006,6 +1009,8 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <th className="hourly-report-good-heading" colSpan={2} scope="colgroup">Good</th>
               <th className="hourly-report-waste-heading" colSpan={2} scope="colgroup">Bad/Waste</th>
               <th className="hourly-report-waste-heading" rowSpan={2} scope="col">Waste %</th>
+              <th rowSpan={2} scope="col">Ring</th>
+              <th rowSpan={2} scope="col">Shell eq.</th>
               <th rowSpan={2} scope="col">Ring</th>
               <th rowSpan={2} scope="col">Shell eq.</th>
               <th rowSpan={2} scope="col">Ring</th>
@@ -1049,6 +1054,8 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td>—</td>
               <td>—</td>
               <td>—</td>
+              <td>�?"</td>
+              <td>�?"</td>
               <td>{quantity(report.retardingProduced.ring)}</td>
               <td>{quantity(report.retardingProduced.shell + report.retardingProduced.jpops)}</td>
             </tr>
@@ -1081,6 +1088,8 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
                 <td className="hourly-report-waste-cell">{percent(row.toppingWasteRate)}</td>
                 <td>{quantity(row.sold.ring)}</td>
                 <td>{quantity(row.sold.shell + row.sold.jpops)}</td>
+                <td>{quantity(row.transfers.ring)}</td>
+                <td>{quantity(row.transfers.shell + row.transfers.jpops)}</td>
                 <td>{quantity(row.ending.ring)}</td>
                 <td>{quantity(row.ending.shell)}</td>
               </tr>
@@ -1115,6 +1124,8 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
               <td className="hourly-report-waste-cell">{percent(summary.toppingWaste.total / (toppingGood + summary.toppingWaste.total || 1))}</td>
               <td>{quantity(summary.sold.ring)}</td>
               <td>{quantity(summary.sold.shell + summary.sold.jpops)}</td>
+              <td>{quantity(rows.reduce((total, row) => total + row.transfers.ring, 0))}</td>
+              <td>{quantity(rows.reduce((total, row) => total + row.transfers.shell + row.transfers.jpops, 0))}</td>
               <td>{quantity(summary.endingInventory.ring)}</td>
               <td>{quantity(summary.endingInventory.shell)}</td>
             </tr>
@@ -1124,10 +1135,10 @@ function HourlyDailyReportView({ report }: HourlyDailyReportProps) {
 
       <div className="hourly-report-summary">
         {showNetProducedSales && <div><span>Net produced sales (POS less received)</span><strong>{quantity(summary.netProducedSales.total)}</strong><small>{percent(summary.salesAllocation)} of produced quantity</small></div>}
-        <div><span>Variance</span><strong>{quantity(summary.variance.total)}</strong><small>Produced less net produced sales</small></div>
+        <div><span>Variance</span><strong>{quantity(summary.variance.total)}</strong><small>Produced less net sales and transfers</small></div>
         <div><span>Actual waste</span><strong>{quantity(summary.totalWaste.total)}</strong><small>Proofing + frying + topping</small></div>
         <div><span>Excess waste</span><strong>{quantity(summary.excessWaste)}</strong><small>Actual less 1% allowance, positive only</small></div>
-        <div><span>Ending inventory</span><strong>{quantity(summary.endingInventory.total)}</strong><small>Ready quantity less POS sales</small></div>
+        <div><span>Ending inventory</span><strong>{quantity(summary.endingInventory.total)}</strong><small>Ready quantity less POS sales and transfers</small></div>
       </div>
     </section>
   )
