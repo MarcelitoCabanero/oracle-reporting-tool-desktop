@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
 } from 'react'
 
@@ -8,6 +9,8 @@ import {
 
 import {
   manualFieldLabels,
+  manualInputsFromDatabase,
+  manualInputsToDatabase,
   readManualSummaryInputs,
 } from './hourlySummaryInputs'
 import type {
@@ -553,10 +556,48 @@ function MpparReport({
 export default function HourlySummaryReports({ reports }: { reports: HourlyDailyReportData[] }) {
   const [selectedReport, setSelectedReport] = useState<ReportName>('MSSD')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [manualError, setManualError] = useState('')
+  const [, setInputsLoaded] = useState(0)
   const locationName = reports[0]?.locationName ?? ''
-  const manualError = reports
-    .map((report) => savedManualInputs(report).error)
-    .find(Boolean)
+  useEffect(() => {
+    let active = true
+    void Promise.all(reports.map(async (report) => {
+      const storageKey = `hourly-sales-summary:${report.locationName}:${report.businessDate}`
+      const saved = await window.api.hourlySales.getSummaryInput({
+        dateFrom: report.businessDate,
+        dateTo: report.businessDate,
+        locationName: report.locationName,
+      })
+      if (saved.found) {
+        const values = manualInputsFromDatabase(saved.values)
+        window.localStorage.setItem(storageKey, JSON.stringify(values))
+        return ''
+      }
+
+      const legacy = readManualSummaryInputs(storageKey)
+      if (Object.values(legacy.values).some((parts) => parts.ring !== '' || parts.shell !== '')) {
+        const error = await window.api.hourlySales.saveSummaryInput({
+          dateFrom: report.businessDate,
+          dateTo: report.businessDate,
+          locationName: report.locationName,
+          values: manualInputsToDatabase(legacy.values),
+        })
+        if (error) return error
+      }
+      return legacy.error
+    })).then((errors) => {
+      if (active) {
+        setManualError(errors.find(Boolean) ?? '')
+        setInputsLoaded((count) => count + 1)
+      }
+    }).catch((error: unknown) => {
+      if (active) {
+        setManualError(error instanceof Error ? error.message : 'Donut Summary inputs could not be loaded from CheckPostingDB.')
+        setInputsLoaded((count) => count + 1)
+      }
+    })
+    return () => { active = false }
+  }, [reports])
   const dateRange = reports.length === 1
     ? formatReportDate(reports[0].businessDate)
     : `${formatReportDate(reports[0]?.businessDate ?? '')} – ${formatReportDate(reports.at(-1)?.businessDate ?? '')}`

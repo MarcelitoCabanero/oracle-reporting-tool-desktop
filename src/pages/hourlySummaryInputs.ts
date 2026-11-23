@@ -12,6 +12,38 @@ export type ManualFieldKey =
   | 'transferred'
 
 export type ManualSummaryInputs = Record<ManualFieldKey, { ring: string; shell: string }>
+type StoredSummaryInputs = Awaited<ReturnType<typeof window.api.hourlySales.getSummaryInput>>
+
+const databaseColumnByField: Partial<Record<ManualFieldKey, string>> = {
+  promotions: 'promotions',
+  training: 'training',
+  staffMeal: 'staff_meal',
+  wasteDoughGrams: 'waste_dough_grams',
+  wasteFrozenDough: 'waste_frozen_dough',
+  bufferJpops: 'buffer_jpops',
+}
+
+export function manualInputsFromDatabase(values: StoredSummaryInputs['values']): ManualSummaryInputs {
+  const result = emptyManualSummaryInputs()
+  for (const [field, column] of Object.entries(databaseColumnByField) as [ManualFieldKey, string][]) {
+    result[field] = {
+      ring: values[`${column}_ring` as keyof typeof values]?.toString() ?? '',
+      shell: values[`${column}_shell` as keyof typeof values]?.toString() ?? '',
+    }
+  }
+  return result
+}
+
+export function manualInputsToDatabase(values: ManualSummaryInputs): StoredSummaryInputs['values'] {
+  const result: Record<string, number | null> = {}
+  for (const [field, column] of Object.entries(databaseColumnByField) as [ManualFieldKey, string][]) {
+    for (const part of ['ring', 'shell'] as const) {
+      const entered = values[field][part]
+      result[`${column}_${part}`] = entered === '' ? null : Number(entered)
+    }
+  }
+  return result as unknown as StoredSummaryInputs['values']
+}
 
 export const manualFieldLabels: Record<ManualFieldKey, string> = {
   promotions: 'Promotions (donuts)',

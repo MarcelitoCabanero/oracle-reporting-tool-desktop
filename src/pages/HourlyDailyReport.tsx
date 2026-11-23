@@ -3,11 +3,15 @@ import {
 } from 'lucide-react'
 import {
   Fragment,
+  useEffect,
+  useRef,
   useState,
 } from 'react'
 
 import {
   manualFieldLabels,
+  manualInputsFromDatabase,
+  manualInputsToDatabase,
   readManualSummaryInputs,
 } from './hourlySummaryInputs'
 import type {
@@ -232,8 +236,75 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     : `${firstReport.businessDate}..${lastReport.businessDate}`
   const storageKey = `hourly-sales-summary:${firstReport.locationName}:${storageDate}`
   const [storedInputs, setStoredInputs] = useState(() => readManualSummaryInputs(storageKey, reports))
+  const [databaseLoaded, setDatabaseLoaded] = useState(false)
+  const [inputsEdited, setInputsEdited] = useState(false)
+  const [syncMessage, setSyncMessage] = useState('')
+  const editVersion = useRef(0)
   const manualInputs = storedInputs.values
   const manualError = storedInputs.error
+
+  useEffect(() => {
+    let active = true
+    setDatabaseLoaded(false)
+    void window.api.hourlySales.getSummaryInput({
+      dateFrom: firstReport.businessDate,
+      dateTo: lastReport.businessDate,
+      locationName: firstReport.locationName,
+    }).then(async (saved) => {
+      if (!active) return
+      if (saved.found) {
+        const values = manualInputsFromDatabase(saved.values)
+        setStoredInputs({ values, error: '' })
+        try { window.localStorage.setItem(storageKey, JSON.stringify(values)) } catch { /* database remains the saved copy */ }
+      } else {
+        const legacy = readManualSummaryInputs(storageKey, reports)
+        setStoredInputs(legacy)
+        const hasLegacyValues = Object.values(legacy.values).some((parts) => parts.ring !== '' || parts.shell !== '')
+        if (hasLegacyValues) {
+          try {
+            const error = await window.api.hourlySales.saveSummaryInput({
+              dateFrom: firstReport.businessDate,
+              dateTo: lastReport.businessDate,
+              locationName: firstReport.locationName,
+              values: manualInputsToDatabase(legacy.values),
+            })
+            if (active && error) setSyncMessage(`Saved locally; OracleDB sync is pending: ${error}`)
+          } catch (error) {
+            if (active) setStoredInputs({ ...legacy, error: error instanceof Error ? error.message : 'Unable to migrate saved inputs to the database.' })
+          }
+        }
+      }
+      if (active) setDatabaseLoaded(true)
+    }).catch((error: unknown) => {
+      if (active) {
+        setStoredInputs((current) => ({ ...current, error: error instanceof Error ? error.message : 'Unable to load Donut Summary inputs from CheckPostingDB.' }))
+        setDatabaseLoaded(true)
+      }
+    })
+    return () => { active = false }
+  }, [firstReport.businessDate, firstReport.locationName, lastReport.businessDate, reports, storageKey])
+
+  useEffect(() => {
+    if (!databaseLoaded || !inputsEdited) return
+    const version = editVersion.current
+    const timer = window.setTimeout(() => {
+      void window.api.hourlySales.saveSummaryInput({
+        dateFrom: firstReport.businessDate,
+        dateTo: lastReport.businessDate,
+        locationName: firstReport.locationName,
+        values: manualInputsToDatabase(manualInputs),
+      }).then((error) => {
+        setSyncMessage(error ? `Saved locally; OracleDB sync is pending: ${error}` : 'Donut Summary inputs saved and synced.')
+        setStoredInputs((current) => ({ ...current, error: error ?? '' }))
+        try { window.localStorage.setItem(storageKey, JSON.stringify(manualInputs)) } catch { /* database is authoritative */ }
+        if (editVersion.current === version) setInputsEdited(false)
+      }).catch((error: unknown) => {
+        setSyncMessage('Unable to save Donut Summary inputs to CheckPostingDB.')
+        setStoredInputs((current) => ({ ...current, error: error instanceof Error ? error.message : 'Unable to save Donut Summary inputs.' }))
+      })
+    }, 450)
+    return () => window.clearTimeout(timer)
+  }, [databaseLoaded, firstReport.businessDate, firstReport.locationName, inputsEdited, lastReport.businessDate, manualInputs, storageKey])
   const rangeSummary = reports.reduce((total, report) => ({
     produced: addQuantities(total.produced, report.summary.produced),
     received: addQuantities(total.received, report.summary.received),
@@ -315,15 +386,10 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
       ...manualInputs,
       [field]: { ...manualInputs[field], [part]: value },
     }
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify(updated))
-      setStoredInputs({ values: updated, error: '' })
-    } catch {
-      setStoredInputs({
-        values: updated,
-        error: 'Manual inputs are visible but could not be saved on this device.',
-      })
-    }
+    editVersion.current += 1
+    setStoredInputs({ values: updated, error: '' })
+    setInputsEdited(true)
+    setSyncMessage('Saving Donut Summary inputs...')
   }
 
   function manualValue(key: ManualFieldKey, part: 'ring' | 'shell') {
@@ -559,6 +625,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
           type="number"
           min="0"
           step="any"
+          disabled={!databaseLoaded}
           value={value}
           onChange={(event) => updateManualInput(key, part, event.target.value)}
         />
@@ -652,6 +719,7 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
       <p className="hourly-production-summary-note">
 
       </p>
+      {syncMessage && <p className="hourly-production-summary-note" role="status">{syncMessage}</p>}
       {manualError && <p className="hourly-production-summary-note error" role="alert">{manualError}</p>}
     </div>
   )

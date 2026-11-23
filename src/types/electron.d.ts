@@ -674,6 +674,31 @@ interface HourlyRecordsInput {
   locationName: string
 }
 
+interface HourlySummaryInputKey {
+  dateFrom: string
+  dateTo: string
+  locationName: string
+}
+
+interface HourlySummaryInputValues {
+  promotions_ring: number | null
+  promotions_shell: number | null
+  training_ring: number | null
+  training_shell: number | null
+  staff_meal_ring: number | null
+  staff_meal_shell: number | null
+  waste_dough_grams_ring: number | null
+  waste_dough_grams_shell: number | null
+  waste_frozen_dough_ring: number | null
+  waste_frozen_dough_shell: number | null
+  buffer_jpops_ring: number | null
+  buffer_jpops_shell: number | null
+}
+
+interface SaveHourlySummaryInput extends HourlySummaryInputKey {
+  values: HourlySummaryInputValues
+}
+
 interface HourlyRecord {
   id: number
   kind: 'produce' | 'waste' | 'transfers'
@@ -933,6 +958,8 @@ hourlySales: {
   updateRecord: (
     input: UpdateHourlyRecordInput,
   ) => Promise<UpdateHourlyRecordResult>
+  getSummaryInput: (input: HourlySummaryInputKey) => Promise<{ found: boolean; values: HourlySummaryInputValues }>
+  saveSummaryInput: (input: SaveHourlySummaryInput) => Promise<string | null>
 }
 
 varianceChecking: {
