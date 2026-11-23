@@ -967,7 +967,7 @@ function HourlySalesPage() {
             onClick={() => setView('transactions')}
           >
             <PenLine size={16} aria-hidden="true" />
-            Transactions
+            Entry
           </button>
         </div>
 

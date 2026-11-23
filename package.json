@@ -2,7 +2,7 @@
   "name": "oracle-reporting-tool-desktop",
   "description": "Oracle Reporting Tool desktop application",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.0.5",
   "type": "module",
   "main": "electron-build/main.js",
   "scripts": {
@@ -30,7 +30,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "${productName}-${version}-Setup.${ext}"
