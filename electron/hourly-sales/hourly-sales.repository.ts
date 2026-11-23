@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto'
 import {
   getLocalDbPool,
 } from '../database/localdb.js'
-import { getHeadqDbPool } from '../database/headqdb.js'
+import { getHourlyDbPool } from '../database/hourlydb.js'
+import { getDatabaseSqlConfig } from '../settings/settings.service.js'
 
 import type {
   CreateHourlyEntriesInput,
@@ -19,20 +20,21 @@ import type {
 
 export async function insertHourlyEntries(
   input: CreateHourlyEntriesInput,
-): Promise<void> {
+): Promise<string | null> {
   const pool = await getLocalDbPool()
   await ensureLocalHourlySyncColumns(pool)
   const transaction = new sql.Transaction(pool)
-  const isProduce = input.kind === 'produce'
-  const tableName = isProduce ? 'dbo.dts_produce' : 'dbo.dts_waste'
-  const timeColumn = isProduce ? 'time_mixing' : 'time_waste'
-  const dateColumn = isProduce ? 'date_mix' : 'date_waste'
+  const syncIds: string[] = []
 
   await transaction.begin()
 
   try {
     for (const row of input.rows) {
+      const syncId = randomUUID()
+      syncIds.push(syncId)
+
       await new sql.Request(transaction)
+        .input('category', sql.VarChar(10), input.kind)
         .input('timeValue', sql.VarChar(50), row.time)
         .input('entryDate', sql.Date, row.entryDate)
         .input('shellQty', sql.Int, row.shellQty ?? 0)
@@ -41,12 +43,13 @@ export async function insertHourlyEntries(
         .input('remarks', sql.VarChar(50), row.remarks)
         .input('locationName', sql.VarChar(50), input.locationName)
         .input('businessDate', sql.Date, input.businessDate)
-        .input('syncId', sql.UniqueIdentifier, randomUUID())
+        .input('syncId', sql.UniqueIdentifier, syncId)
         .query(`
-          INSERT INTO ${tableName}
+          INSERT INTO dbo.dts_hourly_entry
           (
-            ${timeColumn},
-            ${dateColumn},
+            category,
+            time_value,
+            entry_date,
             shell_qty,
             ring_qty,
             jpops_qty,
@@ -60,6 +63,7 @@ export async function insertHourlyEntries(
           )
           VALUES
           (
+            @category,
             @timeValue,
             @entryDate,
             @shellQty,
@@ -82,15 +86,49 @@ export async function insertHourlyEntries(
     throw error
   }
 
-  void syncPendingHourlyEntries().catch((error: unknown) => {
-    console.error('Hourly entries were saved on the POS, but HEADQ sync could not run.', error)
-  })
+  return syncEntriesImmediately(
+    pool,
+    syncIds,
+    'Hourly entries were saved on the POS, but OracleDB sync failed.',
+  )
+}
+
+async function syncEntriesImmediately(
+  localPool: sql.ConnectionPool,
+  syncIds: string[],
+  logMessage: string,
+): Promise<string | null> {
+  try {
+    const pendingCount = await syncPendingHourlyEntries(syncIds)
+    if (pendingCount === 0) return null
+
+    const syncIdParameters = syncIds.map((syncId, index) => `@syncId${index}`)
+    const errorRequest = localPool.request()
+    syncIds.forEach((syncId, index) => {
+      errorRequest.input(`syncId${index}`, sql.UniqueIdentifier, syncId)
+    })
+    const syncError = await errorRequest.query<{ headqSyncError: string | null }>(`
+      SELECT TOP (1) headq_sync_error AS headqSyncError
+      FROM dbo.dts_hourly_entry
+      WHERE sync_id IN (${syncIdParameters.join(', ')})
+        AND headq_synced_at IS NULL
+      ORDER BY entry_id
+    `)
+
+    return syncError.recordset[0]?.headqSyncError ||
+      `${pendingCount} ${pendingCount === 1 ? 'entry remains' : 'entries remain'} pending.`
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(logMessage, error)
+
+    return message
+  }
 }
 
 interface PendingHourlyEntry {
   id: number
   syncId: string
-  kind: 'produce' | 'waste'
+  kind: 'produce' | 'waste' | 'transfers'
   timeValue: string
   entryDate: Date
   shellQty: number
@@ -104,49 +142,87 @@ interface PendingHourlyEntry {
 
 async function ensureLocalHourlySyncColumns(pool: sql.ConnectionPool): Promise<void> {
   await pool.request().query(`
-    IF COL_LENGTH(N'dbo.dts_produce', N'sync_id') IS NULL
-      ALTER TABLE dbo.dts_produce ADD sync_id UNIQUEIDENTIFIER NULL;
-    IF COL_LENGTH(N'dbo.dts_produce', N'headq_synced_at') IS NULL
-      ALTER TABLE dbo.dts_produce ADD headq_synced_at DATETIME2 NULL;
-    IF COL_LENGTH(N'dbo.dts_produce', N'headq_sync_error') IS NULL
-      ALTER TABLE dbo.dts_produce ADD headq_sync_error NVARCHAR(1000) NULL;
+    IF OBJECT_ID(N'dbo.dts_hourly_entry', N'U') IS NULL
+    BEGIN
+      CREATE TABLE dbo.dts_hourly_entry
+      (
+        entry_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+        category VARCHAR(10) NOT NULL
+          CONSTRAINT CK_dts_hourly_entry_category CHECK (category IN ('produce', 'waste', 'transfers')),
+        time_value VARCHAR(50) NOT NULL,
+        entry_date DATE NOT NULL,
+        shell_qty INT NOT NULL,
+        ring_qty INT NOT NULL,
+        jpops_qty INT NOT NULL,
+        Remarks VARCHAR(50) NULL,
+        locationname VARCHAR(50) NULL,
+        businessdate DATE NOT NULL,
+        created_at DATETIME2 NULL,
+        sync_id UNIQUEIDENTIFIER NULL,
+        headq_synced_at DATETIME2 NULL,
+        headq_sync_error NVARCHAR(1000) NULL
+      );
+    END;
 
-    IF COL_LENGTH(N'dbo.dts_waste', N'sync_id') IS NULL
-      ALTER TABLE dbo.dts_waste ADD sync_id UNIQUEIDENTIFIER NULL;
-    IF COL_LENGTH(N'dbo.dts_waste', N'headq_synced_at') IS NULL
-      ALTER TABLE dbo.dts_waste ADD headq_synced_at DATETIME2 NULL;
-    IF COL_LENGTH(N'dbo.dts_waste', N'headq_sync_error') IS NULL
-      ALTER TABLE dbo.dts_waste ADD headq_sync_error NVARCHAR(1000) NULL;
+    IF COL_LENGTH(N'dbo.dts_hourly_entry', N'sync_id') IS NULL
+      ALTER TABLE dbo.dts_hourly_entry ADD sync_id UNIQUEIDENTIFIER NULL;
+    IF COL_LENGTH(N'dbo.dts_hourly_entry', N'headq_synced_at') IS NULL
+      ALTER TABLE dbo.dts_hourly_entry ADD headq_synced_at DATETIME2 NULL;
+    IF COL_LENGTH(N'dbo.dts_hourly_entry', N'headq_sync_error') IS NULL
+      ALTER TABLE dbo.dts_hourly_entry ADD headq_sync_error NVARCHAR(1000) NULL;
   `)
 
   await pool.request().query(`
-    IF OBJECT_ID(N'dbo.hourly_entry_sync_outbox', N'U') IS NOT NULL
+    IF EXISTS (SELECT 1 FROM sys.check_constraints
+      WHERE parent_object_id = OBJECT_ID(N'dbo.dts_hourly_entry') AND name = N'CK_dts_hourly_entry_category')
+      ALTER TABLE dbo.dts_hourly_entry DROP CONSTRAINT CK_dts_hourly_entry_category;
+    ALTER TABLE dbo.dts_hourly_entry WITH CHECK ADD CONSTRAINT CK_dts_hourly_entry_category
+      CHECK (category IN ('produce', 'waste', 'transfers'));
+  `)
+
+  await pool.request().query(`
+    IF OBJECT_ID(N'dbo.dts_produce', N'U') IS NOT NULL
     BEGIN
-      EXEC(N'
-        UPDATE produce
-        SET
-          produce.sync_id = outbox.sync_id,
-          produce.headq_synced_at = outbox.synced_at,
-          produce.headq_sync_error = outbox.last_error
-        FROM dbo.dts_produce AS produce
-        INNER JOIN dbo.hourly_entry_sync_outbox AS outbox
-          ON outbox.kind = ''produce''
-          AND outbox.origin_id = produce.produce_id
-        WHERE produce.sync_id IS NULL;
+      INSERT INTO dbo.dts_hourly_entry
+        (category, time_value, entry_date, shell_qty, ring_qty, jpops_qty, Remarks,
+         locationname, businessdate, created_at, sync_id, headq_synced_at, headq_sync_error)
+      SELECT
+        'produce', time_mixing, date_mix, shell_qty, ring_qty, jpops_qty, Remarks,
+        locationname, businessdate, created_at, sync_id, headq_synced_at, headq_sync_error
+      FROM dbo.dts_produce AS p
+      WHERE NOT EXISTS
+      (
+        SELECT 1 FROM dbo.dts_hourly_entry AS h
+        WHERE h.category = 'produce'
+          AND (
+            (p.sync_id IS NOT NULL AND h.sync_id = p.sync_id)
+            OR (p.sync_id IS NULL AND h.time_value = p.time_mixing
+              AND h.entry_date = p.date_mix AND h.Remarks = p.Remarks)
+          )
+      );
+      DROP TABLE dbo.dts_produce;
+    END
 
-        UPDATE waste
-        SET
-          waste.sync_id = outbox.sync_id,
-          waste.headq_synced_at = outbox.synced_at,
-          waste.headq_sync_error = outbox.last_error
-        FROM dbo.dts_waste AS waste
-        INNER JOIN dbo.hourly_entry_sync_outbox AS outbox
-          ON outbox.kind = ''waste''
-          AND outbox.origin_id = waste.waste_id
-        WHERE waste.sync_id IS NULL;
-      ')
-
-      DROP TABLE dbo.hourly_entry_sync_outbox;
+    IF OBJECT_ID(N'dbo.dts_waste', N'U') IS NOT NULL
+    BEGIN
+      INSERT INTO dbo.dts_hourly_entry
+        (category, time_value, entry_date, shell_qty, ring_qty, jpops_qty, Remarks,
+         locationname, businessdate, created_at, sync_id, headq_synced_at, headq_sync_error)
+      SELECT
+        'waste', time_waste, date_waste, shell_qty, ring_qty, jpops_qty, Remarks,
+        locationname, businessdate, created_at, sync_id, headq_synced_at, headq_sync_error
+      FROM dbo.dts_waste AS w
+      WHERE NOT EXISTS
+      (
+        SELECT 1 FROM dbo.dts_hourly_entry AS h
+        WHERE h.category = 'waste'
+          AND (
+            (w.sync_id IS NOT NULL AND h.sync_id = w.sync_id)
+            OR (w.sync_id IS NULL AND h.time_value = w.time_waste
+              AND h.entry_date = w.date_waste AND h.Remarks = w.Remarks)
+          )
+      );
+      DROP TABLE dbo.dts_waste;
     END
 
     IF NOT EXISTS
@@ -155,43 +231,29 @@ async function ensureLocalHourlySyncColumns(pool: sql.ConnectionPool): Promise<v
       INNER JOIN sys.columns AS columns
         ON columns.object_id = defaults.parent_object_id
         AND columns.column_id = defaults.parent_column_id
-      WHERE defaults.parent_object_id = OBJECT_ID(N'dbo.dts_produce')
+      WHERE defaults.parent_object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
         AND columns.name = N'sync_id'
     )
-      ALTER TABLE dbo.dts_produce
-        ADD CONSTRAINT DF_pos_dts_produce_sync_id DEFAULT (NEWID()) FOR sync_id;
-
-    IF NOT EXISTS
-    (
-      SELECT 1 FROM sys.default_constraints AS defaults
-      INNER JOIN sys.columns AS columns
-        ON columns.object_id = defaults.parent_object_id
-        AND columns.column_id = defaults.parent_column_id
-      WHERE defaults.parent_object_id = OBJECT_ID(N'dbo.dts_waste')
-        AND columns.name = N'sync_id'
-    )
-      ALTER TABLE dbo.dts_waste
-        ADD CONSTRAINT DF_pos_dts_waste_sync_id DEFAULT (NEWID()) FOR sync_id;
+      ALTER TABLE dbo.dts_hourly_entry
+        ADD CONSTRAINT DF_dts_hourly_entry_sync_id DEFAULT (NEWID()) FOR sync_id;
 
     IF NOT EXISTS
     (
       SELECT 1 FROM sys.indexes
-      WHERE object_id = OBJECT_ID(N'dbo.dts_produce')
-        AND name = N'UX_pos_dts_produce_sync_id'
+      WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
+        AND name = N'UX_dts_hourly_entry_sync_id'
     )
-      CREATE UNIQUE INDEX UX_pos_dts_produce_sync_id
-        ON dbo.dts_produce(sync_id) WHERE sync_id IS NOT NULL;
-
-    IF NOT EXISTS
-    (
-      SELECT 1 FROM sys.indexes
-      WHERE object_id = OBJECT_ID(N'dbo.dts_waste')
-        AND name = N'UX_pos_dts_waste_sync_id'
-    )
-      CREATE UNIQUE INDEX UX_pos_dts_waste_sync_id
-        ON dbo.dts_waste(sync_id) WHERE sync_id IS NOT NULL;
+      CREATE UNIQUE INDEX UX_dts_hourly_entry_sync_id
+        ON dbo.dts_hourly_entry(sync_id) WHERE sync_id IS NOT NULL;
   `)
 
+  // Existing local entries may predate sync_id. Give them IDs while keeping
+  // headq_synced_at NULL so the pending-sync query uploads them.
+  await pool.request().query(`
+    UPDATE dbo.dts_hourly_entry
+    SET sync_id = NEWID()
+    WHERE sync_id IS NULL;
+  `)
   await ensureProduceTimeCategoryIndex(pool)
 }
 
@@ -200,39 +262,41 @@ async function ensureProduceTimeCategoryIndex(pool: sql.ConnectionPool): Promise
     IF EXISTS
     (
       SELECT 1 FROM sys.key_constraints
-      WHERE parent_object_id = OBJECT_ID(N'dbo.dts_produce')
-        AND name = N'UQ_dts_produce_time_date'
+      WHERE parent_object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
+        AND name = N'UQ_dts_hourly_entry_time_category'
     )
-      ALTER TABLE dbo.dts_produce
-        DROP CONSTRAINT UQ_dts_produce_time_date;
+      ALTER TABLE dbo.dts_hourly_entry
+        DROP CONSTRAINT UQ_dts_hourly_entry_time_category;
 
     IF EXISTS
     (
       SELECT 1 FROM sys.indexes
-      WHERE object_id = OBJECT_ID(N'dbo.dts_produce')
-        AND name = N'UQ_dts_produce_time_date'
+      WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
+        AND name = N'UQ_dts_hourly_entry_time_category'
     )
-      DROP INDEX UQ_dts_produce_time_date ON dbo.dts_produce;
+      DROP INDEX UQ_dts_hourly_entry_time_category ON dbo.dts_hourly_entry;
 
     IF NOT EXISTS
     (
       SELECT 1 FROM sys.indexes
-      WHERE object_id = OBJECT_ID(N'dbo.dts_produce')
-        AND name = N'UQ_dts_produce_time_date'
+      WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
+        AND name = N'UQ_dts_hourly_entry_location_time_category'
     )
-      CREATE UNIQUE INDEX UQ_dts_produce_time_date
-        ON dbo.dts_produce(time_mixing, date_mix, Remarks);
+      CREATE UNIQUE INDEX UQ_dts_hourly_entry_location_time_category
+        ON dbo.dts_hourly_entry(locationname, time_value, entry_date, Remarks, category);
   `)
 }
 
-const createHeadqTablesSchema = `
-  IF OBJECT_ID(N'dbo.dts_produce', N'U') IS NULL
+const createHourlyTableSchema = `
+  IF OBJECT_ID(N'dbo.dts_hourly_entry', N'U') IS NULL
   BEGIN
-    CREATE TABLE dbo.dts_produce
+    CREATE TABLE dbo.dts_hourly_entry
     (
-      produce_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-      time_mixing VARCHAR(50) NOT NULL,
-      date_mix DATE NOT NULL,
+      entry_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+      category VARCHAR(10) NOT NULL
+      CONSTRAINT CK_dts_hourly_entry_category CHECK (category IN ('produce', 'waste', 'transfers')),
+      time_value VARCHAR(50) NOT NULL,
+      entry_date DATE NOT NULL,
       shell_qty INT NOT NULL,
       ring_qty INT NOT NULL,
       jpops_qty INT NOT NULL,
@@ -241,72 +305,40 @@ const createHeadqTablesSchema = `
       businessdate DATE NOT NULL,
       created_at DATETIME2 NOT NULL,
       sync_id UNIQUEIDENTIFIER NOT NULL
-        CONSTRAINT DF_dts_produce_sync_id DEFAULT (NEWID()),
-      headq_synced_at DATETIME2 NULL,
-      headq_sync_error NVARCHAR(1000) NULL
-    );
-  END
-
-  IF OBJECT_ID(N'dbo.dts_waste', N'U') IS NULL
-  BEGIN
-    CREATE TABLE dbo.dts_waste
-    (
-      waste_id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-      time_waste VARCHAR(50) NOT NULL,
-      date_waste DATE NOT NULL,
-      shell_qty INT NOT NULL,
-      ring_qty INT NOT NULL,
-      jpops_qty INT NOT NULL,
-      Remarks VARCHAR(50) NOT NULL,
-      locationname VARCHAR(50) NOT NULL,
-      businessdate DATE NOT NULL,
-      created_at DATETIME2 NOT NULL,
-      sync_id UNIQUEIDENTIFIER NOT NULL
-        CONSTRAINT DF_dts_waste_sync_id DEFAULT (NEWID()),
+        CONSTRAINT DF_dts_hourly_entry_sync_id DEFAULT (NEWID()),
       headq_synced_at DATETIME2 NULL,
       headq_sync_error NVARCHAR(1000) NULL
     );
   END
 `
 
-const addHeadqSyncIdColumnsSchema = `
-  IF COL_LENGTH(N'dbo.dts_produce', N'sync_id') IS NULL
-    ALTER TABLE dbo.dts_produce ADD sync_id UNIQUEIDENTIFIER NULL;
-  IF COL_LENGTH(N'dbo.dts_waste', N'sync_id') IS NULL
-    ALTER TABLE dbo.dts_waste ADD sync_id UNIQUEIDENTIFIER NULL;
+const addHourlySyncIdColumnsSchema = `
+  IF COL_LENGTH(N'dbo.dts_hourly_entry', N'sync_id') IS NULL
+    ALTER TABLE dbo.dts_hourly_entry ADD sync_id UNIQUEIDENTIFIER NULL;
 `
 
-const headqSyncStatusSchema = `
-  IF COL_LENGTH(N'dbo.dts_produce', N'headq_synced_at') IS NULL
-    ALTER TABLE dbo.dts_produce ADD headq_synced_at DATETIME2 NULL;
-  IF COL_LENGTH(N'dbo.dts_produce', N'headq_sync_error') IS NULL
-    ALTER TABLE dbo.dts_produce ADD headq_sync_error NVARCHAR(1000) NULL;
-  IF COL_LENGTH(N'dbo.dts_waste', N'headq_synced_at') IS NULL
-    ALTER TABLE dbo.dts_waste ADD headq_synced_at DATETIME2 NULL;
-  IF COL_LENGTH(N'dbo.dts_waste', N'headq_sync_error') IS NULL
-    ALTER TABLE dbo.dts_waste ADD headq_sync_error NVARCHAR(1000) NULL;
+const hourlySyncStatusSchema = `
+  IF COL_LENGTH(N'dbo.dts_hourly_entry', N'headq_synced_at') IS NULL
+    ALTER TABLE dbo.dts_hourly_entry ADD headq_synced_at DATETIME2 NULL;
+  IF COL_LENGTH(N'dbo.dts_hourly_entry', N'headq_sync_error') IS NULL
+    ALTER TABLE dbo.dts_hourly_entry ADD headq_sync_error NVARCHAR(1000) NULL;
 
-  UPDATE dbo.dts_produce
-  SET headq_synced_at = DATEADD(HOUR, 8, SYSUTCDATETIME())
-  WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL;
-
-  UPDATE dbo.dts_waste
+  UPDATE dbo.dts_hourly_entry
   SET headq_synced_at = DATEADD(HOUR, 8, SYSUTCDATETIME())
   WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL;
 `
 
-const headqSyncIdSchema = `
+const hourlySyncIdSchema = `
   IF EXISTS
   (
     SELECT 1
     FROM sys.columns
-    WHERE object_id = OBJECT_ID(N'dbo.dts_produce')
+    WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
       AND name = N'sync_id'
       AND is_nullable = 1
   )
   BEGIN
-    UPDATE dbo.dts_produce SET sync_id = NEWID() WHERE sync_id IS NULL;
-    ALTER TABLE dbo.dts_produce ALTER COLUMN sync_id UNIQUEIDENTIFIER NOT NULL;
+    UPDATE dbo.dts_hourly_entry SET sync_id = NEWID() WHERE sync_id IS NULL;
   END
 
   IF NOT EXISTS
@@ -316,112 +348,77 @@ const headqSyncIdSchema = `
     INNER JOIN sys.columns AS columns
       ON columns.object_id = defaults.parent_object_id
       AND columns.column_id = defaults.parent_column_id
-    WHERE defaults.parent_object_id = OBJECT_ID(N'dbo.dts_produce')
+    WHERE defaults.parent_object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
       AND columns.name = N'sync_id'
   )
-    ALTER TABLE dbo.dts_produce
-      ADD CONSTRAINT DF_dts_produce_sync_id DEFAULT (NEWID()) FOR sync_id;
+    ALTER TABLE dbo.dts_hourly_entry
+    ADD CONSTRAINT DF_dts_hourly_entry_sync_id DEFAULT (NEWID()) FOR sync_id;
 
   IF NOT EXISTS
   (
     SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID(N'dbo.dts_produce')
-      AND name = N'UX_dts_produce_sync_id'
+    WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
+    AND name = N'UX_dts_hourly_entry_sync_id'
   )
-    CREATE UNIQUE INDEX UX_dts_produce_sync_id ON dbo.dts_produce(sync_id);
-
-  IF EXISTS
-  (
-    SELECT 1
-    FROM sys.columns
-    WHERE object_id = OBJECT_ID(N'dbo.dts_waste')
-      AND name = N'sync_id'
-      AND is_nullable = 1
-  )
-  BEGIN
-    UPDATE dbo.dts_waste SET sync_id = NEWID() WHERE sync_id IS NULL;
-    ALTER TABLE dbo.dts_waste ALTER COLUMN sync_id UNIQUEIDENTIFIER NOT NULL;
-  END
-
-  IF NOT EXISTS
-  (
-    SELECT 1
-    FROM sys.default_constraints AS defaults
-    INNER JOIN sys.columns AS columns
-      ON columns.object_id = defaults.parent_object_id
-      AND columns.column_id = defaults.parent_column_id
-    WHERE defaults.parent_object_id = OBJECT_ID(N'dbo.dts_waste')
-      AND columns.name = N'sync_id'
-  )
-    ALTER TABLE dbo.dts_waste
-      ADD CONSTRAINT DF_dts_waste_sync_id DEFAULT (NEWID()) FOR sync_id;
-
-  IF NOT EXISTS
-  (
-    SELECT 1 FROM sys.indexes
-    WHERE object_id = OBJECT_ID(N'dbo.dts_waste')
-      AND name = N'UX_dts_waste_sync_id'
-  )
-    CREATE UNIQUE INDEX UX_dts_waste_sync_id ON dbo.dts_waste(sync_id);
+    CREATE UNIQUE INDEX UX_dts_hourly_entry_sync_id
+      ON dbo.dts_hourly_entry(sync_id) WHERE sync_id IS NOT NULL;
 `
 
 let syncingEntries: Promise<number> | null = null
-let headqSchemaReady = false
+let hourlySchemaTarget: string | null = null
 
-export function syncPendingHourlyEntries(): Promise<number> {
+export function syncPendingHourlyEntries(syncIds?: string[]): Promise<number> {
   if (syncingEntries) {
-    return syncingEntries
+    const currentSync = syncingEntries
+    return syncIds
+      ? currentSync.then(() => syncPendingHourlyEntries(syncIds))
+      : currentSync
   }
 
-  syncingEntries = syncPendingHourlyEntriesOnce().finally(() => {
-    syncingEntries = null
+  const currentSync = syncPendingHourlyEntriesOnce(syncIds).finally(() => {
+    if (syncingEntries === currentSync) {
+      syncingEntries = null
+    }
   })
+  syncingEntries = currentSync
 
-  return syncingEntries
+  return currentSync
 }
 
-async function syncPendingHourlyEntriesOnce(): Promise<number> {
+async function syncPendingHourlyEntriesOnce(syncIds?: string[]): Promise<number> {
   const localPool = await getLocalDbPool()
   await ensureLocalHourlySyncColumns(localPool)
-  await ensureHeadqHourlySchema()
+  await ensureHourlySchema()
 
-  const pendingResult = await localPool.request().query<PendingHourlyEntry>(`
-    SELECT TOP (100) *
+  const pendingRequest = localPool.request()
+  const syncIdParameters = syncIds?.map((syncId, index) => {
+    const parameter = `syncId${index}`
+    pendingRequest.input(parameter, sql.UniqueIdentifier, syncId)
+    return `@${parameter}`
+  }) ?? []
+  const syncIdPredicate = syncIdParameters.length > 0
+    ? ` AND sync_id IN (${syncIdParameters.join(', ')})`
+    : ''
+  const pendingLimit = syncIdParameters.length > 0 ? '' : 'TOP (100) '
+  const pendingResult = await pendingRequest.query<PendingHourlyEntry>(`
+    SELECT ${pendingLimit}*
     FROM
     (
       SELECT
-        produce_id AS id,
+        entry_id AS id,
         CONVERT(VARCHAR(36), sync_id) AS syncId,
-        'produce' AS kind,
-        time_mixing AS timeValue,
-        date_mix AS entryDate,
+        category AS kind,
+        time_value AS timeValue,
+        entry_date AS entryDate,
         shell_qty AS shellQty,
         ring_qty AS ringQty,
         jpops_qty AS jpopsQty,
-        remarks,
+        Remarks AS remarks,
         locationname AS locationName,
         businessdate AS businessDate,
         created_at AS createdAt
-      FROM dbo.dts_produce
-      WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL
-
-      UNION ALL
-
-      SELECT
-        waste_id AS id,
-        CONVERT(VARCHAR(36), sync_id) AS syncId,
-        'waste' AS kind,
-        time_waste AS timeValue,
-        date_waste AS entryDate,
-        shell_qty AS shellQty,
-        ring_qty AS ringQty,
-        jpops_qty AS jpopsQty,
-        remarks,
-        locationname AS locationName,
-        businessdate AS businessDate,
-        created_at AS createdAt
-      FROM dbo.dts_waste
-      WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL
+      FROM dbo.dts_hourly_entry
+      WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL${syncIdPredicate}
     ) AS pending
     ORDER BY createdAt, syncId
   `)
@@ -430,18 +427,14 @@ async function syncPendingHourlyEntriesOnce(): Promise<number> {
     return 0
   }
 
-  const headqPool = await getHeadqDbPool()
+  const hourlyPool = await getHourlyDbPool()
 
   for (const entry of pendingResult.recordset) {
     try {
-      const isProduce = entry.kind === 'produce'
-      const tableName = isProduce ? 'dbo.dts_produce' : 'dbo.dts_waste'
-      const timeColumn = isProduce ? 'time_mixing' : 'time_waste'
-      const dateColumn = isProduce ? 'date_mix' : 'date_waste'
-
-      await headqPool
+      await hourlyPool
         .request()
         .input('syncId', sql.UniqueIdentifier, entry.syncId)
+        .input('category', sql.VarChar(10), entry.kind)
         .input('timeValue', sql.VarChar(50), entry.timeValue)
         .input('entryDate', sql.Date, entry.entryDate)
         .input('shellQty', sql.Int, entry.shellQty)
@@ -454,14 +447,15 @@ async function syncPendingHourlyEntriesOnce(): Promise<number> {
         .query(`
           IF EXISTS
           (
-            SELECT 1 FROM ${tableName} WITH (UPDLOCK, HOLDLOCK)
+            SELECT 1 FROM dbo.dts_hourly_entry WITH (UPDLOCK, HOLDLOCK)
             WHERE sync_id = @syncId
           )
           BEGIN
-            UPDATE ${tableName}
+            UPDATE dbo.dts_hourly_entry
             SET
-              ${timeColumn} = @timeValue,
-              ${dateColumn} = @entryDate,
+              category = @category,
+              time_value = @timeValue,
+              entry_date = @entryDate,
               shell_qty = @shellQty,
               ring_qty = @ringQty,
               jpops_qty = @jpopsQty,
@@ -475,10 +469,11 @@ async function syncPendingHourlyEntriesOnce(): Promise<number> {
           END
           ELSE
           BEGIN
-            INSERT INTO ${tableName}
+            INSERT INTO dbo.dts_hourly_entry
             (
-              ${timeColumn},
-              ${dateColumn},
+              category,
+              time_value,
+              entry_date,
               shell_qty,
               ring_qty,
               jpops_qty,
@@ -492,6 +487,7 @@ async function syncPendingHourlyEntriesOnce(): Promise<number> {
             )
             VALUES
             (
+              @category,
               @timeValue,
               @entryDate,
               @shellQty,
@@ -521,14 +517,14 @@ async function syncPendingHourlyEntriesOnce(): Promise<number> {
         .input('locationName', sql.VarChar(50), entry.locationName)
         .input('businessDate', sql.Date, entry.businessDate)
         .query(`
-          UPDATE ${isProduce ? 'dbo.dts_produce' : 'dbo.dts_waste'}
+          UPDATE dbo.dts_hourly_entry
           SET headq_synced_at = DATEADD(HOUR, 8, SYSUTCDATETIME()),
               headq_sync_error = NULL
-          WHERE ${isProduce ? 'produce_id' : 'waste_id'} = @id
+          WHERE entry_id = @id
             AND sync_id = @syncId
             AND headq_synced_at IS NULL
-            AND ${isProduce ? 'time_mixing' : 'time_waste'} = @timeValue
-            AND ${isProduce ? 'date_mix' : 'date_waste'} = @entryDate
+            AND time_value = @timeValue
+            AND entry_date = @entryDate
             AND shell_qty = @shellQty
             AND ring_qty = @ringQty
             AND jpops_qty = @jpopsQty
@@ -544,112 +540,93 @@ async function syncPendingHourlyEntriesOnce(): Promise<number> {
         .input('syncId', sql.UniqueIdentifier, entry.syncId)
         .input('lastError', sql.NVarChar(1000), errorMessage.slice(0, 1000))
         .query(`
-          UPDATE ${entry.kind === 'produce' ? 'dbo.dts_produce' : 'dbo.dts_waste'}
+          UPDATE dbo.dts_hourly_entry
           SET headq_sync_error = @lastError
-          WHERE ${entry.kind === 'produce' ? 'produce_id' : 'waste_id'} = @id
+          WHERE entry_id = @id
             AND sync_id = @syncId
             AND headq_synced_at IS NULL
         `)
-      console.error(`Unable to sync hourly ${entry.kind} entry ${entry.syncId} to HEADQ.`, error)
+      console.error(`Unable to sync hourly ${entry.kind} entry ${entry.syncId} to OracleDB.`, error)
     }
   }
 
-  const remainingResult = await localPool.request().query<{ pendingCount: number }>(`
-    SELECT
-      (SELECT COUNT(*) FROM dbo.dts_produce
-       WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL)
-      +
-      (SELECT COUNT(*) FROM dbo.dts_waste
-       WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL)
-      AS pendingCount
+  const remainingRequest = localPool.request()
+  const remainingSyncIdParameters = syncIds?.map((syncId, index) => {
+    const parameter = `syncId${index}`
+    remainingRequest.input(parameter, sql.UniqueIdentifier, syncId)
+    return `@${parameter}`
+  }) ?? []
+  const remainingSyncIdPredicate = remainingSyncIdParameters.length > 0
+    ? ` AND sync_id IN (${remainingSyncIdParameters.join(', ')})`
+    : ''
+  const remainingResult = await remainingRequest.query<{ pendingCount: number }>(`
+    SELECT COUNT(*) AS pendingCount
+    FROM dbo.dts_hourly_entry
+    WHERE sync_id IS NOT NULL AND headq_synced_at IS NULL${remainingSyncIdPredicate}
   `)
 
   return Number(remainingResult.recordset[0]?.pendingCount ?? 0)
 }
 
-async function ensureHeadqHourlySchema(): Promise<void> {
-  if (headqSchemaReady) {
+async function ensureHourlySchema(): Promise<void> {
+  const config = await getDatabaseSqlConfig('hourly')
+  const target = `${config.server}\0${config.database}`
+  if (hourlySchemaTarget === target) {
     return
   }
 
-  const headqPool = await getHeadqDbPool()
-  await headqPool.request().query(createHeadqTablesSchema)
-  await headqPool.request().query(addHeadqSyncIdColumnsSchema)
-  await headqPool.request().query(headqSyncIdSchema)
-  await headqPool.request().query(headqSyncStatusSchema)
-  await ensureProduceTimeCategoryIndex(headqPool)
-  headqSchemaReady = true
+  const hourlyPool = await getHourlyDbPool()
+  await hourlyPool.request().query(createHourlyTableSchema)
+  await hourlyPool.request().query(`
+    IF EXISTS (SELECT 1 FROM sys.check_constraints
+      WHERE parent_object_id = OBJECT_ID(N'dbo.dts_hourly_entry') AND name = N'CK_dts_hourly_entry_category')
+      ALTER TABLE dbo.dts_hourly_entry DROP CONSTRAINT CK_dts_hourly_entry_category;
+    ALTER TABLE dbo.dts_hourly_entry WITH CHECK ADD CONSTRAINT CK_dts_hourly_entry_category
+      CHECK (category IN ('produce', 'waste', 'transfers'));
+  `)
+  await hourlyPool.request().query(addHourlySyncIdColumnsSchema)
+  await hourlyPool.request().query(hourlySyncIdSchema)
+  await hourlyPool.request().query(hourlySyncStatusSchema)
+  await ensureProduceTimeCategoryIndex(hourlyPool)
+  hourlySchemaTarget = target
 }
 
 export async function loadHourlyRecords(
   input: HourlyRecordsInput,
 ): Promise<HourlyRecord[]> {
   const pool = await getLocalDbPool()
-  const [produceResult, wasteResult] = await Promise.all([
-    pool
-      .request()
-      .input('startDate', sql.Date, input.startDate)
-      .input('endDate', sql.Date, input.endDate)
-      .input('locationName', sql.VarChar(50), input.locationName)
-      .query(`
-        SELECT
-          produce_id AS id,
-          CONVERT(char(10), date_mix, 23) AS entryDate,
-          LTRIM(RTRIM(time_mixing)) AS time,
-          ISNULL(shell_qty, 0) AS shellQty,
-          ISNULL(ring_qty, 0) AS ringQty,
-          ISNULL(jpops_qty, 0) AS jpopsQty,
-          LTRIM(RTRIM(Remarks)) AS remarks
-        FROM dbo.dts_produce
-        WHERE date_mix >= @startDate
-          AND date_mix < DATEADD(day, 1, @endDate)
-          AND locationname = @locationName
-        ORDER BY date_mix DESC, time_mixing
-      `),
-    pool
-      .request()
-      .input('startDate', sql.Date, input.startDate)
-      .input('endDate', sql.Date, input.endDate)
-      .input('locationName', sql.VarChar(50), input.locationName)
-      .query(`
-        SELECT
-          waste_id AS id,
-          CONVERT(char(10), date_waste, 23) AS entryDate,
-          LTRIM(RTRIM(time_waste)) AS time,
-          ISNULL(shell_qty, 0) AS shellQty,
-          ISNULL(ring_qty, 0) AS ringQty,
-          ISNULL(jpops_qty, 0) AS jpopsQty,
-          LTRIM(RTRIM(Remarks)) AS remarks
-        FROM dbo.dts_waste
-        WHERE date_waste >= @startDate
-          AND date_waste < DATEADD(day, 1, @endDate)
-          AND locationname = @locationName
-        ORDER BY date_waste DESC, time_waste
-      `),
-  ])
+  const result = await pool
+    .request()
+    .input('startDate', sql.Date, input.startDate)
+    .input('endDate', sql.Date, input.endDate)
+    .input('locationName', sql.VarChar(50), input.locationName)
+    .query(`
+      SELECT
+        entry_id AS id,
+        category AS kind,
+        CONVERT(char(10), entry_date, 23) AS entryDate,
+        LTRIM(RTRIM(time_value)) AS time,
+        ISNULL(shell_qty, 0) AS shellQty,
+        ISNULL(ring_qty, 0) AS ringQty,
+        ISNULL(jpops_qty, 0) AS jpopsQty,
+        LTRIM(RTRIM(Remarks)) AS remarks
+      FROM dbo.dts_hourly_entry
+      WHERE entry_date >= @startDate
+        AND entry_date < DATEADD(day, 1, @endDate)
+        AND locationname = @locationName
+      ORDER BY entry_date DESC, time_value
+    `)
 
-  return [
-    ...produceResult.recordset.map((row): HourlyRecord => ({
-      id: Number(row.id),
-      kind: 'produce',
-      entryDate: String(row.entryDate ?? ''),
-      time: String(row.time ?? ''),
-      shellQty: Number(row.shellQty ?? 0),
-      ringQty: Number(row.ringQty ?? 0),
-      jpopsQty: Number(row.jpopsQty ?? 0),
-      remarks: String(row.remarks ?? ''),
-    })),
-    ...wasteResult.recordset.map((row): HourlyRecord => ({
-      id: Number(row.id),
-      kind: 'waste',
-      entryDate: String(row.entryDate ?? ''),
-      time: String(row.time ?? ''),
-      shellQty: Number(row.shellQty ?? 0),
-      ringQty: Number(row.ringQty ?? 0),
-      jpopsQty: Number(row.jpopsQty ?? 0),
-      remarks: String(row.remarks ?? ''),
-    })),
-  ].sort((left, right) =>
+  return result.recordset.map((row): HourlyRecord => ({
+    id: Number(row.id),
+    kind: row.kind === 'waste' ? 'waste' : row.kind === 'transfers' ? 'transfers' : 'produce',
+    entryDate: String(row.entryDate ?? ''),
+    time: String(row.time ?? ''),
+    shellQty: Number(row.shellQty ?? 0),
+    ringQty: Number(row.ringQty ?? 0),
+    jpopsQty: Number(row.jpopsQty ?? 0),
+    remarks: String(row.remarks ?? ''),
+  })).sort((left, right) =>
     right.entryDate.localeCompare(left.entryDate) ||
     left.time.localeCompare(right.time) ||
     left.kind.localeCompare(right.kind),
@@ -658,14 +635,9 @@ export async function loadHourlyRecords(
 
 export async function updateHourlyRecord(
   input: UpdateHourlyRecordInput,
-): Promise<void> {
+): Promise<string | null> {
   const pool = await getLocalDbPool()
   await ensureLocalHourlySyncColumns(pool)
-  const isProduce = input.kind === 'produce'
-  const tableName = isProduce ? 'dbo.dts_produce' : 'dbo.dts_waste'
-  const idColumn = isProduce ? 'produce_id' : 'waste_id'
-  const timeColumn = isProduce ? 'time_mixing' : 'time_waste'
-  const dateColumn = isProduce ? 'date_mix' : 'date_waste'
   const result = await pool
     .request()
     .input('id', sql.Int, input.id)
@@ -676,11 +648,12 @@ export async function updateHourlyRecord(
     .input('jpopsQty', sql.Int, input.jpopsQty)
     .input('remarks', sql.VarChar(50), input.remarks)
     .input('locationName', sql.VarChar(50), input.locationName)
-    .query(`
-      UPDATE ${tableName}
+    .input('category', sql.VarChar(10), input.kind)
+    .query<{ syncId: string }>(`
+      UPDATE dbo.dts_hourly_entry
       SET
-        ${dateColumn} = @entryDate,
-        ${timeColumn} = @timeValue,
+        entry_date = @entryDate,
+        time_value = @timeValue,
         shell_qty = @shellQty,
         ring_qty = @ringQty,
         jpops_qty = @jpopsQty,
@@ -688,7 +661,9 @@ export async function updateHourlyRecord(
         sync_id = COALESCE(sync_id, NEWID()),
         headq_synced_at = NULL,
         headq_sync_error = NULL
-      WHERE ${idColumn} = @id
+      OUTPUT CONVERT(VARCHAR(36), INSERTED.sync_id) AS syncId
+      WHERE entry_id = @id
+        AND category = @category
         AND locationname = @locationName
     `)
 
@@ -696,9 +671,16 @@ export async function updateHourlyRecord(
     throw new Error('The record was not found or is no longer available for this location. Refresh the records and try again.')
   }
 
-  void syncPendingHourlyEntries().catch((error: unknown) => {
-    console.error('The POS record was updated, but HEADQ sync could not run.', error)
-  })
+  const syncId = result.recordset[0]?.syncId
+  if (!syncId) {
+    throw new Error('The updated record has no sync ID and could not be queued for OracleDB synchronization.')
+  }
+
+  return syncEntriesImmediately(
+    pool,
+    [syncId],
+    'The POS record was updated, but OracleDB sync failed.',
+  )
 }
 
 export async function loadHourlyReportSources(
@@ -706,14 +688,14 @@ export async function loadHourlyReportSources(
 ): Promise<HourlyReportSources> {
   const pool = await getLocalDbPool()
 
-  const [produceResult, wasteResult, salesResult, posWasteResult, posFocResult] = await Promise.all([
+  const [produceResult, wasteResult, transferResult, salesResult, posWasteResult, posFocResult] = await Promise.all([
     pool
       .request()
       .input('businessDate', sql.Date, input.businessDate)
       .input('locationName', sql.VarChar(50), input.locationName)
       .query(`
         SELECT
-          LTRIM(RTRIM(time_mixing)) AS time,
+          LTRIM(RTRIM(time_value)) AS time,
           LTRIM(RTRIM(Remarks)) AS remarks,
           SUM(CASE
             WHEN UPPER(LTRIM(RTRIM(Remarks))) = 'RECEIVED DONUTS' THEN ABS(ISNULL(shell_qty, 0))
@@ -727,10 +709,11 @@ export async function loadHourlyReportSources(
             WHEN UPPER(LTRIM(RTRIM(Remarks))) = 'RECEIVED DONUTS' THEN ABS(ISNULL(jpops_qty, 0))
             ELSE ISNULL(jpops_qty, 0)
           END) AS jpopsQty
-        FROM dbo.dts_produce
-        WHERE date_mix = @businessDate
+        FROM dbo.dts_hourly_entry
+        WHERE category = 'produce'
+          AND entry_date = @businessDate
           AND locationname = @locationName
-        GROUP BY time_mixing, Remarks
+        GROUP BY time_value, Remarks
       `),
     pool
       .request()
@@ -738,15 +721,33 @@ export async function loadHourlyReportSources(
       .input('locationName', sql.VarChar(50), input.locationName)
       .query(`
         SELECT
-          LTRIM(RTRIM(time_waste)) AS time,
+          LTRIM(RTRIM(time_value)) AS time,
           LTRIM(RTRIM(Remarks)) AS remarks,
           SUM(ISNULL(shell_qty, 0)) AS shellQty,
           SUM(ISNULL(ring_qty, 0)) AS ringQty,
           SUM(ISNULL(jpops_qty, 0)) AS jpopsQty
-        FROM dbo.dts_waste
-        WHERE date_waste = @businessDate
+        FROM dbo.dts_hourly_entry
+        WHERE category = 'waste'
+          AND entry_date = @businessDate
           AND locationname = @locationName
-        GROUP BY time_waste, Remarks
+        GROUP BY time_value, Remarks
+      `),
+    pool
+      .request()
+      .input('businessDate', sql.Date, input.businessDate)
+      .input('locationName', sql.VarChar(50), input.locationName)
+      .query(`
+        SELECT
+          LTRIM(RTRIM(time_value)) AS time,
+          LTRIM(RTRIM(Remarks)) AS remarks,
+          SUM(ISNULL(shell_qty, 0)) AS shellQty,
+          SUM(ISNULL(ring_qty, 0)) AS ringQty,
+          SUM(ISNULL(jpops_qty, 0)) AS jpopsQty
+        FROM dbo.dts_hourly_entry
+        WHERE category = 'transfers'
+          AND entry_date = @businessDate
+          AND locationname = @locationName
+        GROUP BY time_value, Remarks
       `),
     pool
       .request()
@@ -800,6 +801,13 @@ export async function loadHourlyReportSources(
       jpopsQty: Number(row.jpopsQty ?? 0),
     })),
     waste: wasteResult.recordset.map((row): HourlyReportSourceRow => ({
+      time: String(row.time ?? ''),
+      remarks: String(row.remarks ?? ''),
+      shellQty: Number(row.shellQty ?? 0),
+      ringQty: Number(row.ringQty ?? 0),
+      jpopsQty: Number(row.jpopsQty ?? 0),
+    })),
+    transfers: transferResult.recordset.map((row): HourlyReportSourceRow => ({
       time: String(row.time ?? ''),
       remarks: String(row.remarks ?? ''),
       shellQty: Number(row.shellQty ?? 0),

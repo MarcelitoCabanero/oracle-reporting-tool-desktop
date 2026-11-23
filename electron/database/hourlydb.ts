@@ -24,15 +24,24 @@ export async function getHourlyDbPool(): Promise<sql.ConnectionPool> {
   }
 
   connecting = getDatabaseSqlConfig('hourly')
-    .then((config) => new sql.ConnectionPool({
-      ...config,
-      pool: {
-        max: 5,
-        min: 0,
-        idleTimeoutMillis: 30000,
-      },
-    }))
-    .then((nextPool) => nextPool.connect())
+    .then((config) => {
+      const nextPool = new sql.ConnectionPool({
+        ...config,
+        pool: {
+          max: 5,
+          min: 0,
+          idleTimeoutMillis: 30000,
+        },
+      })
+
+      return nextPool.connect().then((connectedPool) => {
+        console.log(
+          `OracleDB hourly connection established: ${config.server}/${config.database}.`,
+        )
+
+        return connectedPool
+      })
+    })
     .then((connectedPool) => {
       pool = connectedPool
 

@@ -27,7 +27,7 @@ import HourlySummaryReports from './HourlySummaryReports'
 
 import './HourlySalesPage.css'
 
-type EntryKind = 'produce' | 'waste'
+type EntryKind = 'produce' | 'waste' | 'transfers'
 
 interface EntryDraft {
   id: string
@@ -135,17 +135,18 @@ function HourlyEntryForm({
   const [kind, setKind] = useState<EntryKind>('produce')
   const [produceRows, setProduceRows] = useState<EntryDraft[]>(() => [createDraft()])
   const [wasteRows, setWasteRows] = useState<EntryDraft[]>(() => [createDraft()])
+  const [transferRows, setTransferRows] = useState<EntryDraft[]>(() => [createDraft()])
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState<'success' | 'error'>('success')
   const fieldRefs = useRef(new Map<string, HTMLInputElement | HTMLSelectElement>())
   const addButtonRef = useRef<HTMLButtonElement>(null)
 
-  const rows = kind === 'produce' ? produceRows : wasteRows
-  const setRows = kind === 'produce' ? setProduceRows : setWasteRows
+  const rows = kind === 'produce' ? produceRows : kind === 'waste' ? wasteRows : transferRows
+  const setRows = kind === 'produce' ? setProduceRows : kind === 'waste' ? setWasteRows : setTransferRows
   const remarksOptions = kind === 'produce'
     ? ['Produced Donuts', 'Received Donuts']
-    : ['Proofing', 'Frying', 'Topping']
+    : kind === 'waste' ? ['Proofing', 'Frying', 'Topping'] : ['Transfer']
   const timeOptions = kind === 'produce'
     ? ['Retarding', ...timeSlots]
     : timeSlots
@@ -293,7 +294,7 @@ function HourlyEntryForm({
         rows: preparedRows,
       })
 
-      setMessageType('success')
+      setMessageType(result.syncStatus === 'synced' ? 'success' : 'error')
       setMessage(result.message)
       setRows([createDraft()])
       onSaved()
@@ -306,7 +307,7 @@ function HourlyEntryForm({
   }
 
   return (
-    <section className="hourly-sales-panel hourly-entry-panel" aria-label="Hourly production and waste entry">
+    <section className="hourly-sales-panel hourly-entry-panel" aria-label="Hourly production, waste, and transfers entry">
         <div className="hourly-sales-toolbar">
           <div className="hourly-sales-tabs" role="tablist" aria-label="Entry type">
             <button
@@ -327,6 +328,15 @@ function HourlyEntryForm({
             >
               Waste
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={kind === 'transfers'}
+              className={kind === 'transfers' ? 'active' : ''}
+              onClick={() => changeKind('transfers')}
+            >
+              Transfers
+            </button>
           </div>
 
           <div className="hourly-sales-location">
@@ -338,7 +348,7 @@ function HourlyEntryForm({
         <form onSubmit={handleSubmit} noValidate>
           <div className="hourly-sales-summary">
             <div>
-              <span>{kind === 'produce' ? 'Produce entries' : 'Waste entries'}</span>
+              <span>{kind === 'produce' ? 'Produce entries' : kind === 'waste' ? 'Waste entries' : 'Transfer entries'}</span>
               <strong>{rows.length}</strong>
             </div>
             <div>
@@ -355,7 +365,7 @@ function HourlyEntryForm({
             </div>
             <div className="hourly-sales-kind-label">
               <Clock3 size={17} aria-hidden="true" />
-              <span>{kind === 'produce' ? 'Production log' : 'Waste log'}</span>
+              <span>{kind === 'produce' ? 'Production log' : kind === 'waste' ? 'Waste log' : 'Stock transfer'}</span>
             </div>
           </div>
 
@@ -377,7 +387,7 @@ function HourlyEntryForm({
 
                 <div className="hourly-entry-fields">
                   <div className="hourly-entry-field">
-                    <label htmlFor={`${row.id}-time`}>{kind === 'produce' ? 'Time mixing' : 'Time waste'}</label>
+                    <label htmlFor={`${row.id}-time`}>{kind === 'produce' ? 'Time mixing' : kind === 'waste' ? 'Time waste' : 'Transfer time'}</label>
                     <select
                       id={`${row.id}-time`}
                       aria-label={`Entry ${index + 1} time`}
@@ -490,7 +500,7 @@ function HourlyEntryForm({
               disabled={saving || rows.length === 0 || !user?.locationName}
             >
               <Save size={16} aria-hidden="true" />
-              {saving ? 'Saving entries...' : `Save ${kind === 'produce' ? 'produce' : 'waste'}`}
+              {saving ? 'Saving entries...' : `Save ${kind === 'produce' ? 'produce' : kind === 'waste' ? 'waste' : 'transfers'}`}
             </button>
           </div>
 
@@ -644,6 +654,7 @@ function HourlyRecords({
         remarks: draft.remarks,
         locationName,
       })
+      setMessageType(result.syncStatus === 'synced' ? 'success' : 'error')
       setMessage(result.message)
       setEditingId(null)
       setDraft(null)
@@ -673,7 +684,7 @@ function HourlyRecords({
     <section className="hourly-sales-panel hourly-records-panel" aria-label="Produce and waste records">
       <header className="hourly-records-heading">
         <div>
-          <h2>Produce / Waste Records</h2>
+          <h2>Hourly Transaction Records</h2>
           <p>{locationName || 'Location unavailable'} · {startDate} to {endDate}</p>
         </div>
         <div className="hourly-records-controls">
@@ -687,12 +698,13 @@ function HourlyRecords({
             <option value="all">All types</option>
             <option value="produce">Produce</option>
             <option value="waste">Waste</option>
+            <option value="transfers">Transfers</option>
           </select>
           <span>{filteredRecords.length.toLocaleString()} {filteredRecords.length === 1 ? 'record' : 'records'}</span>
         </div>
       </header>
 
-      {loading && <HourlySalesLoading message="Loading Produce and Waste records..." />}
+      {loading && <HourlySalesLoading message="Loading hourly transaction records..." />}
       {loadError && <div className="hourly-sales-message error" role="alert">{loadError}</div>}
       {!loading && !loadError && (
         <div>
@@ -720,13 +732,13 @@ function HourlyRecords({
                     : timeSlots
                   const remarksOptions = record.kind === 'produce'
                     ? ['Produced Donuts', 'Received Donuts']
-                    : ['Proofing', 'Frying', 'Topping']
+                    : record.kind === 'waste' ? ['Proofing', 'Frying', 'Topping'] : ['Transfer']
 
                   return (
                     <tr key={key} className={isEditing ? 'hourly-records-editing' : undefined}>
                       <td>
                         <span className={`hourly-record-kind ${record.kind}`}>
-                          {record.kind === 'produce' ? 'Produce' : 'Waste'}
+                          {record.kind === 'produce' ? 'Produce' : record.kind === 'waste' ? 'Waste' : 'Transfers'}
                         </span>
                       </td>
                       <td>
@@ -788,8 +800,8 @@ function HourlyRecords({
                 {filteredRecords.length === 0 && (
                   <tr><td className="hourly-sales-empty" colSpan={tableColSpan}>
                     {records.length === 0
-                      ? 'No Produce or Waste records in this date range.'
-                      : `No ${kindFilter === 'produce' ? 'Produce' : 'Waste'} records in this date range.`}
+                      ? 'No hourly transaction records in this date range.'
+                      : `No ${kindFilter === 'produce' ? 'Produce' : kindFilter === 'waste' ? 'Waste' : 'Transfers'} records in this date range.`}
                   </td></tr>
                 )}
               </tbody>

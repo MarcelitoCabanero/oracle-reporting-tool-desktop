@@ -1,4 +1,4 @@
-export type HourlyEntryKind = 'produce' | 'waste'
+export type HourlyEntryKind = 'produce' | 'waste' | 'transfers'
 
 export interface HourlyEntryRow {
   time: string
@@ -19,6 +19,7 @@ export interface CreateHourlyEntriesInput {
 export interface CreateHourlyEntriesResult {
   success: boolean
   insertedCount: number
+  syncStatus: 'synced' | 'pending'
   message: string
 }
 
@@ -51,6 +52,7 @@ export interface UpdateHourlyRecordInput extends Omit<HourlyRecord, 'id'> {
 
 export interface UpdateHourlyRecordResult {
   success: boolean
+  syncStatus: 'synced' | 'pending'
   message: string
 }
 
@@ -90,6 +92,7 @@ export interface HourlyPosFocTotals {
 export interface HourlyReportSources {
   produce: HourlyReportSourceRow[]
   waste: HourlyReportSourceRow[]
+  transfers: HourlyReportSourceRow[]
   sales: HourlySalesSourceRow[]
   posWaste: HourlyPosWasteTotals
   posFoc: HourlyPosFocTotals
@@ -117,6 +120,7 @@ export interface HourlyDailyRow {
   toppingGood: HourlyQuantityTotals
   toppingWasteRate: number
   sold: HourlyQuantityTotals
+  transfers: HourlyQuantityTotals
   ending: HourlyQuantityTotals
 }
 
@@ -124,6 +128,7 @@ export interface HourlyDailySummary {
   produced: HourlyQuantityTotals
   received: HourlyQuantityTotals
   sold: HourlyQuantityTotals
+  transferred: HourlyQuantityTotals
   netProducedSales: HourlyQuantityTotals
   variance: HourlyQuantityTotals
   tolerableVariance: number

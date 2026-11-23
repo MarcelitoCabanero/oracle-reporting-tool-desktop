@@ -16,6 +16,7 @@ import { registerVarianceCheckingIpc } from './ipc/variance-checking.ipc.js'
 import { registerEmployeeSalesIpc } from './ipc/employee-sales.ipc.js'
 import { registerHourlySalesIpc } from './ipc/hourly-sales.ipc.js'
 import { syncPendingHourlyEntries } from './hourly-sales/hourly-sales.repository.js'
+import { syncPendingSummaryInputs } from './hourly-sales/hourly-summary.repository.js'
 import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
 import { registerSettingsIpc } from './ipc/settings.ipc.js'
 import { registerVoidSummaryIpc } from './ipc/void-summary.ipc.js'
@@ -97,7 +98,10 @@ registerHourlySalesIpc()
 
 function retryPendingHourlySync() {
   void syncPendingHourlyEntries().catch((error: unknown) => {
-    console.error('Unable to check pending hourly entries for HEADQ synchronization.', error)
+    console.error('Unable to check pending hourly entries for OracleDB synchronization.', error)
+  })
+  void syncPendingSummaryInputs().catch((error: unknown) => {
+    console.error('Unable to check pending Donut summary input synchronization.', error)
   })
 }
 

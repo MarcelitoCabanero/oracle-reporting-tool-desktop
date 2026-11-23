@@ -18,13 +18,13 @@ interface ConnectionSettingsFormProps {
 
 const databaseLabels: Record<DatabaseKey, string> = {
   local: 'Local POS database (checkpostingdb)',
-  hq: 'HQ server connection (OracleDB)',
+  hq: 'HQ server connection',
   headq: 'HEADQ database',
-  hourly: 'Hourly sales / OracleDB source',
+  hourly: 'Hourly sync destination (OracleDB)',
 }
 
-const editableDatabaseKeys: DatabaseKey[] = ['local', 'hq']
-const sharedHqDatabaseKeys: DatabaseKey[] = ['headq', 'hourly']
+const editableDatabaseKeys: DatabaseKey[] = ['local', 'hq', 'hourly']
+const sharedHqDatabaseKeys: DatabaseKey[] = ['headq']
 
 function ConnectionSettingsForm({
   mode,
@@ -176,7 +176,7 @@ function ConnectionSettingsForm({
   return (
     <div>
       <p className="text-secondary">
-        Configure only the local POS server and the HQ server. OracleDB, HEADQ, and hourly reporting databases all use the same HQ server, port, username, and password. Connection passwords are encrypted on this device; leave a password blank to keep it.
+        Hourly entries sync to the configured OracleDB destination (default: 192.168.5.201 / oracledb). Configure its connection separately from HQ and use Test connection to verify access. The HEADQ database uses the HQ server and credentials. Connection passwords are encrypted on this device; leave a password blank to keep it.
       </p>
 
       {error && <div className="alert alert-danger py-2" role="alert">{error}</div>}
@@ -235,7 +235,7 @@ function ConnectionSettingsForm({
 
         <section className="col-12">
           <div className="border rounded-3 p-3">
-            <h3 className="h6 mb-1">Other databases on the HQ server</h3>
+            <h3 className="h6 mb-1">Other database on the HQ server</h3>
             <p className="small text-secondary">
               These use the HQ connection credentials above. Test each database to verify it exists and the account has access.
             </p>

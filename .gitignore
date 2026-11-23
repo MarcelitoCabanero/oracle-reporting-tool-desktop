@@ -21,9 +21,9 @@ release/
 # OS
 .DS_Store
 Thumbs.db
-
-
-
 /backup
 
 .README.md
+
+
+database/

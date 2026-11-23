@@ -27,6 +27,10 @@ import type {
   HourlyRecordsInput,
   UpdateHourlyRecordInput,
 } from './hourly-sales/hourly-sales.types.js'
+import type {
+  HourlySummaryInputKey,
+  SaveHourlySummaryInput,
+} from './hourly-sales/hourly-summary.repository.js'
 
 import type {
   TenderListingInput,
@@ -390,6 +394,10 @@ hourlySales: {
       'hourly-sales:update-record',
       input,
     ),
+  getSummaryInput: (input: HourlySummaryInputKey) =>
+    ipcRenderer.invoke('hourly-sales:get-summary-input', input),
+  saveSummaryInput: (input: SaveHourlySummaryInput) =>
+    ipcRenderer.invoke('hourly-sales:save-summary-input', input),
 },
 
 varianceChecking: {

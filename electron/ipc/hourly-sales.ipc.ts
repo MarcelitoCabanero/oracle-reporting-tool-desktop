@@ -8,6 +8,14 @@ import {
   getHourlyRecords,
   getHourlyDailyReport,
 } from '../hourly-sales/hourly-sales.service.js'
+import {
+  loadHourlySummaryInput,
+  saveHourlySummaryInput,
+} from '../hourly-sales/hourly-summary.repository.js'
+import type {
+  HourlySummaryInputKey,
+  SaveHourlySummaryInput,
+} from '../hourly-sales/hourly-summary.repository.js'
 
 import type {
   CreateHourlyEntriesInput,
@@ -39,5 +47,15 @@ export function registerHourlySalesIpc() {
     'hourly-sales:update-record',
     async (_event, input: UpdateHourlyRecordInput) =>
       editHourlyRecord(input),
+  )
+
+  ipcMain.handle(
+    'hourly-sales:get-summary-input',
+    async (_event, input: HourlySummaryInputKey) => loadHourlySummaryInput(input),
+  )
+
+  ipcMain.handle(
+    'hourly-sales:save-summary-input',
+    async (_event, input: SaveHourlySummaryInput) => saveHourlySummaryInput(input),
   )
 }

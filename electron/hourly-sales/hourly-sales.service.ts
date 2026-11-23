@@ -100,6 +100,7 @@ function emptyRowTotals(): HourlyDailyRow {
     toppingGood: emptyTotals(),
     toppingWasteRate: 0,
     sold: emptyTotals(),
+    transfers: emptyTotals(),
     ending: emptyTotals(),
   }
 }
@@ -125,6 +126,7 @@ function rollupHourlyReport(
   const produceByHour = new Map<string, { produced: HourlyQuantityTotals; received: HourlyQuantityTotals }>()
   const wasteByHour = new Map<string, { proofing: HourlyQuantityTotals; frying: HourlyQuantityTotals; topping: HourlyQuantityTotals }>()
   const salesByHour = new Map<string, HourlyQuantityTotals>()
+  const transfersByHour = new Map<string, HourlyQuantityTotals>()
 
   for (const row of sources.produce) {
     if (row.time.trim().toUpperCase() === 'RETARDING') {
@@ -175,6 +177,11 @@ function rollupHourlyReport(
     }))
   }
 
+  for (const row of sources.transfers) {
+    const key = normalizeHourRange(row.time)
+    transfersByHour.set(key, addTotals(transfersByHour.get(key) ?? emptyTotals(), sourceTotals([row])))
+  }
+
   let priorEnding: HourlyQuantityTotals = {
     ring: retardingProduced.ring,
     shell: retardingProduced.shell + retardingProduced.jpops,
@@ -196,6 +203,7 @@ function rollupHourlyReport(
     row.fryingWaste = waste?.frying ?? emptyTotals()
     row.toppingWaste = waste?.topping ?? emptyTotals()
     row.sold = salesByHour.get(key) ?? emptyTotals()
+    row.transfers = transfersByHour.get(key) ?? emptyTotals()
 
     const beforeProofingRing = row.opening.ring + row.received.ring + row.produced.ring
     const beforeProofingShell = row.opening.shell + row.received.shell + row.received.jpops + row.produced.shell + row.produced.jpops
@@ -233,10 +241,10 @@ function rollupHourlyReport(
     )
 
     row.ending = {
-      ring: row.toppingGood.ring - row.sold.ring,
-      shell: row.toppingGood.shell - row.sold.shell - row.sold.jpops,
+      ring: row.toppingGood.ring - row.sold.ring - row.transfers.ring,
+      shell: row.toppingGood.shell - row.sold.shell - row.sold.jpops - row.transfers.shell - row.transfers.jpops,
       jpops: 0,
-      total: row.toppingGood.total - row.sold.total,
+      total: row.toppingGood.total - row.sold.total - row.transfers.total,
     }
     priorEnding = row.ending
 
@@ -245,6 +253,7 @@ function rollupHourlyReport(
 
   const produced = sourceTotals(sources.produce.filter((row) => row.remarks !== 'Received Donuts'))
   const received = sourceTotals(sources.produce.filter((row) => row.remarks === 'Received Donuts'))
+  const transferred = sourceTotals(sources.transfers)
   const sold = rows.reduce((total, row) => addTotals(total, row.sold), emptyTotals())
   const proofingWaste = rows.reduce((total, row) => addTotals(total, row.proofingWaste), emptyTotals())
   const fryingWaste = rows.reduce((total, row) => addTotals(total, row.fryingWaste), emptyTotals())
@@ -257,10 +266,10 @@ function rollupHourlyReport(
     total: sold.total - received.total,
   }
   const variance: HourlyQuantityTotals = {
-    ring: produced.ring - netProducedSales.ring,
-    shell: produced.shell + produced.jpops - netProducedSales.shell,
+    ring: produced.ring - netProducedSales.ring - transferred.ring,
+    shell: produced.shell + produced.jpops - netProducedSales.shell - transferred.shell - transferred.jpops,
     jpops: 0,
-    total: produced.total - netProducedSales.total,
+    total: produced.total - netProducedSales.total - transferred.total,
   }
   const endingInventory = rows.at(-1)?.ending ?? emptyTotals()
   const tolerableVariance = produced.total * 0.03
@@ -287,6 +296,7 @@ function rollupHourlyReport(
       produced,
       received,
       sold,
+      transferred,
       netProducedSales,
       variance,
       tolerableVariance,
@@ -334,8 +344,8 @@ function normalizeEntryQuantity(
 export async function createHourlyEntries(
   input: CreateHourlyEntriesInput,
 ): Promise<CreateHourlyEntriesResult> {
-  if (input.kind !== 'produce' && input.kind !== 'waste') {
-    throw new Error('Choose either Produce or Waste.')
+  if (!['produce', 'waste', 'transfers'].includes(input.kind)) {
+    throw new Error('Choose Produce, Waste, or Transfers.')
   }
 
   if (!input.locationName.trim() || input.locationName.length > 50) {
@@ -397,15 +407,19 @@ export async function createHourlyEntries(
     })
   }
 
-  await insertHourlyEntries({
+  const syncError = await insertHourlyEntries({
     ...input,
     rows: normalizedRows,
   })
 
+  const entryCount = input.rows.length
   return {
     success: true,
-    insertedCount: input.rows.length,
-    message: `${input.rows.length} ${input.kind} ${input.rows.length === 1 ? 'entry' : 'entries'} saved on this POS and queued for HEADQ synchronization.`,
+    insertedCount: entryCount,
+    syncStatus: syncError ? 'pending' : 'synced',
+    message: syncError
+      ? `${entryCount} ${input.kind} ${entryCount === 1 ? 'entry was' : 'entries were'} saved. Synchronization is pending and will retry automatically.`
+      : `${entryCount} ${input.kind} ${entryCount === 1 ? 'entry was' : 'entries were'} saved successfully.`,
   }
 }
 
@@ -446,8 +460,8 @@ export async function getHourlyRecords(
 export async function editHourlyRecord(
   input: UpdateHourlyRecordInput,
 ): Promise<UpdateHourlyRecordResult> {
-  if (input.kind !== 'produce' && input.kind !== 'waste') {
-    throw new Error('Choose either a Produce or Waste record.')
+  if (!['produce', 'waste', 'transfers'].includes(input.kind)) {
+    throw new Error('Choose a valid transaction type.')
   }
 
   if (!Number.isSafeInteger(input.id) || input.id <= 0) {
@@ -481,7 +495,7 @@ export async function editHourlyRecord(
     throw new Error('The record must have at least one quantity greater than zero.')
   }
 
-  await updateHourlyRecord({
+  const syncError = await updateHourlyRecord({
     ...input,
     time: input.time.trim(),
     remarks: input.remarks.trim(),
@@ -492,6 +506,9 @@ export async function editHourlyRecord(
 
   return {
     success: true,
-    message: `${input.kind === 'produce' ? 'Produce' : 'Waste'} record updated.`,
+    syncStatus: syncError ? 'pending' : 'synced',
+    message: syncError
+      ? `${input.kind === 'produce' ? 'Produce' : input.kind === 'waste' ? 'Waste' : 'Transfer'} record updated. Synchronization is pending and will retry automatically.`
+      : `${input.kind === 'produce' ? 'Produce' : input.kind === 'waste' ? 'Waste' : 'Transfer'} record updated.`,
   }
 }
