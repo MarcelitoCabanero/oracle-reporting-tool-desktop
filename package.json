@@ -2,7 +2,7 @@
   "name": "oracle-reporting-tool-desktop",
   "description": "Oracle Reporting Tool desktop application",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.0.9",
   "type": "module",
   "main": "electron-build/main.js",
   "scripts": {
@@ -38,9 +38,8 @@
       "artifactName": "${productName}-${version}-Setup.${ext}"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "deleteAppDataOnUninstall": false

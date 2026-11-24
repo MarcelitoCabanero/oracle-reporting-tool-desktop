@@ -26,6 +26,8 @@ const __dirname = path.dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
 const { autoUpdater } = updater
+const updateCheckIntervalMs = 5 * 60 * 1000
+let updateCheckInFlight = false
 
 type AppUpdateStatus =
   | 'checking'
@@ -77,7 +79,7 @@ ipcMain.handle('app:install-update', () => {
     throw new Error('Application updates are only available in the installed app.')
   }
 
-  autoUpdater.quitAndInstall()
+  autoUpdater.quitAndInstall(true, true)
 })
 
 registerAuthIpc()
@@ -167,15 +169,29 @@ app.whenReady().then(() => {
       sendUpdateStatus('idle')
     })
 
-    const checkForUpdates = () => {
-      void autoUpdater.checkForUpdates().catch((error: unknown) => {
+    const checkForUpdates = async () => {
+      if (
+        updateCheckInFlight ||
+        appUpdateStatus === 'available' ||
+        appUpdateStatus === 'downloading' ||
+        appUpdateStatus === 'ready'
+      ) {
+        return
+      }
+
+      updateCheckInFlight = true
+      try {
+        await autoUpdater.checkForUpdates()
+      } catch (error) {
         console.error('Unable to check for application updates:', error)
         sendUpdateStatus('idle')
-      })
+      } finally {
+        updateCheckInFlight = false
+      }
     }
 
     setTimeout(checkForUpdates, 3000)
-    setInterval(checkForUpdates, 4 * 60 * 60 * 1000)
+    setInterval(checkForUpdates, updateCheckIntervalMs)
   }
 
   app.on('activate', () => {
