@@ -67,7 +67,7 @@ interface LocationOption {
   locationId: number
   locationName: string
 }
-type AppUpdateStatus = 'checking' | 'available' | 'downloading' | 'ready' | 'idle'
+export type AppUpdateStatus = 'checking' | 'available' | 'downloading' | 'ready' | 'error' | 'idle'
 interface VersionCheckResult {
   success: boolean
   currentVersion: string
@@ -729,6 +729,7 @@ declare global {
           Promise<string>
         getUpdateStatus: () => Promise<AppUpdateStatus>
         installUpdate: () => Promise<void>
+        retryUpdate: () => Promise<void>
         onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => () => void
       }
 

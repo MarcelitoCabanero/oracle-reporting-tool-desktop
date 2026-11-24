@@ -46,6 +46,7 @@ type AppUpdateStatus =
   | 'available'
   | 'downloading'
   | 'ready'
+  | 'error'
   | 'idle'
 
 contextBridge.exposeInMainWorld('api', {
@@ -53,6 +54,7 @@ contextBridge.exposeInMainWorld('api', {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
     getUpdateStatus: () => ipcRenderer.invoke('app:get-update-status') as Promise<AppUpdateStatus>,
     installUpdate: () => ipcRenderer.invoke('app:install-update'),
+    retryUpdate: () => ipcRenderer.invoke('app:retry-update'),
     onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, status: AppUpdateStatus) => callback(status)
       ipcRenderer.on('app:update-status', listener)

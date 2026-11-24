@@ -17,6 +17,7 @@ import type {
 } from '../types/navigation'
 import type { Theme } from '../App'
 import type { MissingMenuItem } from '../pages/MaintenancePage'
+import type { AppUpdateStatus } from '../types/electron'
 
 import {
   useAuth,
@@ -37,13 +38,6 @@ interface AppLayoutProps {
   onMarkDepositNotificationsSeen?: (depositIds?: number[]) => void
   children: ReactNode
 }
-
-type UpdateStatus =
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'downloading'
-  | 'ready'
 
 function getPageTitle(page: Page): string {
   switch (page) {
@@ -103,7 +97,7 @@ function AppLayout({
   const [appVersion, setAppVersion] = useState('v1.0.0')
 const { user, logout } = useAuth()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>('idle')
+  const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>('idle')
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
   useEffect(() => {

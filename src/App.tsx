@@ -28,6 +28,7 @@ import {
 import type {
   Page,
 } from './types/navigation'
+import type { AppUpdateStatus } from './types/electron'
 
 export type Theme = 'light' | 'dark'
 
@@ -97,6 +98,75 @@ function PlaceholderPage({
   )
 }
 
+function RequiredUpdateScreen({
+  status,
+  actionError,
+  actionInProgress,
+  onInstall,
+  onRetry,
+}: {
+  status: Exclude<AppUpdateStatus, 'idle' | 'checking'>
+  actionError: string
+  actionInProgress: boolean
+  onInstall: () => void
+  onRetry: () => void
+}) {
+  const isReady = status === 'ready'
+  const hasError = status === 'error'
+
+  const statusMessage = hasError
+    ? 'The required update could not be downloaded. Retry the download to continue.'
+    : isReady
+      ? 'The update is ready. Restart the application to install it before continuing.'
+      : status === 'available'
+        ? 'A new version is available. The required update is being prepared.'
+        : 'Downloading the required update. Please keep the application open.'
+
+  return (
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-light p-4"
+      style={{ zIndex: 2000 }}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="required-update-title"
+      aria-describedby="required-update-message"
+    >
+      <section className="bg-white border rounded-4 shadow-sm p-4 p-md-5 text-center w-100" style={{ maxWidth: 480 }}>
+        {!isReady && !hasError && (
+          <div className="spinner-border text-primary mb-3" role="status" aria-label="Updating" />
+        )}
+
+        <h1 id="required-update-title" className="h4 fw-bold mb-3">
+          Required update
+        </h1>
+        <p id="required-update-message" className="text-secondary mb-4">
+          {statusMessage}
+        </p>
+
+        {actionError && (
+          <div className="alert alert-danger small text-start" role="alert">
+            {actionError}
+          </div>
+        )}
+
+        {isReady ? (
+          <button type="button" className="btn btn-primary px-4" onClick={onInstall} disabled={actionInProgress}>
+            {actionInProgress ? 'Restarting to update…' : 'Restart and install update'}
+          </button>
+        ) : hasError ? (
+          <button type="button" className="btn btn-primary px-4" onClick={onRetry} disabled={actionInProgress}>
+            {actionInProgress ? 'Retrying update…' : 'Retry update'}
+          </button>
+        ) : (
+          <div className="small text-secondary" role="status">
+            The application will be available after the update is installed.
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
 function App() {
   const [
     activePage,
@@ -113,6 +183,9 @@ function App() {
   const [checkingNotifications, setCheckingNotifications] = useState(false)
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
   const [maintenanceAutoLoadTrigger, setMaintenanceAutoLoadTrigger] = useState(0)
+  const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>('idle')
+  const [updateActionError, setUpdateActionError] = useState('')
+  const [updateActionInProgress, setUpdateActionInProgress] = useState(false)
   const checkingRef = useRef(false)
 
   const {
@@ -121,6 +194,52 @@ function App() {
   } = useAuth()
 
   const locationName = user?.locationName ?? ''
+
+  useEffect(() => {
+    let receivedStatusEvent = false
+    const unsubscribe = window.api.app.onUpdateStatus((status) => {
+      receivedStatusEvent = true
+      setUpdateStatus(status)
+      setUpdateActionError('')
+    })
+
+    void window.api.app.getUpdateStatus()
+      .then((status) => {
+        if (!receivedStatusEvent) {
+          setUpdateStatus(status)
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Unable to read application update status:', error)
+      })
+
+    return unsubscribe
+  }, [])
+
+  async function installRequiredUpdate() {
+    setUpdateActionInProgress(true)
+    setUpdateActionError('')
+    try {
+      await window.api.app.installUpdate()
+    } catch (error) {
+      console.error('Unable to install required application update:', error)
+      setUpdateActionError(error instanceof Error ? error.message : 'Unable to start the update installation.')
+      setUpdateActionInProgress(false)
+    }
+  }
+
+  async function retryRequiredUpdate() {
+    setUpdateActionInProgress(true)
+    setUpdateActionError('')
+    try {
+      await window.api.app.retryUpdate()
+    } catch (error) {
+      console.error('Unable to retry the required application update:', error)
+      setUpdateActionError(error instanceof Error ? error.message : 'Unable to retry the update download.')
+    } finally {
+      setUpdateActionInProgress(false)
+    }
+  }
 
   const seenDepositSignatures = useMemo(
     () => (locationName ? seenByLocation[locationName] ?? loadSeenDepositSignatures(locationName) : []),
@@ -237,6 +356,23 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  if (
+    updateStatus === 'available' ||
+    updateStatus === 'downloading' ||
+    updateStatus === 'ready' ||
+    updateStatus === 'error'
+  ) {
+    return (
+      <RequiredUpdateScreen
+        status={updateStatus}
+        actionError={updateActionError}
+        actionInProgress={updateActionInProgress}
+        onInstall={() => void installRequiredUpdate()}
+        onRetry={() => void retryRequiredUpdate()}
+      />
+    )
+  }
 
   function renderPage() {
     switch (activePage) {

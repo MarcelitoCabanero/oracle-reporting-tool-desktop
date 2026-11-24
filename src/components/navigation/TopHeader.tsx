@@ -35,7 +35,7 @@ interface TopHeaderProps {
   onToggleSidebar: () => void
   userName?: string
   userRole?: string
-  updateStatus?: 'idle' | 'checking' | 'available' | 'downloading' | 'ready'
+  updateStatus?: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'
   onUpdateClick?: () => void
   missingMenuItems?: MissingMenuItem[]
   depositNotifications?: DepositNotificationItem[]
@@ -142,6 +142,7 @@ function TopHeader({
       case 'available': return 'Update available'
       case 'downloading': return 'Downloading update...'
       case 'ready': return 'Restart to update'
+      case 'error': return 'Update download failed'
       default: return ''
     }
   }

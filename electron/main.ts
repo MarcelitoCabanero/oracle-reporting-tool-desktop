@@ -34,13 +34,37 @@ type AppUpdateStatus =
   | 'available'
   | 'downloading'
   | 'ready'
+  | 'error'
   | 'idle'
 
 let appUpdateStatus: AppUpdateStatus = 'idle'
+let updateFound = false
 
 function sendUpdateStatus(status: AppUpdateStatus) {
   appUpdateStatus = status
   mainWindow?.webContents.send('app:update-status', status)
+}
+
+async function checkForUpdates() {
+  if (
+    !app.isPackaged ||
+    updateCheckInFlight ||
+    appUpdateStatus === 'available' ||
+    appUpdateStatus === 'downloading' ||
+    appUpdateStatus === 'ready'
+  ) {
+    return
+  }
+
+  updateCheckInFlight = true
+  try {
+    await autoUpdater.checkForUpdates()
+  } catch (error) {
+    console.error('Unable to check for application updates:', error)
+    sendUpdateStatus(updateFound ? 'error' : 'idle')
+  } finally {
+    updateCheckInFlight = false
+  }
 }
 
 function createWindow() {
@@ -49,6 +73,10 @@ function createWindow() {
   height: 900,
 
   minWidth: 1024,
+  icon: path.join(
+    __dirname,
+    app.isPackaged ? '../dist/jco-logo.png' : '../public/jco-logo.png',
+  ),
   minHeight: 700,
 
   webPreferences: {
@@ -80,6 +108,14 @@ ipcMain.handle('app:install-update', () => {
   }
 
   autoUpdater.quitAndInstall(true, true)
+})
+
+ipcMain.handle('app:retry-update', async () => {
+  if (!app.isPackaged || !updateFound) {
+    throw new Error('There is no required application update to retry.')
+  }
+
+  await checkForUpdates()
 })
 
 registerAuthIpc()
@@ -159,36 +195,24 @@ app.whenReady().then(() => {
   if (app.isPackaged) {
     autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
-    autoUpdater.on('checking-for-update', () => sendUpdateStatus('checking'))
-    autoUpdater.on('update-available', () => sendUpdateStatus('available'))
+    autoUpdater.on('checking-for-update', () => {
+      if (!updateFound) {
+        sendUpdateStatus('checking')
+      }
+    })
+    autoUpdater.on('update-available', () => {
+      updateFound = true
+      sendUpdateStatus('available')
+    })
     autoUpdater.on('download-progress', () => sendUpdateStatus('downloading'))
     autoUpdater.on('update-downloaded', () => sendUpdateStatus('ready'))
-    autoUpdater.on('update-not-available', () => sendUpdateStatus('idle'))
+    autoUpdater.on('update-not-available', () => {
+      sendUpdateStatus(updateFound ? 'error' : 'idle')
+    })
     autoUpdater.on('error', (error) => {
       console.error('Application update check failed:', error)
-      sendUpdateStatus('idle')
+      sendUpdateStatus(updateFound ? 'error' : 'idle')
     })
-
-    const checkForUpdates = async () => {
-      if (
-        updateCheckInFlight ||
-        appUpdateStatus === 'available' ||
-        appUpdateStatus === 'downloading' ||
-        appUpdateStatus === 'ready'
-      ) {
-        return
-      }
-
-      updateCheckInFlight = true
-      try {
-        await autoUpdater.checkForUpdates()
-      } catch (error) {
-        console.error('Unable to check for application updates:', error)
-        sendUpdateStatus('idle')
-      } finally {
-        updateCheckInFlight = false
-      }
-    }
 
     setTimeout(checkForUpdates, 3000)
     setInterval(checkForUpdates, updateCheckIntervalMs)
