@@ -30,7 +30,6 @@ const emptyValues = (): HourlySummaryInputValues => Object.fromEntries(
   hourlySummaryInputColumns.map((column) => [column, null]),
 ) as HourlySummaryInputValues
 
-let localReady: sql.ConnectionPool | null = null
 let hourlyReadyTarget: string | null = null
 let syncing: Promise<number> | null = null
 

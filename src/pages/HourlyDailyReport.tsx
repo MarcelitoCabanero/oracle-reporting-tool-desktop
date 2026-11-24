@@ -236,7 +236,8 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
     : `${firstReport.businessDate}..${lastReport.businessDate}`
   const storageKey = `hourly-sales-summary:${firstReport.locationName}:${storageDate}`
   const [storedInputs, setStoredInputs] = useState(() => readManualSummaryInputs(storageKey, reports))
-  const [databaseLoaded, setDatabaseLoaded] = useState(false)
+  const [loadedStorageKey, setLoadedStorageKey] = useState<string | null>(null)
+  const databaseLoaded = loadedStorageKey === storageKey
   const [inputsEdited, setInputsEdited] = useState(false)
   const [syncMessage, setSyncMessage] = useState('')
   const editVersion = useRef(0)
@@ -245,7 +246,6 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
 
   useEffect(() => {
     let active = true
-    setDatabaseLoaded(false)
     void window.api.hourlySales.getSummaryInput({
       dateFrom: firstReport.businessDate,
       dateTo: lastReport.businessDate,
@@ -274,11 +274,11 @@ export function HourlyProductionSummary({ reports }: { reports: HourlyDailyRepor
           }
         }
       }
-      if (active) setDatabaseLoaded(true)
+      if (active) setLoadedStorageKey(storageKey)
     }).catch((error: unknown) => {
       if (active) {
         setStoredInputs((current) => ({ ...current, error: error instanceof Error ? error.message : 'Unable to load Donut Summary inputs from CheckPostingDB.' }))
-        setDatabaseLoaded(true)
+        setLoadedStorageKey(storageKey)
       }
     })
     return () => { active = false }

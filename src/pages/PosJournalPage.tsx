@@ -54,13 +54,11 @@ function HighlightedJournalText({
 
   const matcher = new RegExp(`(${escapeRegExp(trimmedSearch)})`, 'gi')
   const parts = text.split(matcher)
-  let matchIndex = matchOffset
 
   return parts.map((part, index) => {
     if (index % 2 === 0) return part
 
-    const currentIndex = matchIndex
-    matchIndex += 1
+    const currentIndex = matchOffset + (index - 1) / 2
 
     return (
       <mark
@@ -88,10 +86,22 @@ function PosJournalPage() {
   const [message, setMessage] = useState('Select a date or check number to load a receipt.')
   const activeMatchRef = useRef<HTMLElement | null>(null)
 
-  const totalMatches = rows.reduce(
-    (total, row) => total + countMatches(row.journalText, searchText),
-    0,
-  )
+  const rowsWithOffsets = rows.reduce<
+    { row: PosJournalRecord; offset: number; nextOffset: number }[]
+  >((acc, row) => {
+    const offset = acc.length > 0 ? acc[acc.length - 1].nextOffset : 0
+    acc.push({
+      row,
+      offset,
+      nextOffset: offset + countMatches(row.journalText, searchText),
+    })
+    return acc
+  }, [])
+
+  const totalMatches =
+    rowsWithOffsets.length > 0
+      ? rowsWithOffsets[rowsWithOffsets.length - 1].nextOffset
+      : 0
 
   useEffect(() => {
     activeMatchRef.current?.scrollIntoView({
@@ -181,8 +191,6 @@ function PosJournalPage() {
 
     setActiveMatch((activeMatch + 1) % totalMatches)
   }
-
-  let matchOffset = 0
 
   const isBusy = loading || exporting
 
@@ -340,11 +348,7 @@ function PosJournalPage() {
             </div>
 
             <div id="pos-journal-print-area" className="pos-journal-list">
-              {rows.map((row) => {
-                const rowOffset = matchOffset
-                matchOffset += countMatches(row.journalText, searchText)
-
-                return (
+              {rowsWithOffsets.map(({ row, offset }) => (
                   <article
                     className={row.posJournalLogId === exportReceiptId
                       ? 'pos-journal-receipt pos-journal-export-target'
@@ -356,15 +360,14 @@ function PosJournalPage() {
                         text={row.journalText}
                         search={searchText}
                         activeMatch={activeMatch}
-                        matchOffset={rowOffset}
+                        matchOffset={offset}
                         onActiveMatch={(element) => {
                           activeMatchRef.current = element
                         }}
                       />
                     </pre>
                   </article>
-                )
-              })}
+              ))}
             </div>
           </main>
         </div>

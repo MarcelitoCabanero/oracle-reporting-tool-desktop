@@ -1,111 +1,126 @@
-# React + TypeScript + Vite
+# Oracle Reporting Tool Desktop
 
-## Login database
+Desktop reporting, synchronization, and store operations management application built with **Electron**, **React 19**, **TypeScript**, **Vite**, and **SQL Server (`mssql`)**.
 
-Login credentials are checked against `dbo.dts_location` in the local POS database configured by `LOCAL_DB_SERVER`, `LOCAL_DB_DATABASE`, `LOCAL_DB_USER`, `LOCAL_DB_PASSWORD`, and `LOCAL_DB_PORT` in `.env`. Set `LOCAL_DB_DATABASE=checkpostingdb` when that is the database containing the login table. The HQ database is not used for login; an HQ connection issue does not prevent local database login.
+---
 
-## Windows installer and updates
+## Key Features & Modules
 
-Create a Windows x64 NSIS installer locally with `npm run dist:win`; the installer is written to `release/`. The packaged app loads its local production UI and keeps per-device connection settings in Electron user data.
+### 1. Authentication & Local POS Provisioning
+- **Local POS Login**: Credentials are verified against `dbo.dts_location` in the local POS database (`checkpostingdb`). Login does not depend on HQ database availability, allowing store operations to continue during network or HQ outages.
+- **Pre-Login Setup & Provisioning**: If the local POS database cannot be reached or `dbo.dts_location` is missing, the login screen offers connection setup and one-click POS table provisioning.
+- **Role-Based Access**: Users with the `admin` role can access **Settings** from the sidebar (protected by an active admin password prompt).
+- **Theme Support**: Toggle between Light and Dark mode from the collapsible sidebar.
 
-To publish an update, increment the `version` in `package.json`, commit and push the changes, then push a matching version tag (for example, `v1.0.1`). The GitHub Actions workflow builds the installer and publishes the installer and update metadata to a GitHub Release. Installed apps check the public GitHub Releases feed, download updates in the background, and offer a **Restart to update** action; installation and app restart happen when the user selects it. No one needs to download and run the installer again. Windows code signing is not configured, so Windows may show an unverified-publisher warning during initial installation.
+### 2. Connection Settings & Auto-Updates
+- **Database Connections**: Manages SQL Server configurations for:
+  - **Local POS** (`LOCAL_DB_*`, default database `checkpostingdb`)
+  - **HQ / OracleDB** (`HQ_DB_*`, default database `OracleDB`)
+  - **HEADQ** (`HEADQ_DB_DATABASE`, shares HQ server, port, username, and password)
+  - **Hourly Reporting** (`HOURLY_DB_*`, independent connection config for hourly sync and location lookup)
+- **FTP Configuration**: Configures FTP host, credentials, and secure mode (`basic-ftp`) with built-in connection testing.
+- **Encrypted Credential Storage**: Saved settings are encrypted on disk in Electron `userData` (`connection-settings.bin`) via Electron `safeStorage`. Passwords are never returned to the UI, and leaving a password field blank preserves the existing saved secret. `.env` values act as defaults until settings are saved.
+- **Local Table Provisioning**: Reads active store locations from `dbo.dts_location` on the configured Hourly/OracleDB server and provisions local `dbo.dts_location` and `dbo.dts_hourly_entry` in `checkpostingdb` within a single transaction (automatically copying the active `admin` account and dropping legacy `dbo.dts_produce` / `dbo.dts_waste` tables after explicit confirmation).
 
-## Connection settings
+### 3. Hourly Sales, Production, Waste & Stock Transfers
+- **Unified Hourly Entry (`dbo.dts_hourly_entry`)**: Consolidates production (`produce`), waste (`waste`), and stock transfers (`transfers`) for Shell, Ring, and J.Pops quantities into a single table on both the local POS (`checkpostingdb`) and remote hourly (`OracleDB`) databases.
+- **Automated POS Sales, J.Club & FOC Waste Integration**: Tracks hourly POS sales, J.Club sales, batch calculations, production allocation, and automated POS FOC waste metrics.
+- **Hourly Daily & Summary Reports**:
+  - **Entry & Records Management**: Create, view, and update hourly produce, waste, and transfer records.
+  - **Daily & Multi-Day Summary Views**: Rollup inventory calculations incorporating beginning inventory, production, transfers, POS sales, waste, ending inventory, and variance.
+- **Database-Persisted Donut Summary Inputs (`dbo.dts_summary_input`)**:
+  - Persists manual summary inputs (`promotions_ring/shell`, `training_ring/shell`, `staff_meal_ring/shell`, `waste_dough_grams_ring/shell`, `waste_frozen_dough_ring/shell`, `buffer_jpops_ring/shell`) per store and date range in `checkpostingdb` and syncs them to `OracleDB`.
+  - Automatically migrates legacy `localStorage` summary inputs to the database and aggregates daily inputs across multi-day ranges when an exact range override is not present.
+- **Resilient Background Synchronization**:
+  - Entries and summary inputs commit to the local POS database first with a `sync_id` (`UNIQUEIDENTIFIER`), `headq_synced_at`, and `headq_sync_error`.
+  - The app syncs pending rows immediately after save, at startup, and every minute in the background.
+  - Legacy `dbo.dts_produce`, `dbo.dts_waste`, and `dbo.hourly_entry_sync_outbox` rows are automatically migrated into `dbo.dts_hourly_entry`.
 
-When the local POS database cannot be reached or its `dts_location` login table is missing, the login screen offers connection setup and local table initialization before sign-in. After login, users with the `admin` role can open Settings from the sidebar and must re-enter an active admin password to unlock it. Settings manage two SQL Server configurations: local POS and HQ. OracleDB, HEADQ, and hourly reporting use the same HQ server, port, username, and password, with their own database names. Each database still needs to exist and grant that account access. FTP settings are also available. Saved credentials are encrypted with Electron `safeStorage` in the application user-data directory; passwords are never returned to the settings form, and leaving a password field blank preserves its saved value. Existing `.env` values are used as defaults until settings are saved.
+### 4. System Sales & Hybrid HQ / Local DB Reporting
+- **Hybrid Date-Split Query Engine**: For `v_salesdetails`-backed reports, the app inspects date coverage in HQ (`OracleDB`) and automatically splits date ranges to pull synced dates from HQ and unsynced/recent dates from the Local POS database, merging results seamlessly.
+- **Sales Summary & POS Workstation Sales**: View and export store sales summaries or workstation-level POS sales (`workstationMode`) with formatted Excel and PDF exports.
+- **Employee Sales & Variance Checking**: Analyze employee sales and check variances between POS and synced records, automatically excluding `±0.01` rounding differences from variance flags.
+- **SC / PWD Listing**: Filter Senior Citizen and PWD discount transactions by date range and search terms, with formatted Excel and PDF export.
+- **Tender Listing**: Filter and search tender breakdowns across date ranges.
+- **Void Summary Report**: Inspect and export voided invoices and cancelled line items with search, filtering, and Excel export.
 
-The setup panel reads active store names from `dbo.dts_location` on the configured OracleDB (hourly database connection). Select the stores to add to the local `checkpostingdb`; the active admin account is copied automatically so future admin settings access remains available. The POS table setup drops and recreates local `dbo.dts_location`, `dbo.dts_produce`, and `dbo.dts_waste` as one transaction. This permanently deletes existing data in those tables, so the app requires an explicit confirmation before running it.
+### 5. Deposit Monitoring, Approvals, Threads & Petty Cash
+- **Deposit Tracking**: Record and monitor bank deposits with attachment uploads via FTP/local handling.
+- **Approval Workflow**: Tracks deposit approval status (`approval_status`, `approved_by`, `approved_at`) so reviewers can approve or manage submitted deposits.
+- **Deletion Request & Approval Workflow**: Supports requesting deposit deletion with justification and an admin/approver confirmation workflow (`delete_status`, `delete_approved_at`, etc.).
+- **Petty Cash Management**: Tracks petty cash status and replenishment timestamps (`petty_cash_status`, `replenished_at`) alongside deposits.
+- **Discussion Threads & Attachments**: Dedicated tables for deposit threads and attachments allow store and HQ users to exchange remarks and supporting documents on individual deposit records.
 
-## Hourly production and waste sync
+### 6. Real-Time Header Notification System
+- **Missing Menu Items Alert**: Background polling (on login, every 15 minutes, and on manual refresh) checks for missing menu items requiring synchronization and links directly to the **Maintenance** page.
+- **Deposit Approval & Deletion Notifications**: Polls deposit status updates for the active store location, tracks seen/unread notification signatures in `localStorage` per location, and allows marking individual or all notifications as read or jumping straight to the **Deposit** page.
 
-Produce and waste entries are committed to the POS database first. Sync state is stored directly on `dbo.dts_produce` and `dbo.dts_waste`: `sync_id` identifies each row, `headq_synced_at` records successful synchronization, and `headq_sync_error` records the latest failure. The app retries pending rows to the `HEADQ` database at startup, after each save, and every minute. A unique `sync_id` on each HEADQ row makes retries safe after interruptions. The POS and HEADQ rows both receive `headq_synced_at` after sync; existing HEADQ rows with IDs and a null status are backfilled during schema setup. Rows already in the POS tables before these columns are installed remain without a `sync_id` and are not automatically uploaded. If an earlier app version created `dbo.hourly_entry_sync_outbox`, startup migrates its IDs and sync status to the corresponding POS rows, then drops the outbox table.
+### 7. Additional Store Operations Modules
+- **Remittance of Funds (ROF)**: Manage ROF summaries, cash sources, and details (backed by HQ database pools for summary and cash source queries, plus hybrid date-split support and state caching).
+- **POS Journal**: Query POS journal entries with dark-mode optimized date pickers and PDF export.
+- **Menu Item Analysis**: Analyze menu item sales performance with tab state caching and export tools.
+- **Maintenance & Data Synchronization**: Synchronize missing menu items and store data between local POS, HQ databases, and FTP.
 
-The `HEADQ` connection reuses `HQ_DB_SERVER`, `HQ_DB_PORT`, `HQ_DB_USER`, and `HQ_DB_PASSWORD`, selecting the database named by `HEADQ_DB_DATABASE` (default `HEADQ`). The HQ account needs permission to access `HEADQ` and create/alter the produce and waste tables and indexes; the POS account needs permission to alter the produce and waste tables and create indexes.
+---
 
-Check synchronization directly on the POS server:
+## Database Verification Queries
+
+Check hourly entry and summary input synchronization directly on the local POS SQL Server (`checkpostingdb`):
 
 ```sql
-SELECT produce_id, sync_id, headq_synced_at, headq_sync_error
-FROM dbo.dts_produce
+SELECT entry_id, category, time_value, entry_date, sync_id, headq_synced_at, headq_sync_error
+FROM dbo.dts_hourly_entry
 WHERE sync_id IS NOT NULL
-ORDER BY produce_id DESC;
+ORDER BY entry_id DESC;
 
-SELECT waste_id, sync_id, headq_synced_at, headq_sync_error
-FROM dbo.dts_waste
+SELECT entry_id, locationname, date_from, date_to, sync_id, headq_synced_at, headq_sync_error
+FROM dbo.dts_summary_input
 WHERE sync_id IS NOT NULL
-ORDER BY waste_id DESC;
+ORDER BY entry_id DESC;
 ```
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+---
 
-Currently, two official plugins are available:
+## Environment Variables (`.env`)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Copy `.env.example` to `.env` for local defaults (overridden when settings are saved in the app UI):
 
-## React Compiler
+```env
+# LOCAL POS DATABASE (login reads dbo.dts_location from this database)
+LOCAL_DB_SERVER=POS2
+LOCAL_DB_DATABASE=checkpostingdb
+LOCAL_DB_USER=sa
+LOCAL_DB_PASSWORD=
+LOCAL_DB_PORT=
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# HQ DATABASE
+HQ_DB_SERVER=
+HQ_DB_DATABASE=OracleDB
+HQ_DB_USER=
+HQ_DB_PASSWORD=
+HQ_DB_PORT=
 
-## Expanding the ESLint configuration
+# Remote databases
+HEADQ_DB_DATABASE=HEADQ
+HOURLY_DB_DATABASE=OracleDB
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+DB_ENCRYPT=
+DB_TRUST_SERVER_CERTIFICATE=
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Development, Windows Installer & Auto-Updates
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Development Scripts
+- `npm run dev` — Starts Vite dev server and launches Electron with hot reload.
+- `npm run build` — Compiles TypeScript (`tsc -b`), builds the Vite renderer bundle, and compiles the Electron main/preload scripts.
+- `npm run lint` — Runs ESLint across the codebase.
+- `npm run dist:win` — Builds a Windows x64 NSIS installer locally into `release/`.
 
-```
+### Publishing Updates
+1. Increment `"version"` in `package.json` (currently `1.1.1`).
+2. Commit and push the changes, then push a matching version tag (e.g. `v1.1.1`).
+3. The GitHub Actions workflow builds the Windows NSIS installer and publishes the installer and `electron-updater` metadata to GitHub Releases.
+4. Installed apps check the GitHub Releases feed, download updates in the background, and display a **Restart to update** action without requiring manual reinstallation.
+

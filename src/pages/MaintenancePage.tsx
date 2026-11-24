@@ -32,15 +32,22 @@ function MaintenancePage({
   autoLoadTrigger = 0,
   onMissingItemsChange,
 }: MaintenancePageProps) {
-  const [missingItems, setMissingItems] = useState<MissingMenuItem[]>(initialMissingItems)
-  const [loadingItems, setLoadingItems] = useState(false)
+  const [loadedItems, setLoadedItems] = useState<MissingMenuItem[] | null>(null)
+  const [loadingItems, setLoadingItems] = useState(() => autoLoadTrigger > 0)
   const [syncingItems, setSyncingItems] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
-  const [syncMessage, setSyncMessage] = useState(
-    initialMissingItems.length > 0
-      ? `${initialMissingItems.length} missing item(s) found - review the list, then sync to POS.`
-      : 'Ready - load missing items to compare HQ with the local POS database.',
+  const [customSyncMessage, setSyncMessage] = useState<string | null>(() =>
+    autoLoadTrigger > 0
+      ? 'Comparing HQ menu items against the local POS database...'
+      : null,
   )
+
+  const missingItems = loadedItems ?? initialMissingItems
+  const syncMessage =
+    customSyncMessage ??
+    (missingItems.length > 0
+      ? `${missingItems.length} missing item(s) found - review the list, then sync to POS.`
+      : 'Ready - load missing items to compare HQ with the local POS database.')
 
   const loadMissingItems = useCallback(async () => {
     setLoadingItems(true)
@@ -48,7 +55,7 @@ function MaintenancePage({
 
     try {
       const rows = await window.api.maintenance.loadMissingItems()
-      setMissingItems(rows)
+      setLoadedItems(rows)
       onMissingItemsChange?.(rows)
       setSyncMessage(
         rows.length === 0
@@ -56,7 +63,7 @@ function MaintenancePage({
           : `${rows.length} missing item(s) found - review the list, then sync to POS.`,
       )
     } catch (error) {
-      setMissingItems([])
+      setLoadedItems([])
       setSyncMessage(error instanceof Error ? error.message : 'Unable to compare menu items.')
     } finally {
       setLoadingItems(false)
@@ -64,19 +71,32 @@ function MaintenancePage({
   }, [onMissingItemsChange])
 
   useEffect(() => {
-    if (autoLoadTrigger > 0) {
-      void loadMissingItems()
+    if (autoLoadTrigger <= 0) return
+    let active = true
+    void window.api.maintenance
+      .loadMissingItems()
+      .then((rows) => {
+        if (!active) return
+        setLoadedItems(rows)
+        onMissingItemsChange?.(rows)
+        setSyncMessage(
+          rows.length === 0
+            ? 'All data is already in sync. No missing items found.'
+            : `${rows.length} missing item(s) found - review the list, then sync to POS.`,
+        )
+      })
+      .catch((error: unknown) => {
+        if (!active) return
+        setLoadedItems([])
+        setSyncMessage(error instanceof Error ? error.message : 'Unable to compare menu items.')
+      })
+      .finally(() => {
+        if (active) setLoadingItems(false)
+      })
+    return () => {
+      active = false
     }
-  }, [autoLoadTrigger, loadMissingItems])
-
-  useEffect(() => {
-    if (!loadingItems && !syncingItems && initialMissingItems.length > 0 && missingItems.length === 0) {
-      setMissingItems(initialMissingItems)
-      setSyncMessage(
-        `${initialMissingItems.length} missing item(s) found - review the list, then sync to POS.`,
-      )
-    }
-  }, [initialMissingItems, loadingItems, syncingItems, missingItems.length])
+  }, [autoLoadTrigger, onMissingItemsChange])
 
   async function syncItems() {
     if (missingItems.length === 0) {

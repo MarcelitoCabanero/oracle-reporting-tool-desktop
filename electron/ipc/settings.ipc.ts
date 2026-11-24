@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { ipcMain } from 'electron'
+import { handleIpc } from './ipc-handler.js'
 
 import { verifyAdminPassword } from '../auth/auth.repository.js'
 import {
@@ -54,9 +54,9 @@ function authorizeSettingsOperation(token?: string): void {
 }
 
 export function registerSettingsIpc() {
-  ipcMain.handle('settings:get', () => getConnectionSettingsView())
+  handleIpc('settings:get', () => getConnectionSettingsView())
 
-  ipcMain.handle('settings:admin-unlock', async (_event, password: string) => {
+  handleIpc('settings:admin-unlock', async (_event, password: string) => {
     const valid = await verifyAdminPassword(password)
     if (!valid) {
       throw new Error('The admin password is invalid.')
@@ -67,37 +67,37 @@ export function registerSettingsIpc() {
     return token
   })
 
-  ipcMain.handle('settings:test-database', async (_event, input: ConnectionSettings, key: DatabaseKey, token?: string) => {
+  handleIpc('settings:test-database', async (_event, input: ConnectionSettings, key: DatabaseKey, token?: string) => {
     authorizeSettingsOperation(token)
     await testDatabaseSettings(input, key)
     return { success: true, message: `${key} database connection successful.` }
   })
 
-  ipcMain.handle('settings:test-ftp', async (_event, input: ConnectionSettings, token?: string) => {
+  handleIpc('settings:test-ftp', async (_event, input: ConnectionSettings, token?: string) => {
     authorizeSettingsOperation(token)
     await testFtpSettings(input)
     return { success: true, message: 'FTP connection successful.' }
   })
 
-  ipcMain.handle('settings:save-bootstrap', async (_event, input: ConnectionSettings) => {
+  handleIpc('settings:save-bootstrap', async (_event, input: ConnectionSettings) => {
     await saveConnectionSettings(input)
     await resetDatabasePools()
     return { success: true, message: 'Connection settings saved securely.' }
   })
 
-  ipcMain.handle('settings:save-admin', async (_event, input: ConnectionSettings, token: string) => {
+  handleIpc('settings:save-admin', async (_event, input: ConnectionSettings, token: string) => {
     requireAdminSession(token)
     await saveConnectionSettings(input)
     await resetDatabasePools()
     return { success: true, message: 'Connection settings saved securely.' }
   })
 
-  ipcMain.handle('settings:location-options', async (_event, input: ConnectionSettings, token?: string) => {
+  handleIpc('settings:location-options', async (_event, input: ConnectionSettings, token?: string) => {
     authorizeSettingsOperation(token)
     return getLocationOptions(input)
   })
 
-  ipcMain.handle('settings:provision-local-db', async (
+  handleIpc('settings:provision-local-db', async (
     _event,
     input: ConnectionSettings,
     locationIds: number[],

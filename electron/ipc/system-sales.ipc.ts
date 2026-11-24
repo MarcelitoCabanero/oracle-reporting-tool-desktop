@@ -1,7 +1,7 @@
 import {
   BrowserWindow,
-  ipcMain,
 } from 'electron'
+import { handleIpc } from './ipc-handler.js'
 
 import {
   exportSystemSalesExcel,
@@ -19,12 +19,12 @@ import type {
 } from '../system-sales/system-sales.types.js'
 
 export function registerSystemSalesIpc() {
-  ipcMain.handle(
+  handleIpc(
     'system-sales:workstations',
     () => getWorkstations(),
   )
 
-  ipcMain.handle(
+  handleIpc(
     'system-sales:generate',
     async (
       _event,
@@ -34,7 +34,7 @@ export function registerSystemSalesIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'system-sales:export-excel',
     async (
       event,
@@ -52,7 +52,7 @@ export function registerSystemSalesIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'system-sales:export-pdf',
     async (
       event,

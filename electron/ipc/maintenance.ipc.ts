@@ -1,5 +1,3 @@
-import { ipcMain } from 'electron'
-
 import {
   getFtpConfig,
   loadMissingMenuItems,
@@ -12,19 +10,20 @@ import type {
   FtpConfig,
   MissingMenuItem,
 } from '../maintenance/maintenance.types.js'
+import { handleIpc } from './ipc-handler.js'
 
 export function registerMaintenanceIpc() {
-  ipcMain.handle('maintenance:ftp-config', () => getFtpConfig())
-  ipcMain.handle(
+  handleIpc('maintenance:ftp-config', () => getFtpConfig())
+  handleIpc(
     'maintenance:ftp-test',
     (_event, config: FtpConfig) => testConfiguredFtp(config),
   )
-  ipcMain.handle(
+  handleIpc(
     'maintenance:ftp-save',
     (_event, config: FtpConfig) => saveFtpConfig(config),
   )
-  ipcMain.handle('maintenance:missing-items', () => loadMissingMenuItems())
-  ipcMain.handle(
+  handleIpc('maintenance:missing-items', () => loadMissingMenuItems())
+  handleIpc(
     'maintenance:sync-items',
     (_event, rows: MissingMenuItem[]) => syncMissingMenuItems(rows),
   )

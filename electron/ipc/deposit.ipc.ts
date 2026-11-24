@@ -1,6 +1,4 @@
-import {
-  ipcMain,
-} from 'electron'
+import { handleIpc } from './ipc-handler.js'
 
 import {
   checkDepositStatus,
@@ -40,7 +38,7 @@ import {
 
 
 export function registerDepositIpc() {
-  ipcMain.handle(
+  handleIpc(
     'deposit:check-status',
     async (
       _event,
@@ -54,7 +52,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:create',
     async (
       _event,
@@ -66,7 +64,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:list',
     async (
       _event,
@@ -76,7 +74,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:get-by-id',
     async (
       _event,
@@ -90,7 +88,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:update',
     async (
       _event,
@@ -100,7 +98,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:delete',
     async (
       _event,
@@ -114,7 +112,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:request-delete',
     async (
       _event,
@@ -126,7 +124,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:revert-delete',
     async (
       _event,
@@ -138,42 +136,42 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:select-attachment',
     async () => {
       return selectDepositAttachment()
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:select-multiple-attachments',
     async () => {
       return selectMultipleDepositAttachments()
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:get-attachment',
     async (_event, fileName: string) => {
       return getDepositAttachmentPreview(fileName)
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:download-attachment',
     async (_event, fileName: string) => {
       return downloadDepositAttachment(fileName)
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:replace-attachment',
     async (_event, fileName: string) => {
       return replaceDepositAttachment(fileName)
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:get-thread',
     async (
       _event,
@@ -187,7 +185,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:add-thread-reply',
     async (
       _event,
@@ -199,7 +197,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:replenish-petty-cash',
     async (
       _event,
@@ -211,7 +209,7 @@ export function registerDepositIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'deposit:get-notifications',
     async (
       _event,

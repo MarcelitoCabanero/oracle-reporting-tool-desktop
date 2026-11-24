@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { handleIpc } from './ipc-handler.js'
 
 import {
   createRof,
@@ -16,7 +16,7 @@ import type {
 export function registerRofIpc() {
   console.log('Registering ROF IPC...')
 
-  ipcMain.handle(
+  handleIpc(
     'rof:load-source',
     async (
       _event,
@@ -28,7 +28,7 @@ export function registerRofIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'rof:load-details',
     async (
       _event,
@@ -40,7 +40,7 @@ export function registerRofIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'rof:create',
     async (
       _event,
@@ -50,7 +50,7 @@ export function registerRofIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'rof:delete',
     async (
       _event,
@@ -62,7 +62,7 @@ export function registerRofIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'rof:load-summary',
     async (
       _event,
@@ -77,7 +77,7 @@ export function registerRofIpc() {
       )
     },
   )
-  ipcMain.handle(
+  handleIpc(
   'rof:get-deposit-source',
   async (
     _event,

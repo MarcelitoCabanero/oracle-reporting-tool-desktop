@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { handleIpc } from './ipc-handler.js'
 
 import {
   checkSystemHealth,
@@ -13,7 +13,7 @@ export function registerSystemIpc() {
     'Registering system IPC...',
   )
 
-  ipcMain.handle(
+  handleIpc(
     'system:health-check',
     async () => {
       console.log(
@@ -24,7 +24,7 @@ export function registerSystemIpc() {
     },
   )
 
-  ipcMain.handle(
+  handleIpc(
     'system:check-version',
     async () => {
       console.log(

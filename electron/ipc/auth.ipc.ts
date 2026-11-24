@@ -1,11 +1,10 @@
-import { ipcMain } from 'electron'
-
 import { loginUser } from '../auth/auth.service.js'
+import { handleIpc } from './ipc-handler.js'
 
 export function registerAuthIpc() {
   console.log('Registering authentication IPC...')
 
-  ipcMain.handle(
+  handleIpc(
     'auth:login',
     async (
       _event,

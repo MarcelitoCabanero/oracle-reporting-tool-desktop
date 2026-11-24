@@ -109,7 +109,7 @@ function App() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const [missingMenuItems, setMissingMenuItems] = useState<MissingMenuItem[]>([])
   const [depositNotifications, setDepositNotifications] = useState<DepositNotificationItem[]>([])
-  const [seenDepositSignatures, setSeenDepositSignatures] = useState<string[]>([])
+  const [seenByLocation, setSeenByLocation] = useState<Record<string, string[]>>({})
   const [checkingNotifications, setCheckingNotifications] = useState(false)
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
   const [maintenanceAutoLoadTrigger, setMaintenanceAutoLoadTrigger] = useState(0)
@@ -120,25 +120,26 @@ function App() {
     isAuthenticated,
   } = useAuth()
 
-  useEffect(() => {
-    setSeenDepositSignatures(
-      loadSeenDepositSignatures(user?.locationName),
-    )
-  }, [user?.locationName])
+  const locationName = user?.locationName ?? ''
+
+  const seenDepositSignatures = useMemo(
+    () => (locationName ? seenByLocation[locationName] ?? loadSeenDepositSignatures(locationName) : []),
+    [locationName, seenByLocation],
+  )
 
   const unreadDepositNotifications = useMemo(() => {
-    if (depositNotifications.length === 0) {
+    if (!isAuthenticated || depositNotifications.length === 0) {
       return []
     }
     const seenSet = new Set(seenDepositSignatures)
     return depositNotifications.filter(
       (item) => !seenSet.has(getDepositNotificationSignature(item)),
     )
-  }, [depositNotifications, seenDepositSignatures])
+  }, [isAuthenticated, depositNotifications, seenDepositSignatures])
 
   const markDepositNotificationsSeen = useCallback(
     (depositIds?: number[]) => {
-      if (!user?.locationName || depositNotifications.length === 0) {
+      if (!locationName || depositNotifications.length === 0) {
         return
       }
 
@@ -155,13 +156,14 @@ function App() {
         return
       }
 
-      setSeenDepositSignatures((prev) => {
-        const merged = Array.from(new Set([...prev, ...newSigs]))
-        saveSeenDepositSignatures(user.locationName, merged)
-        return merged
+      setSeenByLocation((prev) => {
+        const current = prev[locationName] ?? loadSeenDepositSignatures(locationName)
+        const merged = Array.from(new Set([...current, ...newSigs]))
+        saveSeenDepositSignatures(locationName, merged)
+        return { ...prev, [locationName]: merged }
       })
     },
-    [user?.locationName, depositNotifications],
+    [locationName, depositNotifications],
   )
 
   const checkMissingMenuItems = useCallback(async () => {
@@ -177,8 +179,8 @@ function App() {
         window.api?.maintenance?.loadMissingItems
           ? window.api.maintenance.loadMissingItems().catch(() => [])
           : Promise.resolve([]),
-        user?.locationName && window.api?.deposit?.getNotifications
-          ? window.api.deposit.getNotifications(user.locationName).catch(() => [])
+        locationName && window.api?.deposit?.getNotifications
+          ? window.api.deposit.getNotifications(locationName).catch(() => [])
           : Promise.resolve([]),
       ])
 
@@ -191,23 +193,23 @@ function App() {
       checkingRef.current = false
       setCheckingNotifications(false)
     }
-  }, [user?.locationName])
+  }, [locationName])
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setMissingMenuItems([])
-      setDepositNotifications([])
-      setLastCheckedAt(null)
       return
     }
 
-    void checkMissingMenuItems()
+    const initialTimer = window.setTimeout(() => {
+      void checkMissingMenuItems()
+    }, 0)
 
     const timer = window.setInterval(() => {
       void checkMissingMenuItems()
     }, notificationPollIntervalMs)
 
     return () => {
+      window.clearTimeout(initialTimer)
       window.clearInterval(timer)
     }
   }, [isAuthenticated, checkMissingMenuItems])

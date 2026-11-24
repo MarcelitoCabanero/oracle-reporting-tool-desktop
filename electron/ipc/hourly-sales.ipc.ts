@@ -1,6 +1,4 @@
-import {
-  ipcMain,
-} from 'electron'
+import { handleIpc } from './ipc-handler.js'
 
 import {
   createHourlyEntries,
@@ -25,36 +23,36 @@ import type {
 } from '../hourly-sales/hourly-sales.types.js'
 
 export function registerHourlySalesIpc() {
-  ipcMain.handle(
+  handleIpc(
     'hourly-sales:get-daily-report',
     async (_event, input: HourlyDailyReportInput) =>
       getHourlyDailyReport(input),
   )
 
-  ipcMain.handle(
+  handleIpc(
     'hourly-sales:create-entries',
     async (_event, input: CreateHourlyEntriesInput) =>
       createHourlyEntries(input),
   )
 
-  ipcMain.handle(
+  handleIpc(
     'hourly-sales:get-records',
     async (_event, input: HourlyRecordsInput) =>
       getHourlyRecords(input),
   )
 
-  ipcMain.handle(
+  handleIpc(
     'hourly-sales:update-record',
     async (_event, input: UpdateHourlyRecordInput) =>
       editHourlyRecord(input),
   )
 
-  ipcMain.handle(
+  handleIpc(
     'hourly-sales:get-summary-input',
     async (_event, input: HourlySummaryInputKey) => loadHourlySummaryInput(input),
   )
 
-  ipcMain.handle(
+  handleIpc(
     'hourly-sales:save-summary-input',
     async (_event, input: SaveHourlySummaryInput) => saveHourlySummaryInput(input),
   )

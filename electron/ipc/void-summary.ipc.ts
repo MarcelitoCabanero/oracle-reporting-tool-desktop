@@ -1,19 +1,24 @@
-import { BrowserWindow, ipcMain } from 'electron'
+import { BrowserWindow } from 'electron'
 
 import { generateVoidSummaryReport } from '../void-summary/void-summary.service.js'
 import {
   exportVoidSummaryExcel,
   exportVoidSummaryPdf,
 } from '../void-summary/void-summary.export.js'
+import type {
+  VoidSummaryExportInput,
+  VoidSummaryInput,
+} from '../void-summary/void-summary.types.js'
+import { handleIpc } from './ipc-handler.js'
 
 export function registerVoidSummaryIpc() {
-  ipcMain.handle('void-summary:generate', (_event, input) =>
+  handleIpc('void-summary:generate', (_event, input: VoidSummaryInput) =>
     generateVoidSummaryReport(input),
   )
-  ipcMain.handle('void-summary:export-excel', (event, input) =>
+  handleIpc('void-summary:export-excel', (event, input: VoidSummaryExportInput) =>
     exportVoidSummaryExcel(input, BrowserWindow.fromWebContents(event.sender) ?? undefined),
   )
-  ipcMain.handle('void-summary:export-pdf', (event, input) =>
+  handleIpc('void-summary:export-pdf', (event, input: VoidSummaryExportInput) =>
     exportVoidSummaryPdf(input, BrowserWindow.fromWebContents(event.sender) ?? undefined),
   )
 }
