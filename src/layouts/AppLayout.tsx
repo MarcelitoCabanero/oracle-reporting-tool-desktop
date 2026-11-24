@@ -62,6 +62,9 @@ function getPageTitle(page: Page): string {
     case 'menu-item':
       return 'Menu Item'
 
+    case 'sales-target':
+      return 'Sales Target'
+
     case 'pos-journal':
       return 'POS Journal'
 

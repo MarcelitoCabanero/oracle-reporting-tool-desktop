@@ -980,6 +980,16 @@ voidSummary: {
   exportPdf: (input: import('./void-summary').VoidSummaryExportInput) => Promise<import('./void-summary').VoidSummaryExportResult>
 }
 scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => Promise<Array<Record<string, unknown>>>; exportExcel: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }>; exportPdf: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string }> }
+salesTarget: {
+  load: (input: { targetYear: number; targetQuarter: number }) => Promise<import('../../electron/sales-target/sales-target.repository').SalesTargetLoadResult>
+  exportWorksheetExcel: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string; filePath?: string }>
+  exportWorksheetPdf: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string; filePath?: string }>
+  exportAnalyticsExcel: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string; filePath?: string }>
+  exportAnalyticsPdf: (input: unknown) => Promise<{ success: boolean; canceled: boolean; message: string; filePath?: string }>
+}
+financeInsight: {
+  load: (input: { dateFrom: string; dateTo: string }) => Promise<import('../../electron/finance-insight/finance-insight.repository').FinanceInsightLoadResult>
+}
 
 
     }

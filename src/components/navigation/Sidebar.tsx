@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   BarChart3, ChevronDown, ChevronRight, Clock3, FileBarChart,
-  LayoutDashboard, LogOut, Menu, Moon, NotebookText, ReceiptText, ShieldCheck, Sun, WalletCards,
+  LayoutDashboard, LogOut, Menu, Moon, NotebookText, ReceiptText, ShieldCheck, Sun, Target, WalletCards,
 } from 'lucide-react'
 import logo from '../../assets/jco-logo.png'
 import type { Page } from '../../types/navigation'
@@ -93,6 +93,7 @@ function Sidebar({ activePage, userRole, collapsed, theme, onThemeChange, onNavi
           <NavItem label="Hourly Sales" page="hourly-sales" icon={<Clock3 size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
           <NavItem label="System Sales" page="system-sales" icon={<FileBarChart size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
           <NavItem label="Menu Item" page="menu-item" icon={<Menu size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
+          <NavItem label="Sales Target" page="sales-target" icon={<Target size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
           <NavItem label="POS Journal" page="pos-journal" icon={<NotebookText size={18} />} activePage={activePage} collapsed={collapsed} onNavigate={onNavigate} />
         </SidebarSection>
         <SidebarSection title="FINANCE" collapsed={collapsed}>
