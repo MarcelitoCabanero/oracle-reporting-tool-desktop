@@ -73,10 +73,9 @@ function createWindow() {
   height: 900,
 
   minWidth: 1024,
-  icon: path.join(
-    __dirname,
-    app.isPackaged ? '../dist/jco-logo.png' : '../public/jco-logo.png',
-  ),
+  icon: app.isPackaged
+    ? path.join(process.resourcesPath, 'jco-logo.png')
+    : path.join(app.getAppPath(), 'src', 'assets', 'jco-logo.png'),
   minHeight: 700,
 
   webPreferences: {
