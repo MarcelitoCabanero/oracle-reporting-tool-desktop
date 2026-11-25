@@ -7,7 +7,6 @@ import {
   LoaderCircle,
   RefreshCw,
   Store as StoreIcon,
-  Target,
   TrendingUp,
   Users,
 } from 'lucide-react'
@@ -317,45 +316,31 @@ export default function SalesTargetPage() {
 
   return (
     <div className="system-sales-workspace salestarget-workspace">
-      {/* Page Header & Side-by-Side View Mode Tabs (auto-scales cleanly at 125% DPI) */}
-      <div className="salestarget-header-bar mb-2">
-        <div className="d-flex align-items-center gap-3 salestarget-header-title-wrap">
-          <div className="salestarget-icon-badge d-flex align-items-center justify-content-center rounded-3 flex-shrink-0">
-            <Target size={19} />
-          </div>
-          <div className="min-w-0">
-            <h2 className="h6 fw-bold mb-0">
-              Quarterly Sales Target &amp; Actual Performance
-            </h2>
-            <p className="salestarget-subtitle mb-0">
-              Store-scoped quarterly target worksheet, category quantity breakdown (PCS / BOXES), and hybrid POS actuals.
-            </p>
-          </div>
-        </div>
+      {/* View Mode Tabs — Same tab design as Menu Item (.rof-view-tabs / .rof-view-tab) */}
+      <div className="rof-view-tabs menu-item-view-tabs mb-3" role="tablist" aria-label="Sales Target Views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'analytics'}
+          className={`rof-view-tab ${activeTab === 'analytics' ? 'active' : ''}`}
+          disabled={loading}
+          onClick={() => setActiveTab('analytics')}
+        >
+          <BarChart3 size={17} />
+          Target vs. Actual
+        </button>
 
-        {/* View Mode Tab Switcher */}
-        <div className="salestarget-tab-switcher" role="tablist" aria-label="Sales Target Views">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'analytics'}
-            className={`salestarget-tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analytics')}
-          >
-            <BarChart3 size={14} />
-            <span>Target vs. Actual</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'worksheet'}
-            className={`salestarget-tab-btn ${activeTab === 'worksheet' ? 'active' : ''}`}
-            onClick={() => setActiveTab('worksheet')}
-          >
-            <FileSpreadsheet size={14} />
-            <span>Target Worksheet</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'worksheet'}
+          className={`rof-view-tab ${activeTab === 'worksheet' ? 'active' : ''}`}
+          disabled={loading}
+          onClick={() => setActiveTab('worksheet')}
+        >
+          <FileSpreadsheet size={17} />
+          Target Worksheet
+        </button>
       </div>
 
       {/* Fluid Flex Filter Bar (125% DPI Safe — No Rigid Grid Compression) */}

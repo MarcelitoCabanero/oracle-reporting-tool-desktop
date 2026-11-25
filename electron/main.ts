@@ -20,6 +20,7 @@ import { syncPendingSummaryInputs } from './hourly-sales/hourly-summary.reposito
 import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
 import { registerSalesTargetIpc } from './ipc/sales-target.ipc.js'
 import { registerFinanceInsightIpc } from './ipc/finance-insight.ipc.js'
+import { registerDashboardIpc } from './ipc/dashboard.ipc.js'
 import { registerSettingsIpc } from './ipc/settings.ipc.js'
 import { registerVoidSummaryIpc } from './ipc/void-summary.ipc.js'
 
@@ -98,6 +99,7 @@ registerEmployeeSalesIpc()
 registerScPwdIpc()
 registerSalesTargetIpc()
 registerFinanceInsightIpc()
+registerDashboardIpc()
 registerVoidSummaryIpc()
 registerSettingsIpc()
 registerHourlySalesIpc()

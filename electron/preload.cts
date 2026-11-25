@@ -432,6 +432,10 @@ salesTarget: {
 financeInsight: {
   load: (input: { dateFrom: string; dateTo: string }) => ipcRenderer.invoke('finance-insight:load', input),
 },
+dashboard: {
+  load: (input?: { locationName?: string }) =>
+    ipcRenderer.invoke('dashboard:load', input),
+},
 })
 
 console.log('Electron preload loaded')

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  BarChart3, ChevronDown, ChevronRight, Clock3, FileBarChart,
+  BarChart3, ChevronDown, ChevronLeft, ChevronRight, Clock3, FileBarChart,
   LayoutDashboard, LogOut, Menu, Moon, NotebookText, ReceiptText, ShieldCheck, Sun, Target, WalletCards,
 } from 'lucide-react'
 import logo from '../../assets/jco-logo.png'
@@ -12,6 +12,7 @@ interface SidebarProps {
   activePage: Page
   userRole: string
   collapsed: boolean
+  onToggleCollapse?: () => void
   theme: Theme
   onThemeChange: (theme: Theme) => void
   onNavigate: (page: Page) => void
@@ -56,7 +57,7 @@ function SidebarSection({ title, collapsed, defaultOpen = true, children }: Side
 
   return (
     <div className="sidebar-section-current mb-3">
-      {!collapsed && (
+      {!collapsed ? (
         <button
           type="button"
           className="btn border-0 w-100 d-flex align-items-center justify-content-between px-3 py-1 text-secondary sidebar-section-title"
@@ -65,23 +66,36 @@ function SidebarSection({ title, collapsed, defaultOpen = true, children }: Side
           <span>{title}</span>
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
+      ) : (
+        <div className="sidebar-collapsed-divider" title={title} aria-hidden="true" />
       )}
       {(open || collapsed) && <div className="d-grid gap-1 mt-1">{children}</div>}
     </div>
   )
 }
 
-function Sidebar({ activePage, userRole, collapsed, theme, onThemeChange, onNavigate, onLogout }: SidebarProps) {
+function Sidebar({ activePage, userRole, collapsed, onToggleCollapse, theme, onThemeChange, onNavigate, onLogout }: SidebarProps) {
   const isDark = theme === 'dark'
 
   return (
     <aside className={`app-sidebar bg-white border-end d-flex flex-column flex-shrink-0 ${collapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-brand d-flex align-items-center gap-2 px-3 py-3 border-bottom">
+      <div className="sidebar-brand d-flex align-items-center gap-2 px-3 py-3 border-bottom position-relative">
         <img src={logo} alt="Oracle Reporting Tool" className="sidebar-logo" />
         <div className="sidebar-brand-copy lh-sm">
           <div className="fw-bold">Oracle</div>
           <small className="text-secondary">Reporting Tool</small>
         </div>
+        {onToggleCollapse && (
+          <button
+            type="button"
+            className="sidebar-edge-toggle"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={15} strokeWidth={2.5} /> : <ChevronLeft size={15} strokeWidth={2.5} />}
+          </button>
+        )}
       </div>
 
       <nav className="sidebar-nav-current flex-grow-1 overflow-auto py-3 px-2">

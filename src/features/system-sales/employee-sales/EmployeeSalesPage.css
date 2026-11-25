@@ -1,5 +1,5 @@
 /* Employee Sales inherits the System Sales report styles from src/index.css. */
-.employee-sales-page { --report-green: #16803c; --report-red: #c93434; min-width: 0; }
+.employee-sales-page { min-width: 0; }
 .employee-sales-controls { flex-wrap: wrap; }
 .employee-sales-controls .system-sales-date-field { width: 170px; }
 .employee-sales-employee-field { width: 210px; }

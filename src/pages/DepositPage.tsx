@@ -3400,30 +3400,6 @@ function DepositPage() {
                         : 'Load a finalized ROF, then enter the deposit information and any deduction supporting documents.'}
                     </p>
                   </div>
-
-                  <button
-                    type="button"
-                    className="
-                      btn
-                      btn-sm
-                      btn-light
-                      border
-                      rounded-circle
-                      p-2
-                      d-flex
-                    "
-                    aria-label="Close"
-                    disabled={
-                      formBusy
-                    }
-                    onClick={
-                      closeFormModal
-                    }
-                  >
-                    <X
-                      size={18}
-                    />
-                  </button>
                 </div>
 
                 <div className="modal-body">

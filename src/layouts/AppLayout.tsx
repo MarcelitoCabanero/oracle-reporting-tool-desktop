@@ -161,6 +161,9 @@ const { user, logout } = useAuth()
       userRole={user?.role ?? ''}
       onNavigate={onNavigate}
       collapsed={sidebarCollapsed}
+      onToggleCollapse={() =>
+        setSidebarCollapsed((current) => !current)
+      }
       theme={theme}
       onThemeChange={onThemeChange}
       onLogout={() =>

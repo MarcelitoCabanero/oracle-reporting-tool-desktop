@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Clock,
   Database,
-  PanelLeft,
   RefreshCw,
   ShieldCheck,
   Trash2,
@@ -64,8 +63,6 @@ function formatShortDate(value: string): string {
 function TopHeader({
   title,
   version = 'v1.0.0',
-  sidebarCollapsed,
-  onToggleSidebar,
   userName = 'User',
   userRole = 'System User',
   updateStatus = 'idle',
@@ -160,9 +157,6 @@ function TopHeader({
     <header className="top-header-minimal bg-white border-bottom px-3 px-lg-4 py-2">
       <div className="d-flex align-items-center justify-content-between gap-3">
         <div className="d-flex align-items-center gap-2">
-          <button type="button" className="btn header-minimal-icon d-flex align-items-center justify-content-center" onClick={onToggleSidebar} aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
-            <PanelLeft size={18} />
-          </button>
           <h1 className="h6 fw-semibold mb-0">{title}</h1>
         </div>
         <div className="d-flex align-items-center gap-2">

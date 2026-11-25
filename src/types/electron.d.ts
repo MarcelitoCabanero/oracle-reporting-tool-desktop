@@ -990,6 +990,9 @@ salesTarget: {
 financeInsight: {
   load: (input: { dateFrom: string; dateTo: string }) => Promise<import('../../electron/finance-insight/finance-insight.repository').FinanceInsightLoadResult>
 }
+dashboard: {
+  load: (input?: { locationName?: string }) => Promise<import('../../electron/dashboard/dashboard.repository').DashboardLoadResult>
+}
 
 
     }
