@@ -2,7 +2,7 @@
   "name": "oracle-reporting-tool-desktop",
   "description": "Oracle Reporting Tool desktop application",
   "private": true,
-  "version": "1.1.5",
+  "version": "1.1.6",
   "type": "module",
   "main": "electron-build/main.js",
   "scripts": {
@@ -28,12 +28,12 @@
     ],
     "extraResources": [
       {
-        "from": "src/assets/jco-logo.png",
-        "to": "jco-logo.png"
+        "from": "public/J-co_logo_updated.png",
+        "to": "J-co_logo_updated.png"
       }
     ],
     "win": {
-      "icon": "src/assets/jco-logo.png",
+      "icon": "public/J-co_logo_updated.png",
       "target": [
         {
           "target": "nsis",
@@ -47,8 +47,9 @@
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "createDesktopShortcut": true,
+      "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
+      "runAfterFinish": false,
       "deleteAppDataOnUninstall": false
     },
     "publish": [
