@@ -18,6 +18,9 @@ import { registerHourlySalesIpc } from './ipc/hourly-sales.ipc.js'
 import { syncPendingHourlyEntries } from './hourly-sales/hourly-sales.repository.js'
 import { syncPendingSummaryInputs } from './hourly-sales/hourly-summary.repository.js'
 import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
+import { registerSalesTargetIpc } from './ipc/sales-target.ipc.js'
+import { registerFinanceInsightIpc } from './ipc/finance-insight.ipc.js'
+import { registerDashboardIpc } from './ipc/dashboard.ipc.js'
 import { registerSettingsIpc } from './ipc/settings.ipc.js'
 import { registerVoidSummaryIpc } from './ipc/void-summary.ipc.js'
 
@@ -129,6 +132,9 @@ registerSystemSalesIpc()
 registerVarianceCheckingIpc()
 registerEmployeeSalesIpc()
 registerScPwdIpc()
+registerSalesTargetIpc()
+registerFinanceInsightIpc()
+registerDashboardIpc()
 registerVoidSummaryIpc()
 registerSettingsIpc()
 registerHourlySalesIpc()

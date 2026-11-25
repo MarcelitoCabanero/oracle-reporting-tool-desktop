@@ -424,6 +424,20 @@ voidSummary: {
   exportPdf: (input: unknown) => ipcRenderer.invoke('void-summary:export-pdf', input),
 },
 scPwd: { generate: (input: { dateFrom: string; dateTo: string; type: string }) => ipcRenderer.invoke('sc-pwd:generate', input), exportExcel: (input: unknown) => ipcRenderer.invoke('sc-pwd:export-excel', input), exportPdf: (input: unknown) => ipcRenderer.invoke('sc-pwd:export-pdf', input) },
+salesTarget: {
+  load: (input: { targetYear: number; targetQuarter: number }) => ipcRenderer.invoke('sales-target:load', input),
+  exportWorksheetExcel: (input: unknown) => ipcRenderer.invoke('sales-target:export-worksheet-excel', input),
+  exportWorksheetPdf: (input: unknown) => ipcRenderer.invoke('sales-target:export-worksheet-pdf', input),
+  exportAnalyticsExcel: (input: unknown) => ipcRenderer.invoke('sales-target:export-analytics-excel', input),
+  exportAnalyticsPdf: (input: unknown) => ipcRenderer.invoke('sales-target:export-analytics-pdf', input),
+},
+financeInsight: {
+  load: (input: { dateFrom: string; dateTo: string }) => ipcRenderer.invoke('finance-insight:load', input),
+},
+dashboard: {
+  load: (input?: { locationName?: string }) =>
+    ipcRenderer.invoke('dashboard:load', input),
+},
 })
 
 console.log('Electron preload loaded')

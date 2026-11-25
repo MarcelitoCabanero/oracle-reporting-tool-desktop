@@ -15,6 +15,8 @@ import type { MissingMenuItem } from './pages/MaintenancePage'
 import RofPage from './pages/RofPage'
 import DepositPage from './pages/DepositPage'
 import MenuItemPage from './pages/MenuItemPage.tsx'
+import SalesTargetPage from './pages/SalesTargetPage.tsx'
+import InsightPage from './pages/InsightPage.tsx'
 import PosJournalPage from './pages/PosJournalPage.tsx'
 import SystemSalesPage from './features/system-sales/SystemSalesPage'
 import HourlySalesPage from './pages/HourlySalesPage'
@@ -386,12 +388,7 @@ function App() {
         )
 
       case 'finance-insight':
-        return (
-          <PlaceholderPage
-            title="Finance Insight"
-            description="Financial analytics and sales insights."
-          />
-        )
+        return <InsightPage />
 
       case 'hourly-sales':
         return <HourlySalesPage />
@@ -401,6 +398,9 @@ function App() {
 
      case 'menu-item':
   return <MenuItemPage />
+
+      case 'sales-target':
+        return <SalesTargetPage />
 
       case 'pos-journal':
         return <PosJournalPage />

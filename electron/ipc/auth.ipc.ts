@@ -1,3 +1,4 @@
+import { BrowserWindow } from 'electron'
 import { loginUser } from '../auth/auth.service.js'
 import { handleIpc } from './ipc-handler.js'
 
@@ -7,7 +8,7 @@ export function registerAuthIpc() {
   handleIpc(
     'auth:login',
     async (
-      _event,
+      event,
       username: string,
       password: string,
     ) => {
@@ -16,10 +17,19 @@ export function registerAuthIpc() {
         username,
       )
 
-      return loginUser(
+      const result = await loginUser(
         username,
         password,
       )
+
+      if (result.success) {
+        const win = BrowserWindow.fromWebContents(event.sender) ?? BrowserWindow.getAllWindows()[0]
+        if (win && !win.isDestroyed()) {
+          win.maximize()
+        }
+      }
+
+      return result
     },
   )
 }

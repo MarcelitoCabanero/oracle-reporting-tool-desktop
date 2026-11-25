@@ -56,6 +56,9 @@ function getPageTitle(page: Page): string {
     case 'menu-item':
       return 'Menu Item'
 
+    case 'sales-target':
+      return 'Sales Target'
+
     case 'pos-journal':
       return 'POS Journal'
 
@@ -152,6 +155,9 @@ const { user, logout } = useAuth()
       userRole={user?.role ?? ''}
       onNavigate={onNavigate}
       collapsed={sidebarCollapsed}
+      onToggleCollapse={() =>
+        setSidebarCollapsed((current) => !current)
+      }
       theme={theme}
       onThemeChange={onThemeChange}
       onLogout={() =>

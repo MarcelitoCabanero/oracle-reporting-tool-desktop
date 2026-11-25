@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, CalendarDays, FileSpreadsheet, FileText, LoaderCircle, ReceiptText, RefreshCw } from 'lucide-react'
 import type { EmployeeOption, EmployeeSalesResult } from '../../../types/employee-sales'
+import {
+  formatSystemSalesReportPeriod,
+  type SystemSalesSharedDatesProps,
+} from '../system-sales.types'
 import VarianceCheckingModal from '../variance-checking/VarianceCheckingModal'
 import './EmployeeSalesPage.css'
 
@@ -25,10 +29,25 @@ interface EmployeeSalesPageState {
 
 let employeeSalesCache: EmployeeSalesPageState | null = null
 
-export default function EmployeeSalesPage() {
+export default function EmployeeSalesPage({
+  dateFrom: sharedDateFrom,
+  dateTo: sharedDateTo,
+  onDateFromChange,
+  onDateToChange,
+}: SystemSalesSharedDatesProps = {}) {
   const savedState = employeeSalesCache
-  const [dateFrom, setDateFrom] = useState(savedState?.dateFrom ?? today)
-  const [dateTo, setDateTo] = useState(savedState?.dateTo ?? today)
+  const [localDateFrom, setLocalDateFrom] = useState(savedState?.dateFrom ?? today)
+  const [localDateTo, setLocalDateTo] = useState(savedState?.dateTo ?? today)
+  const dateFrom = sharedDateFrom ?? localDateFrom
+  const dateTo = sharedDateTo ?? localDateTo
+  const setDateFrom = (value: string) => {
+    setLocalDateFrom(value)
+    onDateFromChange?.(value)
+  }
+  const setDateTo = (value: string) => {
+    setLocalDateTo(value)
+    onDateToChange?.(value)
+  }
   const [employees, setEmployees] = useState<EmployeeOption[]>([])
   const [employeeName, setEmployeeName] = useState(savedState?.employeeName ?? '')
   const [loadingEmployees, setLoadingEmployees] = useState(true)
@@ -106,9 +125,9 @@ export default function EmployeeSalesPage() {
   const totalPages = Math.max(1, Math.ceil(allReports.length / PAGE_SIZE))
   const pageReports = allReports.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
   const m = report?.metrics
-  return <div className="employee-sales-page">
+  return <div className="container-fluid px-0 system-sales-page employee-sales-page">
 
-    <div className="system-sales-toolbar bg-white">
+    <div className="system-sales-toolbar">
       <div className="system-sales-toolbar-title"><CalendarDays size={16} /> Report Parameters</div>
       <div className="system-sales-toolbar-export">
         <button type="button" className="btn btn-outline-success btn-sm system-sales-export-btn" disabled={!report || loading || exporting !== null} onClick={() => exportReport('excel')}>
@@ -119,7 +138,13 @@ export default function EmployeeSalesPage() {
           {exporting === 'pdf' ? <LoaderCircle size={15} className="spin" /> : <FileText size={15} />}PDF
         </button>
       </div>
-      <div className="system-sales-toolbar-controls employee-sales-controls">
+      <form
+        className="system-sales-toolbar-controls employee-sales-controls"
+        onSubmit={(event) => {
+          event.preventDefault()
+          void generate()
+        }}
+      >
         <div className="system-sales-date-field"><label htmlFor="emp-from">From</label>
           <input id="emp-from" type="date" className="form-control form-control-sm" value={dateFrom} disabled={loading} onChange={e => setDateFrom(e.target.value)} /></div>
         <div className="system-sales-date-arrow">→</div>
@@ -131,11 +156,11 @@ export default function EmployeeSalesPage() {
             {employees.length > 0 && <option value={ALL_EMPLOYEES}>ALL</option>}
             {employees.map((e, index) => <option key={`${e.employeeId}-${index}`} value={e.checkName}>{e.checkName}</option>)}
           </select></div>
-        <button type="button" className="btn btn-primary btn-sm system-sales-generate-btn" onClick={generate} disabled={loading || loadingEmployees || !employeeName}>
+        <button type="submit" className="btn btn-primary btn-sm system-sales-generate-btn" disabled={loading || loadingEmployees || !employeeName}>
           {loading ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}{loading ? 'Generating...' : 'Generate'}
         </button>
-        <div className="system-sales-period"><div>Report Period</div><strong>{report ? `${report.dateFrom} – ${report.dateTo}` : 'Not generated'}</strong></div>
-      </div>
+        <div className="system-sales-period"><div>Report Period</div><strong>{report ? formatSystemSalesReportPeriod(report.dateFrom, report.dateTo) : 'Not generated'}</strong></div>
+      </form>
     </div>
 
     {error && <div role="alert" className="alert alert-danger py-2 px-3 d-flex align-items-center gap-2 mb-3"><AlertTriangle size={16} />{error}</div>}
