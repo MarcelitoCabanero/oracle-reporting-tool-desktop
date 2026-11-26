@@ -2,6 +2,7 @@ import sql from 'mssql'
 
 import { getLocalDbPool } from '../database/localdb.js'
 import { getHourlyDbPool } from '../database/hourlydb.js'
+import { runDatabaseMigrations } from '../database/migrations.js'
 import { getDatabaseSqlConfig } from '../settings/settings.service.js'
 
 export const hourlySummaryInputColumns = [
@@ -82,6 +83,7 @@ const summarySchema = `
 `
 
 async function ensureTable(pool: sql.ConnectionPool): Promise<void> {
+  await runDatabaseMigrations(pool, 'checkpostingdb')
   await pool.request().query(summarySchema)
 }
 
@@ -156,6 +158,7 @@ async function ensureHourlyTable(): Promise<sql.ConnectionPool> {
   const target = `${config.server}/${config.database}`
   const pool = await getHourlyDbPool()
   if (hourlyReadyTarget !== target) {
+    await runDatabaseMigrations(pool, 'oracledb')
     await ensureTable(pool)
     await pool.request().query(`UPDATE dbo.dts_summary_input
       SET headq_synced_at=DATEADD(HOUR,8,SYSUTCDATETIME())

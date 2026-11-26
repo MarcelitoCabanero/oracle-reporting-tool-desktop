@@ -6,6 +6,7 @@ import {
 } from '../database/localdb.js'
 import { getHourlyDbPool } from '../database/hourlydb.js'
 import { getDatabaseSqlConfig } from '../settings/settings.service.js'
+import { runDatabaseMigrations } from '../database/migrations.js'
 
 import type {
   CreateHourlyEntriesInput,
@@ -141,6 +142,7 @@ interface PendingHourlyEntry {
 }
 
 async function ensureLocalHourlySyncColumns(pool: sql.ConnectionPool): Promise<void> {
+  await runDatabaseMigrations(pool, 'checkpostingdb')
   await pool.request().query(`
     IF OBJECT_ID(N'dbo.dts_hourly_entry', N'U') IS NULL
     BEGIN
@@ -576,6 +578,7 @@ async function ensureHourlySchema(): Promise<void> {
   }
 
   const hourlyPool = await getHourlyDbPool()
+  await runDatabaseMigrations(hourlyPool, 'oracledb')
   await hourlyPool.request().query(createHourlyTableSchema)
   await hourlyPool.request().query(`
     IF EXISTS (SELECT 1 FROM sys.check_constraints

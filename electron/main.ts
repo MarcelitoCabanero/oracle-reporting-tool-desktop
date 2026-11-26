@@ -17,6 +17,9 @@ import { registerEmployeeSalesIpc } from './ipc/employee-sales.ipc.js'
 import { registerHourlySalesIpc } from './ipc/hourly-sales.ipc.js'
 import { syncPendingHourlyEntries } from './hourly-sales/hourly-sales.repository.js'
 import { syncPendingSummaryInputs } from './hourly-sales/hourly-summary.repository.js'
+import { getLocalDbPool } from './database/localdb.js'
+import { getHourlyDbPool } from './database/hourlydb.js'
+import { runDatabaseMigrations } from './database/migrations.js'
 import { registerScPwdIpc } from './ipc/sc-pwd.ipc.js'
 import { registerSettingsIpc } from './ipc/settings.ipc.js'
 import { registerVoidSummaryIpc } from './ipc/void-summary.ipc.js'
@@ -39,6 +42,21 @@ type AppUpdateStatus =
 
 let appUpdateStatus: AppUpdateStatus = 'idle'
 let updateFound = false
+
+async function runConfiguredDatabaseMigrations() {
+  const targets = [
+    { name: 'checkpostingdb' as const, connect: getLocalDbPool },
+    { name: 'oracledb' as const, connect: getHourlyDbPool },
+  ]
+
+  await Promise.all(targets.map(async ({ name, connect }) => {
+    try {
+      await runDatabaseMigrations(await connect(), name)
+    } catch (error) {
+      console.error(`Unable to apply ${name} database migrations:`, error)
+    }
+  }))
+}
 
 function sendUpdateStatus(status: AppUpdateStatus) {
   appUpdateStatus = status
@@ -185,9 +203,11 @@ ipcMain.handle('pos-journal:export-pdf', async (_event, checkNumber: string) => 
 })
 
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setAppUserModelId('com.cfi.oracle-reporting-tool')
+  await runConfiguredDatabaseMigrations()
   createWindow()
+  setInterval(() => void runConfiguredDatabaseMigrations(), 60_000)
   retryPendingHourlySync()
   setInterval(retryPendingHourlySync, 60_000)
 
