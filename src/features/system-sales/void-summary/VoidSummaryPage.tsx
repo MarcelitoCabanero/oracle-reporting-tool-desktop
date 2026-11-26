@@ -19,6 +19,10 @@ import type {
   VoidSummaryResult,
   VoidTransactionItem,
 } from '../../../types/void-summary'
+import {
+  formatSystemSalesReportPeriod,
+  type SystemSalesSharedDatesProps,
+} from '../system-sales.types'
 
 interface VoidSummaryState {
   dateFrom: string
@@ -46,12 +50,27 @@ const formatMoney = (v: number) =>
 const formatInt = (v: number) =>
   new Intl.NumberFormat('en-PH', { maximumFractionDigits: 0 }).format(v || 0)
 
-export default function VoidSummaryPage() {
+export default function VoidSummaryPage({
+  dateFrom: sharedDateFrom,
+  dateTo: sharedDateTo,
+  onDateFromChange,
+  onDateToChange,
+}: SystemSalesSharedDatesProps = {}) {
   const saved = voidSummaryCache
   const today = getToday()
 
-  const [dateFrom, setDateFrom] = useState(saved?.dateFrom ?? today)
-  const [dateTo, setDateTo] = useState(saved?.dateTo ?? today)
+  const [localDateFrom, setLocalDateFrom] = useState(saved?.dateFrom ?? today)
+  const [localDateTo, setLocalDateTo] = useState(saved?.dateTo ?? today)
+  const dateFrom = sharedDateFrom ?? localDateFrom
+  const dateTo = sharedDateTo ?? localDateTo
+  const setDateFrom = (value: string) => {
+    setLocalDateFrom(value)
+    onDateFromChange?.(value)
+  }
+  const setDateTo = (value: string) => {
+    setLocalDateTo(value)
+    onDateToChange?.(value)
+  }
   const [report, setReport] = useState<VoidSummaryResult | null>(saved?.report ?? null)
   const [voidSearch, setVoidSearch] = useState(saved?.voidSearch ?? '')
   const [cancelSearch, setCancelSearch] = useState(saved?.cancelSearch ?? '')
@@ -67,7 +86,7 @@ export default function VoidSummaryPage() {
 
   const reportPeriod = useMemo(() => {
     if (!report) return 'Not generated'
-    return report.dateFrom === report.dateTo ? report.dateFrom : `${report.dateFrom} – ${report.dateTo}`
+    return formatSystemSalesReportPeriod(report.dateFrom, report.dateTo)
   }, [report])
 
   const filteredVoid = useMemo(() => {
@@ -197,7 +216,13 @@ export default function VoidSummaryPage() {
           </button>
         </div>
 
-        <div className="system-sales-toolbar-controls">
+        <form
+          className="system-sales-toolbar-controls"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleGenerate()
+          }}
+        >
           <div className="system-sales-date-field">
             <label htmlFor="void-from">From</label>
             <input
@@ -222,10 +247,9 @@ export default function VoidSummaryPage() {
             />
           </div>
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary btn-sm system-sales-generate-btn"
             disabled={busy}
-            onClick={handleGenerate}
           >
             {loading ? <LoaderCircle size={15} className="spin" /> : <RefreshCw size={15} />}
             {loading ? 'Generating...' : 'Generate'}
@@ -234,7 +258,7 @@ export default function VoidSummaryPage() {
             <div>Report Period</div>
             <strong>{reportPeriod}</strong>
           </div>
-        </div>
+        </form>
       </div>
 
       {error && (

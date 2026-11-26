@@ -18,17 +18,29 @@ import {
 import type {
   SystemSalesResult,
 } from '../../../types/system-sales'
+import {
+  formatSystemSalesReportPeriod,
+  type SystemSalesSharedDatesProps,
+} from '../system-sales.types'
 import VarianceCheckingModal from '../variance-checking/VarianceCheckingModal'
 
 interface SalesSummaryState {
   dateFrom: string
   dateTo: string
+  generatedDateFrom: string
+  generatedDateTo: string
+  workstation: string
   report: SystemSalesResult | null
   error: string
   status: string
 }
 
-let salesSummaryCache: SalesSummaryState | null = null
+type SalesSummaryCacheKey = 'summary' | 'workstation'
+
+const salesSummaryCache: Record<SalesSummaryCacheKey, SalesSummaryState | null> = {
+  summary: null,
+  workstation: null,
+}
 
 function getToday() {
   const now = new Date()
@@ -53,25 +65,39 @@ function formatNumber(value: number) {
   }).format(value || 0)
 }
 
-function formatDate(value: string) {
-  if (!value) return ''
-
-  const [year, month, day] =
-    value.split('-').map(Number)
-
-  return new Intl.DateTimeFormat('en-PH', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  }).format(new Date(year, month - 1, day))
+interface SalesSummaryPageProps extends SystemSalesSharedDatesProps {
+  workstationMode?: boolean
 }
 
-export default function SystemSalesPage({ workstationMode = false }: { workstationMode?: boolean }) {
-  const savedState = salesSummaryCache
+export default function SystemSalesPage({
+  workstationMode = false,
+  dateFrom: sharedDateFrom,
+  dateTo: sharedDateTo,
+  onDateFromChange,
+  onDateToChange,
+}: SalesSummaryPageProps) {
+  const cacheKey: SalesSummaryCacheKey = workstationMode ? 'workstation' : 'summary'
+  const savedState = salesSummaryCache[cacheKey]
   const today = getToday()
 
-  const [dateFrom, setDateFrom] = useState(savedState?.dateFrom ?? today)
-  const [dateTo, setDateTo] = useState(savedState?.dateTo ?? today)
+  const [localDateFrom, setLocalDateFrom] = useState(savedState?.dateFrom ?? today)
+  const [localDateTo, setLocalDateTo] = useState(savedState?.dateTo ?? today)
+  const dateFrom = sharedDateFrom ?? localDateFrom
+  const dateTo = sharedDateTo ?? localDateTo
+  const setDateFrom = (value: string) => {
+    setLocalDateFrom(value)
+    onDateFromChange?.(value)
+  }
+  const setDateTo = (value: string) => {
+    setLocalDateTo(value)
+    onDateToChange?.(value)
+  }
+  const [generatedDateFrom, setGeneratedDateFrom] = useState(
+    savedState?.generatedDateFrom ?? savedState?.dateFrom ?? today,
+  )
+  const [generatedDateTo, setGeneratedDateTo] = useState(
+    savedState?.generatedDateTo ?? savedState?.dateTo ?? today,
+  )
   const [report, setReport] =
     useState<SystemSalesResult | null>(savedState?.report ?? null)
   const [loading, setLoading] = useState(false)
@@ -81,7 +107,7 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
   const [status, setStatus] = useState(savedState?.status ?? '')
   const [showVariance, setShowVariance] = useState(false)
   const [workstations, setWorkstations] = useState<string[]>([])
-  const [workstation, setWorkstation] = useState('')
+  const [workstation, setWorkstation] = useState(savedState?.workstation ?? '')
 
   useEffect(() => {
     if (!workstationMode) return
@@ -93,17 +119,21 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
 
   const reportPeriod = useMemo(() => {
     if (!report) return 'Not generated'
-
-    if (dateFrom === dateTo) {
-      return formatDate(dateFrom)
-    }
-
-    return `${formatDate(dateFrom)} – ${formatDate(dateTo)}`
-  }, [report, dateFrom, dateTo])
+    return formatSystemSalesReportPeriod(generatedDateFrom, generatedDateTo)
+  }, [report, generatedDateFrom, generatedDateTo])
 
   useEffect(() => {
-    salesSummaryCache = { dateFrom, dateTo, report, error, status }
-  }, [dateFrom, dateTo, report, error, status])
+    salesSummaryCache[cacheKey] = {
+      dateFrom,
+      dateTo,
+      generatedDateFrom,
+      generatedDateTo,
+      workstation,
+      report,
+      error,
+      status,
+    }
+  }, [cacheKey, dateFrom, dateTo, generatedDateFrom, generatedDateTo, workstation, report, error, status])
 
   async function handleGenerate() {
     if (!dateFrom || !dateTo) {
@@ -120,6 +150,9 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
       return
     }
 
+    const requestDateFrom = dateFrom
+    const requestDateTo = dateTo
+
     setLoading(true)
     setError('')
     setStatus('')
@@ -127,12 +160,14 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
     try {
       const result =
         await window.api.systemSales.generate({
-          dateFrom,
-          dateTo,
+          dateFrom: requestDateFrom,
+          dateTo: requestDateTo,
           workstation: workstationMode ? workstation : undefined,
         })
 
       setReport(result)
+      setGeneratedDateFrom(requestDateFrom)
+      setGeneratedDateTo(requestDateTo)
     } catch (err) {
       console.error('System Sales error:', err)
       setReport(null)
@@ -157,8 +192,8 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
 
     try {
       const input = {
-        dateFrom,
-        dateTo,
+        dateFrom: generatedDateFrom,
+        dateTo: generatedDateTo,
         report,
       }
 
@@ -223,7 +258,13 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
           </button>
         </div>
 
-        <div className="system-sales-toolbar-controls">
+        <form
+          className="system-sales-toolbar-controls"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleGenerate()
+          }}
+        >
           <div className="system-sales-date-field">
             <label htmlFor="sales-from">From</label>
             <input
@@ -257,10 +298,9 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
           {workstationMode && <div className="system-sales-date-field"><label htmlFor="pos-workstation">Workstation</label><select id="pos-workstation" className="form-select form-select-sm" value={workstation} disabled={busy} onChange={event => setWorkstation(event.target.value)}>{workstations.map(item => <option key={item} value={item}>{item}</option>)}</select></div>}
 
           <button
-            type="button"
+            type="submit"
             className="btn btn-primary btn-sm system-sales-generate-btn"
             disabled={busy}
-            onClick={handleGenerate}
           >
             {loading
               ? <LoaderCircle size={15} className="spin" />
@@ -272,7 +312,7 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
             <div>Report Period</div>
             <strong>{reportPeriod}</strong>
           </div>
-        </div>
+        </form>
       </div>
 
       {error && (
@@ -573,7 +613,7 @@ export default function SystemSalesPage({ workstationMode = false }: { workstati
         </div>
       )}
 
-      {showVariance && <VarianceCheckingModal dateFrom={dateFrom} dateTo={dateTo} workstation={workstationMode ? workstation : undefined} onClose={() => setShowVariance(false)} />}
+      {showVariance && <VarianceCheckingModal dateFrom={generatedDateFrom} dateTo={generatedDateTo} workstation={workstationMode ? workstation : undefined} onClose={() => setShowVariance(false)} />}
     </div>
   )
 }
