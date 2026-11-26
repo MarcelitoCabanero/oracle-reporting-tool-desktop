@@ -1,11 +1,13 @@
 import { getLocalDbPool } from '../database/localdb.js'
 import { getHqDbPool } from '../database/hqdb.js'
+import { ensureLocalDatabaseTables, getConnectionSettings, initializeLocalDatabase } from '../settings/settings.service.js'
 
 export interface SystemHealthResult {
   ready: boolean
   localDbConnected: boolean
   localLocationTableExists: boolean
   hqDbConnected: boolean
+  requiresStoreSelection: boolean
   message: string
 }
 
@@ -50,26 +52,69 @@ function getHqConnectionGuidance(error: unknown): string {
   return 'Review HQ_DB_SERVER, HQ_DB_PORT, HQ_DB_DATABASE, and the HQ database settings. Check the application logs for the underlying error.'
 }
 
-async function checkLocalDb(): Promise<{ connected: boolean; locationTableExists: boolean }> {
+async function checkLocalDb(): Promise<{
+  connected: boolean
+  locationTableExists: boolean
+  requiresStoreSelection: boolean
+}> {
   try {
     const pool = await getLocalDbPool()
 
-    const result = await pool.request().query(`
-      SELECT
-        1 AS healthcheck,
-        CASE WHEN OBJECT_ID('dbo.dts_location', 'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
+    let result = await pool.request().query(`
+      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
     `)
+    let locationTableExists = Number(result.recordset[0]?.locationTableExists) === 1
+    const settings = await getConnectionSettings()
+
+    if (!locationTableExists) {
+      await ensureLocalDatabaseTables(settings)
+      result = await pool.request().query(`
+        SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
+      `)
+      locationTableExists = Number(result.recordset[0]?.locationTableExists) === 1
+    }
+
+    let requiresStoreSelection = false
+    if (locationTableExists) {
+      const localSetup = await pool.request().query(`
+        SELECT
+          CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.dts_location
+            WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'admin'
+          ) THEN 1 ELSE 0 END AS hasAdmin,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.dts_location
+            WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
+          ) THEN 1 ELSE 0 END AS hasStore
+      `)
+      const hasAdmin = Number(localSetup.recordset[0]?.hasAdmin) === 1
+      const hasStore = Number(localSetup.recordset[0]?.hasStore) === 1
+
+      if (!hasStore) {
+        await ensureLocalDatabaseTables(settings)
+        if (!hasAdmin) {
+          await initializeLocalDatabase(settings)
+        }
+      }
+
+      const storeCheck = await pool.request().query(`
+        SELECT CASE WHEN EXISTS (
+          SELECT 1 FROM dbo.dts_location
+          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
+        ) THEN 1 ELSE 0 END AS hasStore
+      `)
+      requiresStoreSelection = Number(storeCheck.recordset[0]?.hasStore) !== 1
+    }
 
     return {
       connected: true,
-      locationTableExists:
-        result.recordset[0]?.locationTableExists === true ||
-        Number(result.recordset[0]?.locationTableExists) === 1,
+      locationTableExists,
+      requiresStoreSelection,
     }
   } catch (error) {
     console.error('LocalDB health check failed:', error)
 
-    return { connected: false, locationTableExists: false }
+    return { connected: false, locationTableExists: false, requiresStoreSelection: false }
   }
 }
 
@@ -106,7 +151,10 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localDbConnected,
       localLocationTableExists: localDb.locationTableExists,
       hqDbConnected,
-      message: 'System Ready',
+      requiresStoreSelection: localDb.requiresStoreSelection,
+      message: localDb.requiresStoreSelection
+        ? 'Select the store assigned to this POS to finish first-time setup.'
+        : 'System Ready',
     }
   }
 
@@ -116,6 +164,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localDbConnected,
       localLocationTableExists: false,
       hqDbConnected,
+      requiresStoreSelection: false,
       message: 'Unable to connect to the Local POS database.',
     }
   }
@@ -126,6 +175,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localDbConnected,
       localLocationTableExists: false,
       hqDbConnected,
+      requiresStoreSelection: false,
       message: 'Local POS database is connected, but dts_location has not been set up.',
     }
   }
@@ -136,6 +186,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localDbConnected,
       localLocationTableExists: localDb.locationTableExists,
       hqDbConnected,
+      requiresStoreSelection: localDb.requiresStoreSelection,
       message: `Unable to connect to the HQ database. ${hqDb.guidance} Local database login is available.`,
     }
   }
@@ -145,6 +196,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
     localDbConnected,
     localLocationTableExists: localDb.locationTableExists,
     hqDbConnected,
+    requiresStoreSelection: localDb.requiresStoreSelection,
     message: `Unable to connect to Local POS and HQ databases. ${hqDb.guidance}`,
   }
 }

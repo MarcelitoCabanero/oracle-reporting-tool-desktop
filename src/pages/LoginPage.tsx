@@ -10,6 +10,7 @@ import {
 
 import logo from '../assets/jco-logo.png'
 import ConnectionSettingsForm from '../components/settings/ConnectionSettingsForm'
+import type { LocationOption } from '../../electron/settings/settings.types.js'
 
 import {
   useAuth,
@@ -59,6 +60,11 @@ function LoginPage() {
   ] = useState(true)
 
   const [showConnectionSettings, setShowConnectionSettings] = useState(false)
+  const [requiresStoreSelection, setRequiresStoreSelection] = useState(false)
+  const [setupStores, setSetupStores] = useState<LocationOption[]>([])
+  const [setupStoreId, setSetupStoreId] = useState<number | null>(null)
+  const [setupError, setSetupError] = useState('')
+  const [setupBusy, setSetupBusy] = useState(false)
 
   useEffect(() => {
     async function runStartupChecks() {
@@ -74,6 +80,19 @@ function LoginPage() {
         const health =
           await window.api.system
             .healthCheck()
+
+        setRequiresStoreSelection(health.requiresStoreSelection)
+        if (health.requiresStoreSelection) {
+          setSystemReady(false)
+          setSystemStatus(health.message)
+          try {
+            setSetupStores(await window.api.settings.getFirstRunStoreOptions())
+            setSetupError('')
+          } catch (error) {
+            setSetupError(error instanceof Error ? error.message : 'Unable to load available stores.')
+          }
+          return
+        }
 
         if (!health.localDbConnected || !health.localLocationTableExists) {
           setSystemReady(
@@ -146,6 +165,42 @@ function LoginPage() {
 
     runStartupChecks()
   }, [])
+
+  async function refreshFirstRunStores() {
+    setSetupBusy(true)
+    setSetupError('')
+    try {
+      setSetupStores(await window.api.settings.getFirstRunStoreOptions())
+      setSetupStoreId(null)
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : 'Unable to load available stores.')
+    } finally {
+      setSetupBusy(false)
+    }
+  }
+
+  async function finishFirstRunSetup() {
+    if (setupStoreId === null) {
+      setSetupError('Select a store for this POS to continue.')
+      return
+    }
+
+    setSetupBusy(true)
+    setSetupError('')
+    try {
+      await window.api.settings.setFirstRunStore(setupStoreId)
+      const health = await window.api.system.healthCheck()
+      setRequiresStoreSelection(health.requiresStoreSelection)
+      setSystemReady(health.ready)
+      setSystemStatus(health.message)
+      setSetupStores([])
+      setSetupStoreId(null)
+    } catch (error) {
+      setSetupError(error instanceof Error ? error.message : 'Unable to assign this POS to the selected store.')
+    } finally {
+      setSetupBusy(false)
+    }
+  }
 
   async function handleSubmit(
     event:
@@ -264,21 +319,51 @@ function LoginPage() {
                 brand-text
               "
             >
-              Welcome Back
+              {requiresStoreSelection ? 'First-time setup' : 'Welcome Back'}
             </div>
 
             <h2 className="h4 fw-bold mb-2">
-              Sign in to continue
+              {requiresStoreSelection ? 'Choose this POS store' : 'Sign in to continue'}
             </h2>
 
             <p className="text-secondary small mb-0">
-              Access reports,
-              transactions, finance
-              modules, and system tools.
+              {requiresStoreSelection
+                ? 'Select the store assigned to this computer. It will be saved in CheckPostingDB before sign-in is enabled.'
+                : 'Access reports, transactions, finance modules, and system tools.'}
             </p>
 
           </div>
 
+          {requiresStoreSelection ? (
+            <div>
+              {setupError && <div className="alert alert-danger py-2" role="alert">{setupError}</div>}
+              <label className="form-label fw-semibold" htmlFor="first-run-store">Store location</label>
+              <select
+                id="first-run-store"
+                className="form-select mb-3"
+                value={setupStoreId ?? ''}
+                onChange={(event) => setSetupStoreId(event.target.value ? Number(event.target.value) : null)}
+                disabled={setupBusy || setupStores.length === 0}
+              >
+                <option value="">Select a store</option>
+                {setupStores.map((store) => (
+                  <option key={store.locationId} value={store.locationId}>{store.locationName}</option>
+                ))}
+              </select>
+              {setupStores.length === 0 && !setupError && (
+                <p className="small text-secondary">No active Store locations were returned by OracleDB.</p>
+              )}
+              <button type="button" className="btn btn-primary w-100 mb-2" onClick={() => void finishFirstRunSetup()} disabled={setupBusy || setupStoreId === null}>
+                {setupBusy ? 'Saving store...' : 'Save store and continue'}
+              </button>
+              <button type="button" className="btn btn-outline-secondary w-100 mb-2" onClick={() => void refreshFirstRunStores()} disabled={setupBusy}>
+                {setupBusy ? 'Loading...' : 'Refresh store list'}
+              </button>
+              <button type="button" className="btn btn-link w-100" onClick={() => setShowConnectionSettings(true)}>
+                Configure database connections
+              </button>
+            </div>
+          ) : (
           <form
             onSubmit={
               handleSubmit
@@ -476,6 +561,7 @@ function LoginPage() {
             </button>
 
           </form>
+          )}
 
         </div>
 
@@ -519,8 +605,14 @@ function LoginPage() {
               setCheckingSystem(true)
               void window.api.system.healthCheck()
                 .then((health) => {
-                  setSystemReady(health.localDbConnected && health.localLocationTableExists)
+                  setRequiresStoreSelection(health.requiresStoreSelection)
+                  setSystemReady(health.ready && !health.requiresStoreSelection)
                   setSystemStatus(health.message)
+                  if (health.requiresStoreSelection) {
+                    void window.api.settings.getFirstRunStoreOptions()
+                      .then(setSetupStores)
+                      .catch((storeError: unknown) => setSetupError(storeError instanceof Error ? storeError.message : 'Unable to load available stores.'))
+                  }
                   if (health.localLocationTableExists) {
                     setShowConnectionSettings(false)
                   }

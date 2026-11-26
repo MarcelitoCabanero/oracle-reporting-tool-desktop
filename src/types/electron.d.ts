@@ -36,6 +36,7 @@ interface SystemHealthResult {
   localDbConnected: boolean
   localLocationTableExists: boolean
   hqDbConnected: boolean
+  requiresStoreSelection: boolean
   message: string
 }
 type DatabaseKey = 'local' | 'hq' | 'headq' | 'hourly'
@@ -753,12 +754,17 @@ declare global {
         ) => Promise<ConnectionTestResult>
         getLocationOptions: (
           settings: ConnectionSettingsView,
-          token?: string,
+          token: string,
         ) => Promise<LocationOption[]>
-        provisionLocalDatabase: (
+        getFirstRunStoreOptions: () => Promise<LocationOption[]>
+        setFirstRunStore: (locationId: number) => Promise<ConnectionTestResult>
+        initializeLocalDatabase: (
           settings: ConnectionSettingsView,
-          locationIds: number[],
-          token?: string,
+        ) => Promise<ConnectionTestResult>
+        setLocalStore: (
+          settings: ConnectionSettingsView,
+          locationId: number,
+          token: string,
         ) => Promise<ConnectionTestResult>
         saveBootstrap: (settings: ConnectionSettingsView) => Promise<ConnectionTestResult>
         saveAdmin: (settings: ConnectionSettingsView, token: string) => Promise<ConnectionTestResult>

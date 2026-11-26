@@ -79,13 +79,19 @@ contextBridge.exposeInMainWorld('api', {
     ) => ipcRenderer.invoke('settings:test-database', settings, key, token),
     testFtp: (settings: ConnectionSettingsView, token?: string) =>
       ipcRenderer.invoke('settings:test-ftp', settings, token),
-    getLocationOptions: (settings: ConnectionSettingsView, token?: string) =>
+    getLocationOptions: (settings: ConnectionSettingsView, token: string) =>
       ipcRenderer.invoke('settings:location-options', settings, token) as Promise<LocationOption[]>,
-    provisionLocalDatabase: (
+    getFirstRunStoreOptions: () =>
+      ipcRenderer.invoke('settings:first-run-store-options') as Promise<LocationOption[]>,
+    setFirstRunStore: (locationId: number) =>
+      ipcRenderer.invoke('settings:first-run-set-store', locationId) as Promise<{ success: boolean; message: string; selectedCount: number }>,
+    initializeLocalDatabase: (settings: ConnectionSettingsView) =>
+      ipcRenderer.invoke('settings:initialize-local-db', settings),
+    setLocalStore: (
       settings: ConnectionSettingsView,
-      locationIds: number[],
-      token?: string,
-    ) => ipcRenderer.invoke('settings:provision-local-db', settings, locationIds, token),
+      locationId: number,
+      token: string,
+    ) => ipcRenderer.invoke('settings:set-local-store', settings, locationId, token),
     saveBootstrap: (settings: ConnectionSettingsView) =>
       ipcRenderer.invoke('settings:save-bootstrap', settings),
     saveAdmin: (settings: ConnectionSettingsView, token: string) =>

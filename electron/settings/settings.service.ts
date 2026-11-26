@@ -269,7 +269,7 @@ export async function getLocationOptions(input: ConnectionSettings): Promise<Loc
       SELECT LOCATIONID AS locationId, LOCATIONNAME AS locationName
       FROM dbo.dts_location
       WHERE IsActive = 1
-        AND LOWER(LTRIM(RTRIM(access))) <> 'admin'
+        AND LOWER(LTRIM(RTRIM(access))) = 'store'
       ORDER BY LOCATIONNAME
     `)
 
@@ -282,53 +282,174 @@ export async function getLocationOptions(input: ConnectionSettings): Promise<Loc
   }
 }
 
-const localLocationTableSql = `
-  CREATE TABLE dbo.dts_location (
-    LOCATIONID int NOT NULL,
-    LOCATIONNAME varchar(50) NOT NULL,
-    ORGLOCATIONREF varchar(50) NOT NULL,
-    username varchar(50) NULL,
-    password varchar(50) NULL,
-    access varchar(50) NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_dts_location_IsActive DEFAULT ((1)),
-    pos_ip varchar(50) NULL
-  )
+export async function getFirstRunStoreOptions(): Promise<LocationOption[]> {
+  return getLocationOptions(await getConnectionSettings())
+}
 
-  CREATE TABLE dbo.dts_hourly_entry (
-    entry_id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_dts_hourly_entry PRIMARY KEY CLUSTERED,
-    category varchar(10) NOT NULL
-      CONSTRAINT CK_dts_hourly_entry_category CHECK (category IN ('produce', 'waste', 'transfers')),
-    time_value varchar(50) NOT NULL,
-    entry_date date NOT NULL,
-    shell_qty int NOT NULL,
-    ring_qty int NOT NULL,
-    jpops_qty int NOT NULL,
-    Remarks varchar(50) NULL,
-    locationname varchar(50) NULL,
-    businessdate date NOT NULL,
-    created_at datetime2(7) NULL,
-    sync_id uniqueidentifier NULL CONSTRAINT DF_dts_hourly_entry_sync_id DEFAULT (newid()),
-    headq_synced_at datetime2(7) NULL,
-    headq_sync_error nvarchar(1000) NULL,
-    CONSTRAINT UQ_dts_hourly_entry_location_time_category
-      UNIQUE (locationname, time_value, entry_date, Remarks, category)
-  )
-  CREATE UNIQUE INDEX UX_dts_hourly_entry_sync_id
-    ON dbo.dts_hourly_entry(sync_id) WHERE sync_id IS NOT NULL
-`
+export async function setFirstRunStore(selectedLocationId: number): Promise<{ message: string; selectedCount: number }> {
+  const settings = await getConnectionSettings()
+  const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
 
-export async function provisionLocalDatabase(
-  input: ConnectionSettings,
-  selectedLocationIds: number[],
-): Promise<{ message: string; selectedCount: number }> {
-  const settings = mergeSettings(await getConnectionSettings(), input)
-  if (settings.databases.local.database.toLowerCase() !== 'checkpostingdb') {
-    throw new Error('Set the local POS database name to checkpostingdb before creating the POS tables.')
+  try {
+    await localPool.connect()
+    const status = await localPool.request().query(`
+      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL
+        AND EXISTS (
+          SELECT 1 FROM dbo.dts_location
+          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
+        ) THEN 1 ELSE 0 END AS hasStore
+    `)
+    if (Number(status.recordset[0]?.hasStore) === 1) {
+      throw new Error('This POS already has a store assigned. Sign in as admin to change it in Settings.')
+    }
+  } finally {
+    if (localPool.connected) await localPool.close()
   }
 
-  const selectedIds = [...new Set(selectedLocationIds)]
-  if (selectedIds.length === 0 || selectedIds.some((id) => !Number.isInteger(id) || id < 1)) {
-    throw new Error('Select at least one active store location before creating the POS tables.')
+  return setLocalStore(settings, selectedLocationId)
+}
+
+const localLocationTableSql = `
+  IF OBJECT_ID(N'dbo.dts_location', N'U') IS NULL
+  BEGIN
+    CREATE TABLE dbo.dts_location (
+      LOCATIONID int NOT NULL,
+      LOCATIONNAME varchar(50) NOT NULL,
+      ORGLOCATIONREF varchar(50) NOT NULL,
+      username varchar(50) NULL,
+      password varchar(50) NULL,
+      access varchar(50) NULL,
+      IsActive bit NOT NULL CONSTRAINT DF_dts_location_IsActive DEFAULT ((1)),
+      pos_ip varchar(50) NULL,
+      AreaManagerID int NULL
+    )
+  END;
+  IF COL_LENGTH(N'dbo.dts_location', N'AreaManagerID') IS NULL
+    ALTER TABLE dbo.dts_location ADD AreaManagerID int NULL;
+`
+
+const localOperationalTablesSql = `
+  IF OBJECT_ID(N'dbo.dts_hourly_entry', N'U') IS NULL
+  BEGIN
+    CREATE TABLE dbo.dts_hourly_entry (
+      entry_id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_dts_hourly_entry PRIMARY KEY CLUSTERED,
+      category varchar(10) NOT NULL
+        CONSTRAINT CK_dts_hourly_entry_category CHECK (category IN ('produce', 'waste', 'transfers')),
+      time_value varchar(50) NOT NULL,
+      entry_date date NOT NULL,
+      shell_qty int NOT NULL,
+      ring_qty int NOT NULL,
+      jpops_qty int NOT NULL,
+      Remarks varchar(50) NULL,
+      locationname varchar(50) NULL,
+      businessdate date NOT NULL,
+      created_at datetime2(7) NULL,
+      sync_id uniqueidentifier NULL CONSTRAINT DF_dts_hourly_entry_sync_id DEFAULT (newid()),
+      headq_synced_at datetime2(7) NULL,
+      headq_sync_error nvarchar(1000) NULL,
+      CONSTRAINT UQ_dts_hourly_entry_location_time_category
+        UNIQUE (locationname, time_value, entry_date, Remarks, category)
+    )
+  END;
+  IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry') AND name = N'UX_dts_hourly_entry_sync_id'
+  )
+    CREATE UNIQUE INDEX UX_dts_hourly_entry_sync_id
+      ON dbo.dts_hourly_entry(sync_id) WHERE sync_id IS NOT NULL;
+`
+
+const localSummaryInputTableSql = `
+  IF OBJECT_ID(N'dbo.dts_summary_input', N'U') IS NULL
+  BEGIN
+    CREATE TABLE dbo.dts_summary_input (
+      entry_id INT IDENTITY(1,1) NOT NULL CONSTRAINT PK_dts_summary_input PRIMARY KEY,
+      locationname VARCHAR(50) NOT NULL,
+      date_from DATE NOT NULL,
+      date_to DATE NOT NULL,
+      promotions_ring DECIMAL(18,4) NULL,
+      promotions_shell DECIMAL(18,4) NULL,
+      training_ring DECIMAL(18,4) NULL,
+      training_shell DECIMAL(18,4) NULL,
+      staff_meal_ring DECIMAL(18,4) NULL,
+      staff_meal_shell DECIMAL(18,4) NULL,
+      waste_dough_grams_ring DECIMAL(18,4) NULL,
+      waste_dough_grams_shell DECIMAL(18,4) NULL,
+      waste_frozen_dough_ring DECIMAL(18,4) NULL,
+      waste_frozen_dough_shell DECIMAL(18,4) NULL,
+      buffer_jpops_ring DECIMAL(18,4) NULL,
+      buffer_jpops_shell DECIMAL(18,4) NULL,
+      created_at DATETIME2(7) NOT NULL CONSTRAINT DF_dts_summary_input_created_at DEFAULT (SYSUTCDATETIME()),
+      updated_at DATETIME2(7) NOT NULL CONSTRAINT DF_dts_summary_input_updated_at DEFAULT (SYSUTCDATETIME()),
+      sync_id UNIQUEIDENTIFIER NULL CONSTRAINT DF_dts_summary_input_sync_id DEFAULT (NEWID()),
+      headq_synced_at DATETIME2(7) NULL,
+      headq_sync_error NVARCHAR(1000) NULL,
+      CONSTRAINT CK_dts_summary_input_date_range CHECK (date_from <= date_to)
+    );
+  END;
+  IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.dts_summary_input') AND name = N'UX_dts_summary_input_period'
+  )
+    CREATE UNIQUE INDEX UX_dts_summary_input_period
+      ON dbo.dts_summary_input(locationname, date_from, date_to);
+  IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.dts_summary_input') AND name = N'UX_dts_summary_input_sync_id'
+  )
+    CREATE UNIQUE INDEX UX_dts_summary_input_sync_id
+      ON dbo.dts_summary_input(sync_id) WHERE sync_id IS NOT NULL;
+`
+
+export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Promise<void> {
+  const settings = input
+    ? mergeSettings(await getConnectionSettings(), input)
+    : await getConnectionSettings()
+  if (settings.databases.local.database.toLowerCase() !== 'checkpostingdb') {
+    throw new Error('Set the local POS database name to checkpostingdb before initializing the local POS database.')
+  }
+
+  const pool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
+  try {
+    await pool.connect()
+    await pool.request().batch(`
+      ${localLocationTableSql}
+      ${localOperationalTablesSql}
+      ${localSummaryInputTableSql}
+    `)
+  } finally {
+    if (pool.connected) await pool.close()
+  }
+}
+
+async function insertLocalLocation(
+  transaction: sql.Transaction,
+  row: Record<string, unknown>,
+): Promise<void> {
+  await new sql.Request(transaction)
+    .input('locationId', sql.Int, row.LOCATIONID)
+    .input('locationName', sql.VarChar(50), row.LOCATIONNAME)
+    .input('orgLocationRef', sql.VarChar(50), row.ORGLOCATIONREF)
+    .input('username', sql.VarChar(50), row.username)
+    .input('password', sql.VarChar(50), row.password)
+    .input('access', sql.VarChar(50), row.access)
+    .input('isActive', sql.Bit, row.IsActive)
+    .input('posIp', sql.VarChar(50), row.pos_ip)
+    .input('areaManagerId', sql.Int, row.AreaManagerID)
+    .query(`
+      INSERT INTO dbo.dts_location
+        (LOCATIONID, LOCATIONNAME, ORGLOCATIONREF, username, password, access, IsActive, pos_ip, AreaManagerID)
+      VALUES
+        (@locationId, @locationName, @orgLocationRef, @username, @password, @access, @isActive, @posIp, @areaManagerId)
+    `)
+}
+
+export async function initializeLocalDatabase(
+  input: ConnectionSettings,
+): Promise<{ message: string }> {
+  const settings = mergeSettings(await getConnectionSettings(), input)
+  if (settings.databases.local.database.toLowerCase() !== 'checkpostingdb') {
+    throw new Error('Set the local POS database name to checkpostingdb before initializing the local POS database.')
   }
 
   const sourcePool = new sql.ConnectionPool(createSqlConfig(settings, 'hourly'))
@@ -337,32 +458,13 @@ export async function provisionLocalDatabase(
   try {
     await sourcePool.connect()
     const adminResult = await sourcePool.request().query(`
-      SELECT TOP 1 LOCATIONID, LOCATIONNAME, ORGLOCATIONREF, username, password, access, IsActive, pos_ip
+      SELECT LOCATIONID, LOCATIONNAME, ORGLOCATIONREF, username, password, access, IsActive, pos_ip, AreaManagerID
       FROM dbo.dts_location
       WHERE LOWER(LTRIM(RTRIM(access))) = 'admin' AND IsActive = 1
       ORDER BY LOCATIONID
     `)
-
-    if (adminResult.recordset.length !== 1) {
+    if (adminResult.recordset.length === 0) {
       throw new Error('No active admin account was found in the OracleDB dbo.dts_location source table.')
-    }
-
-    const locationRequest = sourcePool.request()
-    const idParameters = selectedIds.map((id, index) => {
-      const parameter = `locationId${index}`
-      locationRequest.input(parameter, sql.Int, id)
-      return `@${parameter}`
-    })
-    const locationsResult = await locationRequest.query(`
-      SELECT LOCATIONID, LOCATIONNAME, ORGLOCATIONREF, username, password, access, IsActive, pos_ip
-      FROM dbo.dts_location
-      WHERE IsActive = 1
-        AND LOWER(LTRIM(RTRIM(access))) <> 'admin'
-        AND LOCATIONID IN (${idParameters.join(', ')})
-    `)
-
-    if (locationsResult.recordset.length !== selectedIds.length) {
-      throw new Error('One or more selected locations are no longer active in OracleDB. Refresh the location list and select again.')
     }
 
     await localPool.connect()
@@ -370,36 +472,15 @@ export async function provisionLocalDatabase(
     await transaction.begin()
     try {
       await new sql.Request(transaction).batch(`
-        IF OBJECT_ID(N'dbo.dts_hourly_entry', N'U') IS NOT NULL DROP TABLE dbo.dts_hourly_entry;
-        IF OBJECT_ID(N'dbo.dts_waste', N'U') IS NOT NULL DROP TABLE dbo.dts_waste;
-        IF OBJECT_ID(N'dbo.dts_produce', N'U') IS NOT NULL DROP TABLE dbo.dts_produce;
-        IF OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL DROP TABLE dbo.dts_location;
         ${localLocationTableSql}
+        ${localOperationalTablesSql}
+        ${localSummaryInputTableSql}
+        DELETE FROM dbo.dts_location
+        WHERE LOWER(LTRIM(RTRIM(access))) = 'admin';
       `)
-
-      const insertLocation = async (row: Record<string, unknown>) => {
-        await new sql.Request(transaction)
-          .input('locationId', sql.Int, row.LOCATIONID)
-          .input('locationName', sql.VarChar(50), row.LOCATIONNAME)
-          .input('orgLocationRef', sql.VarChar(50), row.ORGLOCATIONREF)
-          .input('username', sql.VarChar(50), row.username)
-          .input('password', sql.VarChar(50), row.password)
-          .input('access', sql.VarChar(50), row.access)
-          .input('isActive', sql.Bit, row.IsActive)
-          .input('posIp', sql.VarChar(50), row.pos_ip)
-          .query(`
-            INSERT INTO dbo.dts_location
-              (LOCATIONID, LOCATIONNAME, ORGLOCATIONREF, username, password, access, IsActive, pos_ip)
-            VALUES
-              (@locationId, @locationName, @orgLocationRef, @username, @password, @access, @isActive, @posIp)
-          `)
+      for (const admin of adminResult.recordset) {
+        await insertLocalLocation(transaction, admin)
       }
-
-      await insertLocation(adminResult.recordset[0])
-      for (const location of locationsResult.recordset) {
-        await insertLocation(location)
-      }
-
       await transaction.commit()
     } catch (error) {
       await transaction.rollback()
@@ -407,8 +488,76 @@ export async function provisionLocalDatabase(
     }
 
     return {
-      message: `Recreated dts_location and dts_hourly_entry. Added the admin account and ${locationsResult.recordset.length} selected store(s).`,
-      selectedCount: locationsResult.recordset.length,
+      message: `Local POS database initialized with ${adminResult.recordset.length} active admin account(s). Sign in as admin to select this POS store.`,
+    }
+  } finally {
+    if (sourcePool.connected) await sourcePool.close()
+    if (localPool.connected) await localPool.close()
+  }
+}
+
+export async function setLocalStore(
+  input: ConnectionSettings,
+  selectedLocationId: number,
+): Promise<{ message: string; selectedCount: number }> {
+  const settings = mergeSettings(await getConnectionSettings(), input)
+  if (settings.databases.local.database.toLowerCase() !== 'checkpostingdb') {
+    throw new Error('Set the local POS database name to checkpostingdb before selecting a store.')
+  }
+  if (!Number.isInteger(selectedLocationId) || selectedLocationId < 1) {
+    throw new Error('Select one active Store location.')
+  }
+
+  const sourcePool = new sql.ConnectionPool(createSqlConfig(settings, 'hourly'))
+  const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
+
+  try {
+    await sourcePool.connect()
+    const locationRequest = sourcePool.request()
+    locationRequest.input('locationId', sql.Int, selectedLocationId)
+    const locationResult = await locationRequest.query(`
+      SELECT LOCATIONID, LOCATIONNAME, ORGLOCATIONREF, username, password, access, IsActive, pos_ip, AreaManagerID
+      FROM dbo.dts_location
+      WHERE IsActive = 1
+        AND LOWER(LTRIM(RTRIM(access))) = 'store'
+        AND LOCATIONID = @locationId
+    `)
+    if (locationResult.recordset.length !== 1) {
+      throw new Error('The selected Store is no longer active in OracleDB. Refresh the store list and select again.')
+    }
+
+    await localPool.connect()
+    const localStatus = await localPool.request().query(`
+      SELECT CASE
+        WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM dbo.dts_location
+            WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'admin'
+          )
+        THEN 1 ELSE 0
+      END AS localDatabaseInitialized
+    `)
+    if (Number(localStatus.recordset[0]?.localDatabaseInitialized) !== 1) {
+      throw new Error('Initialize the local POS database and sign in with the admin account before selecting a store.')
+    }
+
+    const transaction = new sql.Transaction(localPool)
+    await transaction.begin()
+    try {
+      await new sql.Request(transaction).query(`
+        DELETE FROM dbo.dts_location
+        WHERE access IS NULL OR LOWER(LTRIM(RTRIM(access))) <> 'admin'
+      `)
+      await insertLocalLocation(transaction, locationResult.recordset[0])
+      await transaction.commit()
+    } catch (error) {
+      await transaction.rollback()
+      throw error
+    }
+
+    return {
+      message: `Configured ${String(locationResult.recordset[0].LOCATIONNAME)} as this POS store. The admin account was retained.`,
+      selectedCount: 1,
     }
   } finally {
     if (sourcePool.connected) await sourcePool.close()

@@ -16,9 +16,12 @@ import {
 } from '../database/localdb.js'
 import {
   getConnectionSettingsView,
+  getFirstRunStoreOptions,
   getLocationOptions,
-  provisionLocalDatabase,
+  initializeLocalDatabase,
   saveConnectionSettings,
+  setLocalStore,
+  setFirstRunStore,
   testDatabaseSettings,
   testFtpSettings,
 } from '../settings/settings.service.js'
@@ -92,22 +95,46 @@ export function registerSettingsIpc() {
     return { success: true, message: 'Connection settings saved securely.' }
   })
 
-  handleIpc('settings:location-options', async (_event, input: ConnectionSettings, token?: string) => {
-    authorizeSettingsOperation(token)
+  handleIpc('settings:location-options', async (_event, input: ConnectionSettings, token: string) => {
+    requireAdminSession(token)
     return getLocationOptions(input)
   })
 
-  handleIpc('settings:provision-local-db', async (
-    _event,
-    input: ConnectionSettings,
-    locationIds: number[],
-    token?: string,
-  ) => {
-    authorizeSettingsOperation(token)
+  handleIpc('settings:first-run-store-options', async () => getFirstRunStoreOptions())
+
+  handleIpc('settings:first-run-set-store', async (_event, locationId: number) => {
+    const result = await setFirstRunStore(locationId)
+    await resetDatabasePools()
+    return { success: true, ...result }
+  })
+
+  handleIpc('settings:initialize-local-db', async (_event, input: ConnectionSettings) => {
     await saveConnectionSettings(input)
     await resetDatabasePools()
-    const result = await provisionLocalDatabase(input, locationIds)
+    let result: Awaited<ReturnType<typeof initializeLocalDatabase>>
+    try {
+      result = await initializeLocalDatabase(input)
+    } finally {
+      await resetDatabasePools()
+    }
+    return { success: true, ...result }
+  })
+
+  handleIpc('settings:set-local-store', async (
+    _event,
+    input: ConnectionSettings,
+    locationId: number,
+    token: string,
+  ) => {
+    requireAdminSession(token)
+    await saveConnectionSettings(input)
     await resetDatabasePools()
+    let result: Awaited<ReturnType<typeof setLocalStore>>
+    try {
+      result = await setLocalStore(input, locationId)
+    } finally {
+      await resetDatabasePools()
+    }
     return { success: true, ...result }
   })
 }

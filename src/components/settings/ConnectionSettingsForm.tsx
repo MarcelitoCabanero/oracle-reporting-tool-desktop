@@ -39,10 +39,10 @@ function ConnectionSettingsForm({
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [locationOptions, setLocationOptions] = useState<LocationOption[]>([])
-  const [selectedLocationIds, setSelectedLocationIds] = useState<number[]>([])
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null)
   const [loadingLocations, setLoadingLocations] = useState(false)
   const [provisioning, setProvisioning] = useState(false)
-  const [confirmTableReset, setConfirmTableReset] = useState(false)
+  const [confirmStoreChange, setConfirmStoreChange] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -107,17 +107,17 @@ function ConnectionSettingsForm({
   }
 
   async function loadLocations() {
-    if (!settings) return
+    if (!settings || !adminToken) return
     setLoadingLocations(true)
     setError('')
     setMessage('')
     try {
       const result = await window.api.settings.getLocationOptions(settings, adminToken)
       setLocationOptions(result)
-      setSelectedLocationIds([])
-      setConfirmTableReset(false)
+      setSelectedLocationId(null)
+      setConfirmStoreChange(false)
       if (result.length === 0) {
-        setError('No active store locations were found in the configured OracleDB dbo.dts_location table.')
+        setError('No active locations with access set to Store were found in OracleDB dbo.dts_location.')
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load locations from OracleDB.')
@@ -126,22 +126,34 @@ function ConnectionSettingsForm({
     }
   }
 
-  async function createLocalTables() {
-    if (!settings || selectedLocationIds.length === 0 || !confirmTableReset) return
+  async function initializeLocalPos() {
+    if (!settings || mode !== 'bootstrap') return
     setProvisioning(true)
     setError('')
     setMessage('')
     try {
-      const result = await window.api.settings.provisionLocalDatabase(
-        settings,
-        selectedLocationIds,
-        adminToken,
-      )
+      const result = await window.api.settings.initializeLocalDatabase(settings)
       setMessage(result.message)
-      setConfirmTableReset(false)
       onSaved()
     } catch (provisionError) {
-      setError(provisionError instanceof Error ? provisionError.message : 'Unable to create the local POS tables.')
+      setError(provisionError instanceof Error ? provisionError.message : 'Unable to initialize the local POS database.')
+    } finally {
+      setProvisioning(false)
+    }
+  }
+
+  async function assignStore() {
+    if (!settings || !adminToken || selectedLocationId === null || !confirmStoreChange) return
+    setProvisioning(true)
+    setError('')
+    setMessage('')
+    try {
+      const result = await window.api.settings.setLocalStore(settings, selectedLocationId, adminToken)
+      setMessage(result.message)
+      setConfirmStoreChange(false)
+      onSaved()
+    } catch (storeError) {
+      setError(storeError instanceof Error ? storeError.message : 'Unable to set this POS store.')
     } finally {
       setProvisioning(false)
     }
@@ -323,84 +335,98 @@ function ConnectionSettingsForm({
           </div>
         </section>
 
-        <section className="col-12">
-          <div className="border border-warning rounded-3 p-3">
-            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
-              <div>
-                <h3 className="h6 mb-1">Initialize local POS tables</h3>
-                <p className="text-secondary mb-0">
-                  Load active store names from the configured OracleDB connection, then select which stores to add to this POS.
-                </p>
-              </div>
+        {mode === 'bootstrap' ? (
+          <section className="col-12">
+            <div className="border border-primary rounded-3 p-3">
+              <h3 className="h6 mb-1">Initialize Local POS Database</h3>
+              <p className="text-secondary">
+                Create the local tables and copy active admin account(s) from OracleDB. After initialization, sign in with an admin account to assign this POS to a store.
+              </p>
               <button
-                className="btn btn-outline-primary"
+                className="btn btn-primary"
                 type="button"
-                disabled={loadingLocations || provisioning}
-                onClick={() => void loadLocations()}
+                disabled={provisioning}
+                onClick={() => void initializeLocalPos()}
               >
-                {loadingLocations ? 'Loading stores...' : 'Load store list'}
+                {provisioning ? 'Initializing...' : 'Initialize database and add admin'}
               </button>
             </div>
-
-            {locationOptions.length > 0 && (
-              <>
-                <div className="mt-3">
-                  <details className="dropdown position-relative">
-                    <summary className="btn btn-outline-secondary dropdown-toggle">
-                      Select stores ({selectedLocationIds.length} selected)
-                    </summary>
-                    <div className="dropdown-menu show p-2 mt-1 overflow-auto" style={{ maxHeight: 280, minWidth: 280, maxWidth: 'min(420px, 90vw)', zIndex: 10 }}>
-                      <button
-                        className="dropdown-item small mb-1"
-                        type="button"
-                        onClick={() => setSelectedLocationIds(
-                          selectedLocationIds.length === locationOptions.length
-                            ? []
-                            : locationOptions.map((location) => location.locationId),
-                        )}
-                      >
-                        {selectedLocationIds.length === locationOptions.length ? 'Clear selection' : 'Select all stores'}
-                      </button>
-                      <hr className="dropdown-divider my-1" />
-                    {locationOptions.map((location) => (
-                      <label className="dropdown-item d-flex align-items-center gap-2 py-2" key={location.locationId}>
-                        <input
-                          type="checkbox"
-                          checked={selectedLocationIds.includes(location.locationId)}
-                          onChange={(event) => setSelectedLocationIds((current) => event.target.checked
-                            ? [...current, location.locationId]
-                            : current.filter((id) => id !== location.locationId))}
-                        />
-                        <span>{location.locationName}</span>
-                      </label>
-                    ))}
-                    </div>
-                  </details>
+          </section>
+        ) : (
+          <section className="col-12">
+            <div className="border border-warning rounded-3 p-3">
+              <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                  <h3 className="h6 mb-1">Select this POS store</h3>
+                  <p className="text-secondary mb-0">
+                    Only active OracleDB locations with access set to Store are listed. Admin accounts are already configured and are not shown.
+                  </p>
                 </div>
-                <div className="alert alert-danger py-2 mt-3 mb-2">
-                  Recreating the tables permanently deletes existing data in local dts_location, dts_produce, and dts_waste. The active admin account is copied from OracleDB automatically; only selected active stores are copied.
-                </div>
-                <label className="d-flex align-items-start gap-2 mb-3">
-                  <input
-                    className="mt-1"
-                    type="checkbox"
-                    checked={confirmTableReset}
-                    onChange={(event) => setConfirmTableReset(event.target.checked)}
-                  />
-                  <span>I understand this will drop and recreate all three tables and delete any existing rows.</span>
-                </label>
                 <button
-                  className="btn btn-danger"
+                  className="btn btn-outline-primary"
                   type="button"
-                  disabled={provisioning || selectedLocationIds.length === 0 || !confirmTableReset}
-                  onClick={() => void createLocalTables()}
+                  disabled={loadingLocations || provisioning}
+                  onClick={() => void loadLocations()}
                 >
-                  {provisioning ? 'Creating tables...' : 'Drop and recreate POS tables'}
+                  {loadingLocations ? 'Loading stores...' : 'Load store list'}
                 </button>
-              </>
-            )}
-          </div>
-        </section>
+              </div>
+
+              {locationOptions.length > 0 && (
+                <>
+                  <div className="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-2 mt-3">
+                    {locationOptions.map((location) => {
+                      const selected = selectedLocationId === location.locationId
+                      return (
+                        <div className="col" key={location.locationId}>
+                          <label
+                            className={`card h-100 p-3 ${selected ? 'border-primary bg-primary-subtle' : ''}`}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <span className="d-flex align-items-start gap-3">
+                              <input
+                                className="form-check-input mt-1"
+                                type="radio"
+                                name="local-pos-store"
+                                value={location.locationId}
+                                checked={selected}
+                                onChange={() => setSelectedLocationId(location.locationId)}
+                              />
+                              <span>
+                                <span className="fw-semibold d-block">{location.locationName}</span>
+                                <span className="small text-secondary">Location ID: {location.locationId}</span>
+                              </span>
+                            </span>
+                          </label>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="alert alert-warning py-2 mt-3 mb-2">
+                    Setting the POS store replaces its existing non-admin location rows. Admin accounts and existing hourly and summary records are retained.
+                  </div>
+                  <label className="d-flex align-items-start gap-2 mb-3">
+                    <input
+                      className="mt-1"
+                      type="checkbox"
+                      checked={confirmStoreChange}
+                      onChange={(event) => setConfirmStoreChange(event.target.checked)}
+                    />
+                    <span>I understand this will replace the currently configured store.</span>
+                  </label>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    disabled={provisioning || selectedLocationId === null || !confirmStoreChange}
+                    onClick={() => void assignStore()}
+                  >
+                    {provisioning ? 'Setting store...' : 'Set this POS store'}
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        )}
       </div>
 
       <div className="d-flex justify-content-end gap-2 mt-4">
