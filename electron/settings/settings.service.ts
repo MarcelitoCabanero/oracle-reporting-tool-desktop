@@ -276,23 +276,35 @@ export async function getFirstRunStoreOptions(): Promise<LocationOption[]> {
 
 export async function setFirstRunStore(selectedLocationId: number): Promise<{ message: string; selectedCount: number }> {
   const settings = await getConnectionSettings()
+  await ensureLocalDatabaseTables(settings)
+
   const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
+  let hasAdmin = false
 
   try {
     await localPool.connect()
     const status = await localPool.request().query(`
-      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL
-        AND EXISTS (
+      SELECT
+        CASE WHEN EXISTS (
           SELECT 1 FROM dbo.dts_location
           WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
-        ) THEN 1 ELSE 0 END AS hasStore
+        ) THEN 1 ELSE 0 END AS hasStore,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM dbo.dts_location
+          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'admin'
+        ) THEN 1 ELSE 0 END AS hasAdmin
     `)
     if (Number(status.recordset[0]?.hasStore) === 1) {
       throw new Error('This POS already has a store assigned. Sign in as admin to change it in Settings.')
     }
+    hasAdmin = Number(status.recordset[0]?.hasAdmin) === 1
   } finally {
     if (localPool.connected) await localPool.close()
   }
+
+  // Do not rely on the login health check having completed initialization; it
+  // can have returned a setup warning while still showing the store picker.
+  if (!hasAdmin) await initializeLocalDatabase(settings)
 
   return setLocalStore(settings, selectedLocationId)
 }
@@ -650,6 +662,18 @@ export async function setLocalStore(
         WHERE access IS NULL OR LOWER(LTRIM(RTRIM(access))) <> 'admin'
       `)
       await insertLocalLocation(transaction, locationResult.recordset[0])
+      const inserted = await new sql.Request(transaction)
+        .input('locationId', sql.Int, selectedLocationId)
+        .query(`
+          SELECT COUNT(1) AS insertedCount
+          FROM dbo.dts_location
+          WHERE LOCATIONID = @locationId
+            AND IsActive = 1
+            AND LOWER(LTRIM(RTRIM(access))) = 'store'
+        `)
+      if (Number(inserted.recordset[0]?.insertedCount) !== 1) {
+        throw new Error('The selected Store was not saved to CheckPostingDB. Please try again.')
+      }
       await transaction.commit()
     } catch (error) {
       await transaction.rollback()
