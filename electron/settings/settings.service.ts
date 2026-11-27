@@ -271,7 +271,34 @@ export async function getLocationOptions(input: ConnectionSettings): Promise<Loc
 }
 
 export async function getFirstRunStoreOptions(): Promise<LocationOption[]> {
-  return getLocationOptions(await getConnectionSettings())
+  const settings = await getConnectionSettings()
+  const options = await getLocationOptions(settings)
+  if (options.length > 0) return options
+
+  // A successful query with no options usually means the packaged app is
+  // using stale saved connection settings. Report the actual DB context so it
+  // can be compared with the HQ server configured by the operator.
+  const pool = new sql.ConnectionPool(createSqlConfig(settings, 'hq'))
+  try {
+    await pool.connect()
+    const result = await pool.request().query(`
+      SELECT
+        DB_NAME() AS databaseName,
+        COUNT(*) AS totalRows,
+        SUM(CASE WHEN UPPER(LTRIM(RTRIM(access))) = 'STORE' THEN 1 ELSE 0 END) AS storeRows,
+        SUM(CASE WHEN UPPER(LTRIM(RTRIM(access))) = 'STORE' AND IsActive = 1 THEN 1 ELSE 0 END) AS activeStoreRows
+      FROM dbo.dts_location
+    `)
+    const row = result.recordset[0]
+    throw new Error(
+      `No active Store locations were returned. The app queried database "${String(row?.databaseName ?? settings.databases.hq.database)}" ` +
+      `on the configured HQ server and found ${Number(row?.activeStoreRows ?? 0)} active Store row(s) ` +
+      `(${Number(row?.storeRows ?? 0)} Store row(s), ${Number(row?.totalRows ?? 0)} total). ` +
+      'Compare this app connection with the SQL Server connection where you confirmed the Store rows.',
+    )
+  } finally {
+    if (pool.connected) await pool.close()
+  }
 }
 
 export async function setFirstRunStore(selectedLocationId: number): Promise<{ message: string; selectedCount: number }> {
