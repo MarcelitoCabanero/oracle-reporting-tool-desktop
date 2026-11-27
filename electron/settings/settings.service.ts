@@ -272,30 +272,21 @@ export async function getLocationOptions(input: ConnectionSettings): Promise<Loc
 
 export async function getFirstRunStoreOptions(): Promise<LocationOption[]> {
   const settings = await getConnectionSettings()
-  const options = await getLocationOptions(settings)
-  if (options.length > 0) return options
-
-  // A successful query with no options usually means the packaged app is
-  // using stale saved connection settings. Report the actual DB context so it
-  // can be compared with the HQ server configured by the operator.
-  const pool = new sql.ConnectionPool(createSqlConfig(settings, 'hq'))
+  await ensureLocalDatabaseTables(settings)
+  const pool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
   try {
     await pool.connect()
     const result = await pool.request().query(`
-      SELECT
-        DB_NAME() AS databaseName,
-        COUNT(*) AS totalRows,
-        SUM(CASE WHEN UPPER(LTRIM(RTRIM(access))) = 'STORE' THEN 1 ELSE 0 END) AS storeRows,
-        SUM(CASE WHEN UPPER(LTRIM(RTRIM(access))) = 'STORE' AND IsActive = 1 THEN 1 ELSE 0 END) AS activeStoreRows
+      SELECT LOCATIONID AS locationId, LOCATIONNAME AS locationName
       FROM dbo.dts_location
+      WHERE IsActive = 1
+        AND LOWER(LTRIM(RTRIM(access))) = 'store'
+      ORDER BY LOCATIONNAME
     `)
-    const row = result.recordset[0]
-    throw new Error(
-      `No active Store locations were returned. The app queried database "${String(row?.databaseName ?? settings.databases.hq.database)}" ` +
-      `on the configured HQ server and found ${Number(row?.activeStoreRows ?? 0)} active Store row(s) ` +
-      `(${Number(row?.storeRows ?? 0)} Store row(s), ${Number(row?.totalRows ?? 0)} total). ` +
-      'Compare this app connection with the SQL Server connection where you confirmed the Store rows.',
-    )
+    return result.recordset.map((row) => ({
+      locationId: Number(row.locationId),
+      locationName: String(row.locationName ?? ''),
+    }))
   } finally {
     if (pool.connected) await pool.close()
   }
@@ -303,37 +294,73 @@ export async function getFirstRunStoreOptions(): Promise<LocationOption[]> {
 
 export async function setFirstRunStore(selectedLocationId: number): Promise<{ message: string; selectedCount: number }> {
   const settings = await getConnectionSettings()
+  if (!Number.isInteger(selectedLocationId) || selectedLocationId < 1) {
+    throw new Error('Select one active Store location.')
+  }
   await ensureLocalDatabaseTables(settings)
-
   const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
-  let hasAdmin = false
 
   try {
     await localPool.connect()
-    const status = await localPool.request().query(`
-      SELECT
-        CASE WHEN EXISTS (
-          SELECT 1 FROM dbo.dts_location
-          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
-        ) THEN 1 ELSE 0 END AS hasStore,
-        CASE WHEN EXISTS (
-          SELECT 1 FROM dbo.dts_location
-          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'admin'
-        ) THEN 1 ELSE 0 END AS hasAdmin
-    `)
-    if (Number(status.recordset[0]?.hasStore) === 1) {
-      throw new Error('This POS already has a store assigned. Sign in as admin to change it in Settings.')
+    const transaction = new sql.Transaction(localPool)
+    await transaction.begin()
+    try {
+      const selectionState = await new sql.Request(transaction)
+        .input('selectionMarker', sql.NVarChar(255), firstRunStoreSelectionMarker)
+        .query(`
+          SELECT CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.app_first_run_setup WHERE setup_name=@selectionMarker
+          ) THEN 1 ELSE 0 END AS alreadySelected
+        `)
+      if (Number(selectionState.recordset[0]?.alreadySelected) === 1) {
+        throw new Error('This POS already has a store assigned. Sign in as admin to change it in Settings.')
+      }
+
+      const selected = await new sql.Request(transaction)
+        .input('locationId', sql.Int, selectedLocationId)
+        .query(`
+          SELECT LOCATIONID
+          FROM dbo.dts_location
+          WHERE LOCATIONID=@locationId
+            AND IsActive=1
+            AND LOWER(LTRIM(RTRIM(access)))='store'
+        `)
+      if (selected.recordset.length !== 1) {
+        throw new Error('Select one active Store from the seeded CheckPostingDB store list.')
+      }
+
+      // Keep only the chosen Store and the required built-in admin account.
+      await new sql.Request(transaction)
+        .input('locationId', sql.Int, selectedLocationId)
+        .query(`DELETE FROM dbo.dts_location WHERE LOCATIONID NOT IN (2000, @locationId);`)
+      await new sql.Request(transaction)
+        .input('locationId', sql.Int, firstRunAdminLocation.LOCATIONID)
+        .query('DELETE FROM dbo.dts_location WHERE LOCATIONID=@locationId;')
+      await insertLocalLocation(transaction, firstRunAdminLocation)
+      await new sql.Request(transaction)
+        .input('selectionMarker', sql.NVarChar(255), firstRunStoreSelectionMarker)
+        .query('INSERT INTO dbo.app_first_run_setup (setup_name) VALUES (@selectionMarker);')
+
+      const result = await new sql.Request(transaction)
+        .input('locationId', sql.Int, selectedLocationId)
+        .query(`
+          SELECT COUNT(1) AS selectedCount
+          FROM dbo.dts_location
+          WHERE LOCATIONID=@locationId AND IsActive=1
+            AND LOWER(LTRIM(RTRIM(access)))='store'
+        `)
+      if (Number(result.recordset[0]?.selectedCount) !== 1) {
+        throw new Error('The selected Store was not saved to CheckPostingDB. Please try again.')
+      }
+      await transaction.commit()
+      return { message: 'The selected Store and required admin account were saved to CheckPostingDB.', selectedCount: 1 }
+    } catch (error) {
+      await transaction.rollback().catch(() => undefined)
+      throw error
     }
-    hasAdmin = Number(status.recordset[0]?.hasAdmin) === 1
   } finally {
     if (localPool.connected) await localPool.close()
   }
-
-  // Do not rely on the login health check having completed initialization; it
-  // can have returned a setup warning while still showing the store picker.
-  if (!hasAdmin) await initializeLocalDatabase(settings)
-
-  return setLocalStore(settings, selectedLocationId)
 }
 
 const localLocationTableSql = `
@@ -440,6 +467,38 @@ const firstRunSetupRegistrySql = `
 
 const freshLocalSchemaMarker = 'bootstrap:first-run-local-schema'
 const firstRunViewsMarker = 'bootstrap:first-run-create-view-tables'
+const firstRunStoreSelectionMarker = 'bootstrap:first-run-store-selected'
+const firstRunAdminLocation = {
+  LOCATIONID: 2000,
+  LOCATIONNAME: 'Admin',
+  ORGLOCATIONREF: 'Administrator',
+  username: 'admin',
+  password: 'admin',
+  access: 'admin',
+  IsActive: true,
+  pos_ip: null,
+  AreaManagerID: null,
+}
+
+async function loadFirstRunLocationBatches(): Promise<string[]> {
+  const directory = app.isPackaged
+    ? path.join(process.resourcesPath, 'database-migrations', 'checkpostingdb')
+    : path.join(app.getAppPath(), 'database-migrations', 'checkpostingdb')
+  const filePath = path.join(directory, 'dts_location.sql')
+  const file = await fs.readFile(filePath)
+  const encoding = file[0] === 0xff && file[1] === 0xfe ? 'utf16le' : 'utf8'
+  const script = file.toString(encoding)
+    .replace(/^\uFEFF/, '')
+    .replace(/^\s*USE\s+\[[^\]]+\]\s*;?\s*$/gim, '')
+  const batches = script
+    .split(/^\s*GO(?:\s+\d+)?\s*$/gim)
+    .map((batch) => batch.trim())
+    .filter(Boolean)
+  if (!batches.some((batch) => /CREATE\s+TABLE\s+\[dbo\]\.\[dts_location\]/i.test(batch))) {
+    throw new Error('The first-run dts_location.sql file does not create dbo.dts_location.')
+  }
+  return batches
+}
 
 async function createFirstRunViews(pool: sql.ConnectionPool): Promise<void> {
   const setup = await pool.request()
@@ -523,20 +582,52 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
       SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 1 ELSE 0 END AS isFresh
     `)
     const isFresh = Number(before.recordset[0]?.isFresh) === 1
+    let hasStore = false
+    let storeAlreadySelected = false
+    if (!isFresh) {
+      const existing = await pool.request().query(`
+        SELECT
+          CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.dts_location
+            WHERE IsActive=1 AND LOWER(LTRIM(RTRIM(access)))='store'
+          ) THEN 1 ELSE 0 END AS hasStore,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.app_first_run_setup
+            WHERE setup_name=N'${firstRunStoreSelectionMarker}'
+          ) THEN 1 ELSE 0 END AS storeSelected
+      `)
+      hasStore = Number(existing.recordset[0]?.hasStore) === 1
+      storeAlreadySelected = Number(existing.recordset[0]?.storeSelected) === 1
+    }
+    const shouldSeedLocations = isFresh || (!hasStore && !storeAlreadySelected)
+    const locationBatches = shouldSeedLocations ? await loadFirstRunLocationBatches() : []
 
     // Keep the required login/location table independent from optional
     // operational table/index creation so a later setup error cannot roll it back.
     const locationTransaction = new sql.Transaction(pool)
     await locationTransaction.begin()
     try {
-      await new sql.Request(locationTransaction).batch(localLocationTableSql)
+      if (shouldSeedLocations && isFresh) {
+        for (const batch of locationBatches) {
+          await new sql.Request(locationTransaction).batch(batch)
+        }
+      } else {
+        await new sql.Request(locationTransaction).batch(localLocationTableSql)
+        if (shouldSeedLocations) {
+          await new sql.Request(locationTransaction).query('DELETE FROM dbo.dts_location;')
+          for (const batch of locationBatches) {
+            if (/CREATE\s+TABLE\s+\[dbo\]\.\[dts_location\]/i.test(batch)) continue
+            await new sql.Request(locationTransaction).batch(batch)
+          }
+        }
+      }
       const created = await new sql.Request(locationTransaction).query(`
         SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS tableExists
       `)
       if (Number(created.recordset[0]?.tableExists) !== 1) {
         throw new Error('dbo.dts_location was not created in CheckPostingDB.')
       }
-      if (isFresh) {
+      if (shouldSeedLocations) {
         await new sql.Request(locationTransaction)
           .input('schemaMarker', sql.NVarChar(255), freshLocalSchemaMarker)
           .query(`
@@ -594,32 +685,22 @@ export async function initializeLocalDatabase(
   }
 
   await ensureLocalDatabaseTables(settings)
-
-  const sourcePool = new sql.ConnectionPool(createSqlConfig(settings, 'hourly'))
   const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
 
   try {
-    await sourcePool.connect()
-    const adminResult = await sourcePool.request().query(`
-      SELECT LOCATIONID, LOCATIONNAME, ORGLOCATIONREF, username, password, access, IsActive, pos_ip, AreaManagerID
-      FROM dbo.dts_location
-      WHERE LOWER(LTRIM(RTRIM(access))) = 'admin' AND IsActive = 1
-      ORDER BY LOCATIONID
-    `)
-    if (adminResult.recordset.length === 0) {
-      throw new Error('No active admin account was found in the OracleDB dbo.dts_location source table.')
-    }
-
     await localPool.connect()
     const transaction = new sql.Transaction(localPool)
     await transaction.begin()
     try {
-      await new sql.Request(transaction).query(`
-        DELETE FROM dbo.dts_location
-        WHERE LOWER(LTRIM(RTRIM(access))) = 'admin';
+      const adminResult = await new sql.Request(transaction).query(`
+        SELECT COUNT(1) AS adminCount
+        FROM dbo.dts_location
+        WHERE LOCATIONID=2000 AND LOWER(LTRIM(RTRIM(access)))='admin' AND IsActive=1
       `)
-      for (const admin of adminResult.recordset) {
-        await insertLocalLocation(transaction, admin)
+      if (Number(adminResult.recordset[0]?.adminCount) === 0) {
+        await new sql.Request(transaction).input('adminId', sql.Int, firstRunAdminLocation.LOCATIONID)
+          .query('DELETE FROM dbo.dts_location WHERE LOCATIONID=@adminId;')
+        await insertLocalLocation(transaction, firstRunAdminLocation)
       }
       await transaction.commit()
     } catch (error) {
@@ -627,11 +708,13 @@ export async function initializeLocalDatabase(
       throw error
     }
 
-    return {
-      message: `Local POS database initialized with ${adminResult.recordset.length} active admin account(s). Sign in as admin to select this POS store.`,
-    }
+    const stores = await localPool.request().query(`
+      SELECT COUNT(1) AS storeCount
+      FROM dbo.dts_location
+      WHERE IsActive=1 AND LOWER(LTRIM(RTRIM(access)))='store'
+    `)
+    return { message: `CheckPostingDB initialized with the required admin account and ${Number(stores.recordset[0]?.storeCount ?? 0)} active Store location(s).` }
   } finally {
-    if (sourcePool.connected) await sourcePool.close()
     if (localPool.connected) await localPool.close()
   }
 }

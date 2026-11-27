@@ -105,23 +105,51 @@ async function checkLocalDb(): Promise<{
             WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
           ) THEN 1 ELSE 0 END AS hasStore
       `)
-      const hasAdmin = Number(localSetup.recordset[0]?.hasAdmin) === 1
-      const hasStore = Number(localSetup.recordset[0]?.hasStore) === 1
+      let hasAdmin = Number(localSetup.recordset[0]?.hasAdmin) === 1
+      let hasStore = Number(localSetup.recordset[0]?.hasStore) === 1
 
       if (!hasStore) {
         await ensureLocalDatabaseTables(settings)
+        const seededState = await pool.request().query(`
+          SELECT
+            CASE WHEN EXISTS (
+              SELECT 1 FROM dbo.dts_location
+              WHERE IsActive=1 AND LOWER(LTRIM(RTRIM(access)))='admin'
+            ) THEN 1 ELSE 0 END AS hasAdmin,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM dbo.dts_location
+              WHERE IsActive=1 AND LOWER(LTRIM(RTRIM(access)))='store'
+            ) THEN 1 ELSE 0 END AS hasStore
+        `)
+        hasAdmin = Number(seededState.recordset[0]?.hasAdmin) === 1
+        hasStore = Number(seededState.recordset[0]?.hasStore) === 1
         if (!hasAdmin) {
           await initializeLocalDatabase(settings)
         }
       }
 
       const storeCheck = await pool.request().query(`
-        SELECT CASE WHEN EXISTS (
-          SELECT 1 FROM dbo.dts_location
-          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
-        ) THEN 1 ELSE 0 END AS hasStore
+        SELECT
+          CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.dts_location
+            WHERE IsActive=1 AND LOWER(LTRIM(RTRIM(access)))='store'
+          ) THEN 1 ELSE 0 END AS hasStore,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.app_first_run_setup
+            WHERE setup_name=N'bootstrap:first-run-local-schema'
+          ) OR (
+            SELECT COUNT(DISTINCT LOCATIONID) FROM dbo.dts_location
+            WHERE IsActive=1 AND LOWER(LTRIM(RTRIM(access)))='store'
+          ) > 1 THEN 1 ELSE 0 END AS hasUnconfiguredStores,
+          CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.app_first_run_setup
+            WHERE setup_name=N'bootstrap:first-run-store-selected'
+          ) THEN 1 ELSE 0 END AS storeWasSelected
       `)
-      requiresStoreSelection = Number(storeCheck.recordset[0]?.hasStore) !== 1
+      requiresStoreSelection = (
+        Number(storeCheck.recordset[0]?.hasUnconfiguredStores) === 1
+        && Number(storeCheck.recordset[0]?.storeWasSelected) !== 1
+      ) || Number(storeCheck.recordset[0]?.hasStore) !== 1
     }
 
     return {
