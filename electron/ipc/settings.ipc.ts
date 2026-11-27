@@ -3,9 +3,6 @@ import { handleIpc } from './ipc-handler.js'
 
 import { verifyAdminPassword } from '../auth/auth.repository.js'
 import {
-  resetHeadqDbPool,
-} from '../database/headqdb.js'
-import {
   resetHqDbPool,
 } from '../database/hqdb.js'
 import {
@@ -45,7 +42,6 @@ async function resetDatabasePools(): Promise<void> {
   await Promise.all([
     resetLocalDbPool(),
     resetHqDbPool(),
-    resetHeadqDbPool(),
     resetHourlyDbPool(),
   ])
 }

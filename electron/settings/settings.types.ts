@@ -1,4 +1,4 @@
-export type DatabaseKey = 'local' | 'hq' | 'headq' | 'hourly'
+export type DatabaseKey = 'local' | 'hq' | 'hourly'
 
 export interface DatabaseConnectionSettings {
   server: string

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import type {
   ConnectionSettingsView,
   DatabaseConnectionSettingsView,
-  DatabaseKey,
   LocationOption,
 } from '../../../electron/settings/settings.types.js'
 
@@ -16,15 +15,12 @@ interface ConnectionSettingsFormProps {
   onCancel?: () => void
 }
 
-const databaseLabels: Record<DatabaseKey, string> = {
+const databaseLabels: Record<'local' | 'hq', string> = {
   local: 'Local POS database (checkpostingdb)',
   hq: 'HQ server connection',
-  headq: 'HEADQ database',
-  hourly: 'Hourly sync destination (OracleDB)',
 }
 
-const editableDatabaseKeys: DatabaseKey[] = ['local', 'hq', 'hourly']
-const sharedHqDatabaseKeys: DatabaseKey[] = ['headq']
+const editableDatabaseKeys = ['local', 'hq'] as const
 
 function ConnectionSettingsForm({
   mode,
@@ -63,7 +59,7 @@ function ConnectionSettingsForm({
   }, [])
 
   function updateDatabase(
-    key: DatabaseKey,
+    key: 'local' | 'hq',
     field: keyof DatabaseConnectionSettingsView,
     value: string | number,
   ) {
@@ -76,7 +72,7 @@ function ConnectionSettingsForm({
     }))
   }
 
-  async function testDatabase(key: DatabaseKey) {
+  async function testDatabase(key: 'local' | 'hq') {
     if (!settings) return
     setTesting(key)
     setError('')
@@ -187,20 +183,20 @@ function ConnectionSettingsForm({
 
   return (
     <div>
-      <p className="text-secondary">
-        Hourly entries sync to the configured OracleDB destination (default: 192.168.5.201 / oracledb). Configure its connection separately from HQ and use Test connection to verify access. The HEADQ database uses the HQ server and credentials. Connection passwords are encrypted on this device; leave a password blank to keep it.
+      <p className="text-secondary small mb-3">
+        Hourly sales sync uses the HQ connection. Passwords are encrypted on this device; leave a password blank to keep it.
       </p>
 
       {error && <div className="alert alert-danger py-2" role="alert">{error}</div>}
       {message && <div className="alert alert-info py-2" role="status">{message}</div>}
 
-      <div className="row g-3">
+      <div className="row g-2">
         {editableDatabaseKeys.map((key) => {
           const connection = settings.databases[key]
           return (
             <section className="col-12 col-xl-6" key={key}>
-              <div className="border rounded-3 p-3 h-100">
-                <div className="d-flex justify-content-between align-items-center gap-2 mb-3">
+              <div className="border rounded-3 p-3 h-100 bg-white">
+                <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
                   <h3 className="h6 mb-0">{databaseLabels[key]}</h3>
                   <button
                     className="btn btn-outline-secondary btn-sm"
@@ -212,19 +208,19 @@ function ConnectionSettingsForm({
                   </button>
                 </div>
                 <div className="row g-2">
-                  <label className="col-12">
+                  <label className="col-8">
                     <span className="form-label">Server / IP</span>
                     <input className="form-control" value={connection.server} onChange={(event) => updateDatabase(key, 'server', event.target.value)} />
-                  </label>
-                  <label className="col-8">
-                    <span className="form-label">Database</span>
-                    <input className="form-control" value={connection.database} onChange={(event) => updateDatabase(key, 'database', event.target.value)} />
                   </label>
                   <label className="col-4">
                     <span className="form-label">Port</span>
                     <input className="form-control" type="number" min="1" max="65535" value={connection.port} onChange={(event) => updateDatabase(key, 'port', Number(event.target.value))} />
                   </label>
-                  <label className="col-12">
+                  <label className="col-12 col-md-5">
+                    <span className="form-label">Database</span>
+                    <input className="form-control" value={connection.database} onChange={(event) => updateDatabase(key, 'database', event.target.value)} />
+                  </label>
+                  <label className="col-12 col-md-7">
                     <span className="form-label">Username</span>
                     <input className="form-control" value={connection.username} onChange={(event) => updateDatabase(key, 'username', event.target.value)} />
                   </label>
@@ -245,58 +241,20 @@ function ConnectionSettingsForm({
           )
         })}
 
-        <section className="col-12">
-          <div className="border rounded-3 p-3">
-            <h3 className="h6 mb-1">Other database on the HQ server</h3>
-            <p className="small text-secondary">
-              These use the HQ connection credentials above. Test each database to verify it exists and the account has access.
-            </p>
-            <div className="row g-2">
-              {sharedHqDatabaseKeys.map((key) => {
-                const connection = settings.databases[key]
-                return (
-                  <div className="col-12 col-md-6" key={key}>
-                    <div className="border rounded-2 p-3">
-                      <div className="d-flex justify-content-between align-items-center gap-2">
-                        <label className="flex-grow-1">
-                          <span className="form-label">{databaseLabels[key]}</span>
-                          <input
-                            className="form-control"
-                            value={connection.database}
-                            onChange={(event) => updateDatabase(key, 'database', event.target.value)}
-                          />
-                        </label>
-                        <button
-                          className="btn btn-outline-secondary btn-sm mt-4"
-                          type="button"
-                          disabled={testing !== null}
-                          onClick={() => void testDatabase(key)}
-                        >
-                          {testing === key ? 'Testing...' : 'Test'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </section>
-
         <section className="col-12 col-xl-6">
-          <div className="border rounded-3 p-3 h-100">
-            <div className="d-flex justify-content-between align-items-center gap-2 mb-3">
+          <div className="border rounded-3 p-3 h-100 bg-white">
+            <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
               <h3 className="h6 mb-0">FTP (deposit attachments)</h3>
               <button className="btn btn-outline-secondary btn-sm" type="button" disabled={testing !== null} onClick={() => void testFtp()}>
                 {testing === 'ftp' ? 'Testing...' : 'Test connection'}
               </button>
             </div>
             <div className="row g-2">
-              <label className="col-12">
+              <label className="col-12 col-md-6">
                 <span className="form-label">Host</span>
                 <input className="form-control" value={settings.ftp.host} onChange={(event) => setSettings({ ...settings, ftp: { ...settings.ftp, host: event.target.value } })} />
               </label>
-              <label className="col-12">
+              <label className="col-12 col-md-6">
                 <span className="form-label">Username</span>
                 <input className="form-control" value={settings.ftp.username} onChange={(event) => setSettings({ ...settings, ftp: { ...settings.ftp, username: event.target.value } })} />
               </label>
@@ -311,25 +269,34 @@ function ConnectionSettingsForm({
                   onChange={(event) => setSettings({ ...settings, ftp: { ...settings.ftp, password: event.target.value } })}
                 />
               </label>
-              <label className="col-12 d-flex align-items-center gap-2">
-                <input type="checkbox" checked={settings.ftp.secure} onChange={(event) => setSettings({ ...settings, ftp: { ...settings.ftp, secure: event.target.checked } })} />
-                Use secure FTP (FTPS)
+              <label className="col-12">
+                <span className="form-check form-switch border rounded-3 px-3 py-2 d-flex align-items-center gap-2 mb-0">
+                  <input className="form-check-input ms-0 mt-0 flex-shrink-0" type="checkbox" checked={settings.ftp.secure} onChange={(event) => setSettings({ ...settings, ftp: { ...settings.ftp, secure: event.target.checked } })} />
+                  <span className="form-check-label small">Use secure FTP (FTPS)</span>
+                </span>
               </label>
             </div>
           </div>
         </section>
 
         <section className="col-12">
-          <div className="border rounded-3 p-3">
-            <h3 className="h6">SQL Server TLS options</h3>
-            <div className="d-flex flex-wrap gap-4">
-              <label className="d-flex align-items-center gap-2">
-                <input type="checkbox" checked={settings.encrypt} onChange={(event) => setSettings({ ...settings, encrypt: event.target.checked })} />
-                Encrypt connection
+          <div className="border rounded-3 p-3 bg-light-subtle">
+            <div className="d-flex justify-content-between align-items-center gap-2 mb-2">
+              <h3 className="h6 mb-0">Connection security</h3>
+              <span className="small text-secondary">SQL Server TLS</span>
+            </div>
+            <div className="row g-2">
+              <label className="col-12 col-md-6">
+                <span className="form-check form-switch border rounded-3 bg-white px-3 py-2 d-flex align-items-center gap-2 mb-0">
+                  <input className="form-check-input ms-0 mt-0 flex-shrink-0" type="checkbox" checked={settings.encrypt} onChange={(event) => setSettings({ ...settings, encrypt: event.target.checked })} />
+                  <span className="form-check-label small">Encrypt SQL connections</span>
+                </span>
               </label>
-              <label className="d-flex align-items-center gap-2">
-                <input type="checkbox" checked={settings.trustServerCertificate} onChange={(event) => setSettings({ ...settings, trustServerCertificate: event.target.checked })} />
-                Trust server certificate
+              <label className="col-12 col-md-6">
+                <span className="form-check form-switch border rounded-3 bg-white px-3 py-2 d-flex align-items-center gap-2 mb-0">
+                  <input className="form-check-input ms-0 mt-0 flex-shrink-0" type="checkbox" checked={settings.trustServerCertificate} onChange={(event) => setSettings({ ...settings, trustServerCertificate: event.target.checked })} />
+                  <span className="form-check-label small">Trust server certificate</span>
+                </span>
               </label>
             </div>
           </div>

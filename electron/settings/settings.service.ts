@@ -13,7 +13,7 @@ import type {
 } from './settings.types.js'
 
 const settingsFileName = 'connection-settings.bin'
-const databaseKeys: DatabaseKey[] = ['local', 'hq', 'headq', 'hourly']
+const databaseKeys: DatabaseKey[] = ['local', 'hq', 'hourly']
 
 function settingsPath(): string {
   return path.join(app.getPath('userData'), settingsFileName)
@@ -40,19 +40,12 @@ function environmentSettings(): ConnectionSettings {
         password: hqPassword,
         port,
       },
-      headq: {
+      hourly: {
         server: process.env.HQ_DB_SERVER || '209.141.7.222',
-        database: process.env.HEADQ_DB_DATABASE || 'HEADQ',
+        database: process.env.HQ_DB_DATABASE || 'OracleDB',
         username: hqUser,
         password: hqPassword,
         port,
-      },
-      hourly: {
-        server: process.env.HOURLY_DB_SERVER || '192.168.5.201',
-        database: process.env.HOURLY_DB_DATABASE || 'oracledb',
-        username: process.env.HOURLY_DB_USER ?? hqUser,
-        password: process.env.HOURLY_DB_PASSWORD ?? hqPassword,
-        port: Number(process.env.HOURLY_DB_PORT || 1433),
       },
     },
     ftp: {
@@ -96,21 +89,8 @@ export async function getConnectionSettings(): Promise<ConnectionSettings> {
     }
   }
 
-  for (const key of ['headq'] as const) {
-    databases[key] = {
-      ...databases[key],
-      server: databases.hq.server,
-      username: databases.hq.username,
-      password: databases.hq.password,
-      port: databases.hq.port,
-    }
-  }
-
-  const savedHourlyServer = stored.databases?.hourly?.server?.trim()
-  if (savedHourlyServer && savedHourlyServer === databases.hq.server) {
-    databases.hourly.server = defaults.databases.hourly.server
-    databases.hourly.port = defaults.databases.hourly.port
-  }
+  // Hourly sales sync shares the HQ connection, including its database.
+  databases.hourly = { ...databases.hq }
 
   return {
     ...defaults,
@@ -152,20 +132,13 @@ function mergeSettings(
       password: String(candidate.password || current.databases[key].password),
       port: Number(candidate.port),
     }
-    if (key === 'local' || key === 'hq' || key === 'hourly') {
+    if (key === 'local' || key === 'hq') {
       if (!Number.isInteger(databases[key].port) || databases[key].port < 1 || databases[key].port > 65535) {
         throw new Error(`${key} database port must be between 1 and 65535.`)
       }
-    } else if (key === 'headq') {
-      databases[key] = {
-        ...databases[key],
-        server: databases.hq.server,
-        username: databases.hq.username,
-        password: databases.hq.password,
-        port: databases.hq.port,
-      }
     }
   }
+  databases.hourly = { ...databases.hq }
 
   return {
     databases,

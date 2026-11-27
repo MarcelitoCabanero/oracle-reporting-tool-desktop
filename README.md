@@ -8,16 +8,14 @@ Desktop reporting, synchronization, and store operations management application 
 
 ### 1. Authentication & Local POS Provisioning
 - **Local POS Login**: Credentials are verified against `dbo.dts_location` in the local POS database (`checkpostingdb`). Login does not depend on HQ database availability, allowing store operations to continue during network or HQ outages.
-- **Pre-Login Setup & Provisioning**: If the local POS database cannot be reached or `dbo.dts_location` is missing, the login screen offers connection setup and one-click POS table provisioning.
+- **Pre-Login Setup & Provisioning**: On a fresh install, the app creates the local tables and admin account from the configured OracleDB source, then requires the user to assign one Store before login.
 - **Role-Based Access**: Users with the `admin` role can access **Settings** from the sidebar (protected by an active admin password prompt).
 - **Theme Support**: Toggle between Light and Dark mode from the collapsible sidebar.
 
 ### 2. Connection Settings & Auto-Updates
 - **Database Connections**: Manages SQL Server configurations for:
   - **Local POS** (`LOCAL_DB_*`, default database `checkpostingdb`)
-  - **HQ / OracleDB** (`HQ_DB_*`, default database `OracleDB`)
-  - **HEADQ** (`HEADQ_DB_DATABASE`, shares HQ server, port, username, and password)
-  - **Hourly Reporting** (`HOURLY_DB_*`, independent connection config for hourly sync and location lookup)
+  - **HQ / OracleDB** (`HQ_DB_*`, default database `OracleDB`; hourly sync uses this same connection)
 - **FTP Configuration**: Configures FTP host, credentials, and secure mode (`basic-ftp`) with built-in connection testing.
 - **Encrypted Credential Storage**: Saved settings are encrypted on disk in Electron `userData` (`connection-settings.bin`) via Electron `safeStorage`. Passwords are never returned to the UI, and leaving a password field blank preserves the existing saved secret. `.env` values act as defaults until settings are saved.
 - **Local Table Provisioning**: During connection setup, creates missing local tables and copies active `admin` account(s) from OracleDB so an administrator can sign in. After login, the administrator can assign one POS store from active OracleDB `dbo.dts_location` rows whose `access` is `Store`; assigning it replaces local non-admin location rows while preserving admin accounts and existing `dbo.dts_hourly_entry` / `dbo.dts_summary_input` records.
@@ -99,10 +97,6 @@ HQ_DB_DATABASE=OracleDB
 HQ_DB_USER=
 HQ_DB_PASSWORD=
 HQ_DB_PORT=
-
-# Remote databases
-HEADQ_DB_DATABASE=HEADQ
-HOURLY_DB_DATABASE=OracleDB
 
 DB_ENCRYPT=
 DB_TRUST_SERVER_CERTIFICATE=

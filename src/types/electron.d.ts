@@ -39,7 +39,7 @@ interface SystemHealthResult {
   requiresStoreSelection: boolean
   message: string
 }
-type DatabaseKey = 'local' | 'hq' | 'headq' | 'hourly'
+type DatabaseKey = 'local' | 'hq' | 'hourly'
 interface DatabaseConnectionSettingsView {
   server: string
   database: string
