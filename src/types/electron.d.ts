@@ -37,6 +37,7 @@ interface SystemHealthResult {
   localLocationTableExists: boolean
   hqDbConnected: boolean
   requiresStoreSelection: boolean
+  localSetupError: string | null
   message: string
 }
 type DatabaseKey = 'local' | 'hq' | 'hourly'

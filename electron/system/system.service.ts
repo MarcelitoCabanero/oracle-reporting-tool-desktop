@@ -8,7 +8,12 @@ export interface SystemHealthResult {
   localLocationTableExists: boolean
   hqDbConnected: boolean
   requiresStoreSelection: boolean
+  localSetupError: string | null
   message: string
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function getErrorCode(error: unknown): string | undefined {
@@ -56,10 +61,23 @@ async function checkLocalDb(): Promise<{
   connected: boolean
   locationTableExists: boolean
   requiresStoreSelection: boolean
+  setupError: string | null
 }> {
+  let pool
   try {
-    const pool = await getLocalDbPool()
+    pool = await getLocalDbPool()
+    await pool.request().query('SELECT 1 AS healthcheck')
+  } catch (error) {
+    console.error('LocalDB connection check failed:', error)
+    return {
+      connected: false,
+      locationTableExists: false,
+      requiresStoreSelection: false,
+      setupError: getErrorMessage(error),
+    }
+  }
 
+  try {
     let result = await pool.request().query(`
       SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
     `)
@@ -110,11 +128,33 @@ async function checkLocalDb(): Promise<{
       connected: true,
       locationTableExists,
       requiresStoreSelection,
+      setupError: null,
     }
   } catch (error) {
-    console.error('LocalDB health check failed:', error)
+    console.error('LocalDB setup/health query failed after connection succeeded:', error)
+    let locationTableExists = false
+    let requiresStoreSelection = false
+    try {
+      const status = await pool.request().query(`
+        SELECT
+          CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists,
+          CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL AND EXISTS (
+            SELECT 1 FROM dbo.dts_location
+            WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
+          ) THEN 1 ELSE 0 END AS hasStore
+      `)
+      locationTableExists = Number(status.recordset[0]?.locationTableExists) === 1
+      requiresStoreSelection = locationTableExists && Number(status.recordset[0]?.hasStore) !== 1
+    } catch (statusError) {
+      console.error('Unable to inspect LocalDB setup state:', statusError)
+    }
 
-    return { connected: false, locationTableExists: false, requiresStoreSelection: false }
+    return {
+      connected: true,
+      locationTableExists,
+      requiresStoreSelection,
+      setupError: getErrorMessage(error),
+    }
   }
 }
 
@@ -152,8 +192,11 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localLocationTableExists: localDb.locationTableExists,
       hqDbConnected,
       requiresStoreSelection: localDb.requiresStoreSelection,
+      localSetupError: localDb.setupError,
       message: localDb.requiresStoreSelection
-        ? 'Select the store assigned to this POS to finish first-time setup.'
+        ? localDb.setupError
+          ? `Local POS is connected, but first-run setup needs attention: ${localDb.setupError}`
+          : 'Select the store assigned to this POS to finish first-time setup.'
         : 'System Ready',
     }
   }
@@ -165,7 +208,8 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localLocationTableExists: false,
       hqDbConnected,
       requiresStoreSelection: false,
-      message: 'Unable to connect to the Local POS database.',
+      localSetupError: localDb.setupError,
+      message: `Unable to connect to the Local POS database. ${localDb.setupError ?? ''}`.trim(),
     }
   }
 
@@ -176,7 +220,10 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localLocationTableExists: false,
       hqDbConnected,
       requiresStoreSelection: false,
-      message: 'Local POS database is connected, but dts_location has not been set up.',
+      localSetupError: localDb.setupError,
+      message: localDb.setupError
+        ? `Local POS database is connected, but setup failed: ${localDb.setupError}`
+        : 'Local POS database is connected, but dts_location has not been set up.',
     }
   }
 
@@ -187,6 +234,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
       localLocationTableExists: localDb.locationTableExists,
       hqDbConnected,
       requiresStoreSelection: localDb.requiresStoreSelection,
+      localSetupError: localDb.setupError,
       message: `Unable to connect to the HQ database. ${hqDb.guidance} Local database login is available.`,
     }
   }
@@ -197,6 +245,7 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
     localLocationTableExists: localDb.locationTableExists,
     hqDbConnected,
     requiresStoreSelection: localDb.requiresStoreSelection,
-    message: `Unable to connect to Local POS and HQ databases. ${hqDb.guidance}`,
+    localSetupError: localDb.setupError,
+    message: `Unable to connect to Local POS and HQ databases. ${localDb.setupError ?? ''} ${hqDb.guidance}`.trim(),
   }
 }

@@ -58,6 +58,7 @@ function LoginPage() {
     checkingSystem,
     setCheckingSystem,
   ] = useState(true)
+  const [appVersion, setAppVersion] = useState('')
 
   const [showConnectionSettings, setShowConnectionSettings] = useState(false)
   const [requiresStoreSelection, setRequiresStoreSelection] = useState(false)
@@ -67,6 +68,12 @@ function LoginPage() {
   const [setupBusy, setSetupBusy] = useState(false)
 
   useEffect(() => {
+    void window.api.app.getVersion()
+      .then(setAppVersion)
+      .catch((versionError: unknown) => {
+        console.error('Unable to read application version:', versionError)
+      })
+
     async function runStartupChecks() {
       try {
         setCheckingSystem(
@@ -85,9 +92,9 @@ function LoginPage() {
         if (health.requiresStoreSelection) {
           setSystemReady(false)
           setSystemStatus(health.message)
+          setSetupError(health.localSetupError ?? '')
           try {
             setSetupStores(await window.api.settings.getFirstRunStoreOptions())
-            setSetupError('')
           } catch (error) {
             setSetupError(error instanceof Error ? error.message : 'Unable to load available stores.')
           }
@@ -319,11 +326,11 @@ function LoginPage() {
                 brand-text
               "
             >
-              {requiresStoreSelection ? 'First-time setup' : 'Welcome Back'}
+              {requiresStoreSelection ? 'First-time setup' : 'Welcome'}
             </div>
 
             <h2 className="h4 fw-bold mb-2">
-              {requiresStoreSelection ? 'Choose this POS store' : 'Sign in to continue'}
+              {requiresStoreSelection ? 'Choose this POS store' : 'Sign in'}
             </h2>
 
             <p className="text-secondary small mb-0">
@@ -524,6 +531,7 @@ function LoginPage() {
               >
                 {systemStatus}
               </span>
+              {appVersion && <span className="text-secondary">· v{appVersion}</span>}
 
             </div>
 
