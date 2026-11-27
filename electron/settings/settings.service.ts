@@ -15,6 +15,15 @@ import type {
 const settingsFileName = 'connection-settings.bin'
 const databaseKeys: DatabaseKey[] = ['local', 'hq', 'hourly']
 
+function normalizeConnectionField(value: unknown): string {
+  const raw = String(value ?? '')
+  const normalized = raw.replace(/[\u0000-\u001F\u007F]/g, '').trim()
+  if (normalized !== raw.trim()) {
+    console.warn('Removed invalid control characters from a saved SQL connection field.')
+  }
+  return normalized
+}
+
 function settingsPath(): string {
   return path.join(app.getPath('userData'), settingsFileName)
 }
@@ -87,6 +96,12 @@ export async function getConnectionSettings(): Promise<ConnectionSettings> {
     if (saved) {
       databases[key] = { ...defaults.databases[key], ...saved }
     }
+    databases[key] = {
+      ...databases[key],
+      server: normalizeConnectionField(databases[key].server),
+      database: normalizeConnectionField(databases[key].database),
+      username: normalizeConnectionField(databases[key].username),
+    }
   }
 
   // Hourly sales sync shares the HQ connection, including its database.
@@ -126,9 +141,9 @@ function mergeSettings(
   for (const key of databaseKeys) {
     const candidate = input.databases[key]
     databases[key] = {
-      server: String(candidate.server ?? '').trim(),
-      database: String(candidate.database ?? '').trim(),
-      username: String(candidate.username ?? '').trim(),
+      server: normalizeConnectionField(candidate.server),
+      database: normalizeConnectionField(candidate.database),
+      username: normalizeConnectionField(candidate.username),
       password: String(candidate.password || current.databases[key].password),
       port: Number(candidate.port),
     }
