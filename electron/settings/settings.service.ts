@@ -474,35 +474,50 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
         FROM dbo.app_schema_migrations
         WHERE migration_name IN (N'bootstrap:first-run-local-schema', N'bootstrap:first-run-create-view-tables')
           AND NOT EXISTS (
-            SELECT 1 FROM dbo.app_first_run_setup AS setup
+            SELECT 1 FROM dbo.app_first_run_setup AS setup WITH (UPDLOCK, HOLDLOCK)
             WHERE setup.setup_name = dbo.app_schema_migrations.migration_name
           );
       END;
     `)
 
-    const transaction = new sql.Transaction(pool)
-    await transaction.begin()
+    const before = await pool.request().query(`
+      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 1 ELSE 0 END AS isFresh
+    `)
+    const isFresh = Number(before.recordset[0]?.isFresh) === 1
+
+    // Keep the required login/location table independent from optional
+    // operational table/index creation so a later setup error cannot roll it back.
+    const locationTransaction = new sql.Transaction(pool)
+    await locationTransaction.begin()
     try {
-      const before = await new sql.Request(transaction).query(`
-        SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 1 ELSE 0 END AS isFresh
+      await new sql.Request(locationTransaction).batch(localLocationTableSql)
+      const created = await new sql.Request(locationTransaction).query(`
+        SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS tableExists
       `)
-      const isFresh = Number(before.recordset[0]?.isFresh) === 1
-      await new sql.Request(transaction).batch(`
-        ${localLocationTableSql}
-        ${localOperationalTablesSql}
-        ${localSummaryInputTableSql}
-      `)
-      if (isFresh) {
-        await new sql.Request(transaction)
-          .input('schemaMarker', sql.NVarChar(255), freshLocalSchemaMarker)
-          .query(`INSERT INTO dbo.app_first_run_setup (setup_name) VALUES (@schemaMarker);`)
+      if (Number(created.recordset[0]?.tableExists) !== 1) {
+        throw new Error('dbo.dts_location was not created in CheckPostingDB.')
       }
-      await transaction.commit()
+      if (isFresh) {
+        await new sql.Request(locationTransaction)
+          .input('schemaMarker', sql.NVarChar(255), freshLocalSchemaMarker)
+          .query(`
+            IF NOT EXISTS (
+              SELECT 1 FROM dbo.app_first_run_setup WITH (UPDLOCK, HOLDLOCK)
+              WHERE setup_name=@schemaMarker
+            )
+              INSERT INTO dbo.app_first_run_setup (setup_name) VALUES (@schemaMarker);
+          `)
+      }
+      await locationTransaction.commit()
     } catch (error) {
-      await transaction.rollback().catch(() => undefined)
+      await locationTransaction.rollback().catch(() => undefined)
       throw error
     }
 
+    await pool.request().batch(`
+      ${localOperationalTablesSql}
+      ${localSummaryInputTableSql}
+    `)
     await createFirstRunViews(pool)
   } finally {
     if (pool.connected) await pool.close()
@@ -560,10 +575,7 @@ export async function initializeLocalDatabase(
     const transaction = new sql.Transaction(localPool)
     await transaction.begin()
     try {
-      await new sql.Request(transaction).batch(`
-        ${localLocationTableSql}
-        ${localOperationalTablesSql}
-        ${localSummaryInputTableSql}
+      await new sql.Request(transaction).query(`
         DELETE FROM dbo.dts_location
         WHERE LOWER(LTRIM(RTRIM(access))) = 'admin';
       `)
