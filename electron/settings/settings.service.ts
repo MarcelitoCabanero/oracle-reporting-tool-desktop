@@ -374,6 +374,71 @@ const localSummaryInputTableSql = `
       ON dbo.dts_summary_input(sync_id) WHERE sync_id IS NOT NULL;
 `
 
+const firstRunSetupRegistrySql = `
+  IF OBJECT_ID(N'dbo.app_first_run_setup', N'U') IS NULL
+  BEGIN
+    CREATE TABLE dbo.app_first_run_setup (
+      setup_name NVARCHAR(255) NOT NULL CONSTRAINT PK_app_first_run_setup PRIMARY KEY,
+      completed_at DATETIME2(7) NOT NULL CONSTRAINT DF_app_first_run_setup_completed_at DEFAULT (SYSUTCDATETIME())
+    );
+  END;
+`
+
+const freshLocalSchemaMarker = 'bootstrap:first-run-local-schema'
+const firstRunViewsMarker = 'bootstrap:first-run-create-view-tables'
+
+async function createFirstRunViews(pool: sql.ConnectionPool): Promise<void> {
+  const setup = await pool.request()
+    .input('schemaMarker', sql.NVarChar(255), freshLocalSchemaMarker)
+    .input('viewsMarker', sql.NVarChar(255), firstRunViewsMarker)
+    .query(`
+      SELECT
+        CASE WHEN EXISTS (SELECT 1 FROM dbo.app_first_run_setup WHERE setup_name=@schemaMarker) THEN 1 ELSE 0 END AS isFreshSetup,
+        CASE WHEN EXISTS (SELECT 1 FROM dbo.app_first_run_setup WHERE setup_name=@viewsMarker) THEN 1 ELSE 0 END AS viewsApplied
+    `)
+  if (Number(setup.recordset[0]?.isFreshSetup) !== 1 || Number(setup.recordset[0]?.viewsApplied) === 1) return
+
+  const directory = app.isPackaged
+    ? path.join(process.resourcesPath, 'database-setup', 'checkpostingdb')
+    : path.join(app.getAppPath(), 'database-setup', 'checkpostingdb')
+  const filePath = path.join(directory, 'create-view-tables.sql')
+  const script = (await fs.readFile(filePath, 'utf8'))
+    .replace(/^\uFEFF/, '')
+    .replace(/^\s*USE\s+\[[^\]]+\]\s*;?\s*$/gim, '')
+  const batches = script
+    .split(/^\s*GO(?:\s+\d+)?\s*$/gim)
+    .map((batch) => batch.trim())
+    .filter(Boolean)
+  if (batches.length === 0) throw new Error('The first-run view SQL file is empty.')
+
+  const transaction = new sql.Transaction(pool)
+  await transaction.begin()
+  try {
+    await new sql.Request(transaction)
+      .input('resource', sql.NVarChar(255), firstRunViewsMarker)
+      .query(`EXEC sys.sp_getapplock @Resource=@resource, @LockMode='Exclusive', @LockOwner='Transaction';`)
+
+    const alreadyApplied = await new sql.Request(transaction)
+      .input('viewsMarker', sql.NVarChar(255), firstRunViewsMarker)
+      .query(`SELECT 1 AS applied FROM dbo.app_first_run_setup WHERE setup_name=@viewsMarker;`)
+    if (alreadyApplied.recordset.length) {
+      await transaction.commit()
+      return
+    }
+
+    for (const batch of batches) {
+      await new sql.Request(transaction).batch(batch)
+    }
+    await new sql.Request(transaction)
+      .input('viewsMarker', sql.NVarChar(255), firstRunViewsMarker)
+      .query(`INSERT INTO dbo.app_first_run_setup (setup_name) VALUES (@viewsMarker);`)
+    await transaction.commit()
+  } catch (error) {
+    await transaction.rollback().catch(() => undefined)
+    throw error
+  }
+}
+
 export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Promise<void> {
   const settings = input
     ? mergeSettings(await getConnectionSettings(), input)
@@ -385,11 +450,45 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
   const pool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
   try {
     await pool.connect()
-    await pool.request().batch(`
-      ${localLocationTableSql}
-      ${localOperationalTablesSql}
-      ${localSummaryInputTableSql}
+    await pool.request().query(firstRunSetupRegistrySql)
+    await pool.request().query(`
+      IF OBJECT_ID(N'dbo.app_schema_migrations', N'U') IS NOT NULL
+      BEGIN
+        INSERT INTO dbo.app_first_run_setup (setup_name)
+        SELECT migration_name
+        FROM dbo.app_schema_migrations
+        WHERE migration_name IN (N'bootstrap:first-run-local-schema', N'bootstrap:first-run-create-view-tables')
+          AND NOT EXISTS (
+            SELECT 1 FROM dbo.app_first_run_setup AS setup
+            WHERE setup.setup_name = dbo.app_schema_migrations.migration_name
+          );
+      END;
     `)
+
+    const transaction = new sql.Transaction(pool)
+    await transaction.begin()
+    try {
+      const before = await new sql.Request(transaction).query(`
+        SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 1 ELSE 0 END AS isFresh
+      `)
+      const isFresh = Number(before.recordset[0]?.isFresh) === 1
+      await new sql.Request(transaction).batch(`
+        ${localLocationTableSql}
+        ${localOperationalTablesSql}
+        ${localSummaryInputTableSql}
+      `)
+      if (isFresh) {
+        await new sql.Request(transaction)
+          .input('schemaMarker', sql.NVarChar(255), freshLocalSchemaMarker)
+          .query(`INSERT INTO dbo.app_first_run_setup (setup_name) VALUES (@schemaMarker);`)
+      }
+      await transaction.commit()
+    } catch (error) {
+      await transaction.rollback().catch(() => undefined)
+      throw error
+    }
+
+    await createFirstRunViews(pool)
   } finally {
     if (pool.connected) await pool.close()
   }
@@ -424,6 +523,8 @@ export async function initializeLocalDatabase(
   if (settings.databases.local.database.toLowerCase() !== 'checkpostingdb') {
     throw new Error('Set the local POS database name to checkpostingdb before initializing the local POS database.')
   }
+
+  await ensureLocalDatabaseTables(settings)
 
   const sourcePool = new sql.ConnectionPool(createSqlConfig(settings, 'hourly'))
   const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))

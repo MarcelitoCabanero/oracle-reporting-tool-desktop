@@ -8,7 +8,7 @@ Desktop reporting, synchronization, and store operations management application 
 
 ### 1. Authentication & Local POS Provisioning
 - **Local POS Login**: Credentials are verified against `dbo.dts_location` in the local POS database (`checkpostingdb`). Login does not depend on HQ database availability, allowing store operations to continue during network or HQ outages.
-- **Pre-Login Setup & Provisioning**: On a fresh install, the app creates the local tables and admin account from the configured OracleDB source, then requires the user to assign one Store before login.
+- **Pre-Login Setup & Provisioning**: On a fresh install, the app creates the local tables and admin account from the configured OracleDB source, runs the required view setup in `database-setup/checkpostingdb/create-view-tables.sql`, then requires the user to assign one Store before login.
 - **Role-Based Access**: Users with the `admin` role can access **Settings** from the sidebar (protected by an active admin password prompt).
 - **Theme Support**: Toggle between Light and Dark mode from the collapsible sidebar.
 
