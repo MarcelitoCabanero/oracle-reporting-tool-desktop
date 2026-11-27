@@ -616,7 +616,10 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
         if (shouldSeedLocations) {
           await new sql.Request(locationTransaction).query('DELETE FROM dbo.dts_location;')
           for (const batch of locationBatches) {
-            if (/CREATE\s+TABLE\s+\[dbo\]\.\[dts_location\]/i.test(batch)) continue
+            // The source script ends by binding a default to IsActive. On an
+            // existing table that default may already be present, so replay
+            // only its data rows during repair/re-seeding.
+            if (!/^INSERT\s+\[dbo\]\.\[dts_location\]/im.test(batch)) continue
             await new sql.Request(locationTransaction).batch(batch)
           }
         }
