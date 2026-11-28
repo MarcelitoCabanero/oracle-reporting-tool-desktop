@@ -35,6 +35,7 @@ interface TopHeaderProps {
   userName?: string
   userRole?: string
   updateStatus?: 'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'error'
+  updateProgressPercent?: number | null
   onUpdateClick?: () => void
   missingMenuItems?: MissingMenuItem[]
   depositNotifications?: DepositNotificationItem[]
@@ -66,6 +67,7 @@ function TopHeader({
   userName = 'User',
   userRole = 'System User',
   updateStatus = 'idle',
+  updateProgressPercent = null,
   onUpdateClick,
   missingMenuItems = [],
   depositNotifications = [],
@@ -137,7 +139,10 @@ function TopHeader({
     switch (updateStatus) {
       case 'checking': return 'Checking updates...'
       case 'available': return 'Update available'
-      case 'downloading': return 'Downloading update...'
+      case 'downloading':
+        return updateProgressPercent !== null && Number.isFinite(updateProgressPercent)
+          ? `Downloading update... ${Math.round(updateProgressPercent)}%`
+          : 'Downloading update...'
       case 'ready': return 'Restart to update'
       case 'error': return 'Update download failed'
       default: return ''

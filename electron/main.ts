@@ -43,7 +43,15 @@ type AppUpdateStatus =
   | 'error'
   | 'idle'
 
+interface AppUpdateProgress {
+  percent: number
+  transferred: number
+  total: number
+  bytesPerSecond: number
+}
+
 let appUpdateStatus: AppUpdateStatus = 'idle'
+let appUpdateProgress: AppUpdateProgress | null = null
 let updateFound = false
 
 async function runConfiguredDatabaseMigrations() {
@@ -63,7 +71,15 @@ async function runConfiguredDatabaseMigrations() {
 
 function sendUpdateStatus(status: AppUpdateStatus) {
   appUpdateStatus = status
+  if (status === 'checking' || status === 'available' || status === 'error' || status === 'idle') {
+    sendUpdateProgress(null)
+  }
   mainWindow?.webContents.send('app:update-status', status)
+}
+
+function sendUpdateProgress(progress: AppUpdateProgress | null) {
+  appUpdateProgress = progress
+  mainWindow?.webContents.send('app:update-progress', progress)
 }
 
 async function checkForUpdates() {
@@ -121,6 +137,8 @@ ipcMain.handle('app:get-version', () => {
 })
 
 ipcMain.handle('app:get-update-status', () => appUpdateStatus)
+
+ipcMain.handle('app:get-update-progress', () => appUpdateProgress)
 
 ipcMain.handle('app:install-update', () => {
   if (!app.isPackaged) {
@@ -229,8 +247,26 @@ app.whenReady().then(async () => {
       updateFound = true
       sendUpdateStatus('available')
     })
-    autoUpdater.on('download-progress', () => sendUpdateStatus('downloading'))
-    autoUpdater.on('update-downloaded', () => sendUpdateStatus('ready'))
+    autoUpdater.on('download-progress', (progressInfo) => {
+      sendUpdateStatus('downloading')
+      sendUpdateProgress({
+        percent: Number.isFinite(progressInfo.percent)
+          ? Math.min(100, Math.max(0, progressInfo.percent))
+          : 0,
+        transferred: Number(progressInfo.transferred) || 0,
+        total: Number(progressInfo.total) || 0,
+        bytesPerSecond: Number(progressInfo.bytesPerSecond) || 0,
+      })
+    })
+    autoUpdater.on('update-downloaded', () => {
+      sendUpdateProgress({
+        percent: 100,
+        transferred: appUpdateProgress?.total ?? 0,
+        total: appUpdateProgress?.total ?? 0,
+        bytesPerSecond: 0,
+      })
+      sendUpdateStatus('ready')
+    })
     autoUpdater.on('update-not-available', () => {
       sendUpdateStatus(updateFound ? 'error' : 'idle')
     })

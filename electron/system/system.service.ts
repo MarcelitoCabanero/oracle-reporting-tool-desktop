@@ -267,6 +267,22 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
   }
 }
 
+async function readSqlScript(filePath: string): Promise<string> {
+  const buffer = await fs.readFile(filePath)
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    return buffer.subarray(2).toString('utf16le').replace(/^\uFEFF/, '')
+  }
+  if (buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff) {
+    const swapped = Buffer.allocUnsafe(buffer.length - 2)
+    for (let i = 2; i + 1 < buffer.length; i += 2) {
+      swapped[i - 2] = buffer[i + 1]
+      swapped[i - 1] = buffer[i]
+    }
+    return swapped.toString('utf16le').replace(/^\uFEFF/, '')
+  }
+  return buffer.toString('utf8').replace(/^\uFEFF/, '')
+}
+
 export async function runFirstRunSetup(): Promise<{ success: boolean; message: string }> {
   const pool = await getLocalDbPool()
   let lockAcquired = false
@@ -297,14 +313,19 @@ export async function runFirstRunSetup(): Promise<{ success: boolean; message: s
       END;
     `)
 
-    const migrationFiles = ['dts_location.sql', 'create-required-table.sql']
+    const setupScripts = [
+      { file: 'dts_location.sql', migrationName: 'dts_location.sql' },
+      { file: 'create-required-table.sql', migrationName: 'create-required-table.sql' },
+      { file: 'create-view-tables.sql', migrationName: 'bootstrap:first-run-create-view-tables' },
+    ] as const
 
-    for (const file of migrationFiles) {
-      const directory = app.isPackaged
-        ? path.join(process.resourcesPath, 'database-migrations', 'checkpostingdb')
-        : path.join(app.getAppPath(), 'database-migrations', 'checkpostingdb')
+    const directory = app.isPackaged
+      ? path.join(process.resourcesPath, 'database-setup', 'checkpostingdb')
+      : path.join(app.getAppPath(), 'database-setup', 'checkpostingdb')
+
+    for (const { file, migrationName } of setupScripts) {
       const filePath = path.join(directory, file)
-      const script = (await fs.readFile(filePath, 'utf8'))
+      const script = (await readSqlScript(filePath))
         .replace(/^\uFEFF/, '')
         .replace(/^\s*USE\s+\[[^\]]+\]\s*;?\s*$/gim, '')
 
@@ -347,7 +368,7 @@ export async function runFirstRunSetup(): Promise<{ success: boolean; message: s
         }
 
         const alreadyApplied = await new sql.Request(transaction)
-          .input('migrationName', sql.NVarChar(255), file)
+          .input('migrationName', sql.NVarChar(255), migrationName)
           .query(`
             SELECT 1 AS applied
             FROM dbo.app_schema_migrations WITH (UPDLOCK, HOLDLOCK)
@@ -362,7 +383,7 @@ export async function runFirstRunSetup(): Promise<{ success: boolean; message: s
           await new sql.Request(transaction).batch(batch)
         }
         await new sql.Request(transaction)
-          .input('migrationName', sql.NVarChar(255), file)
+          .input('migrationName', sql.NVarChar(255), migrationName)
           .query(`
             IF NOT EXISTS (
                 SELECT 1 FROM dbo.app_schema_migrations WITH (UPDLOCK, HOLDLOCK)

@@ -5,7 +5,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_itemdetail]
+IF OBJECT_ID(N'[dbo].[v_itemdetail]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_itemdetail]
 GO
 CREATE VIEW [dbo].[v_itemdetail]
 AS
@@ -25,7 +26,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_donutsold]
+IF OBJECT_ID(N'[dbo].[v_donutsold]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_donutsold]
 GO
 
 
@@ -71,7 +73,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_revenue]
+IF OBJECT_ID(N'[dbo].[v_revenue]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_revenue]
 GO
 CREATE VIEW [dbo].[v_revenue]
 AS
@@ -90,7 +93,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_salesdetails]
+IF OBJECT_ID(N'[dbo].[v_salesdetails]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_salesdetails]
 GO
 CREATE VIEW [dbo].[v_salesdetails]
 AS
@@ -146,7 +150,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_menuitem_details]
+IF OBJECT_ID(N'[dbo].[v_menuitem_details]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_menuitem_details]
 GO
 CREATE VIEW [dbo].[v_menuitem_details]
 AS
@@ -164,7 +169,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_scpwd_details]
+IF OBJECT_ID(N'[dbo].[v_scpwd_details]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_scpwd_details]
 GO
 
 CREATE VIEW [dbo].[v_scpwd_details]
@@ -186,7 +192,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_summary_ROF]
+IF OBJECT_ID(N'[dbo].[v_summary_ROF]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_summary_ROF]
 GO
 
 CREATE VIEW [dbo].[v_summary_ROF]
@@ -276,7 +283,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_menuitem_details_foc]
+IF OBJECT_ID(N'[dbo].[v_menuitem_details_foc]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_menuitem_details_foc]
 GO
 
 CREATE VIEW [dbo].[v_menuitem_details_foc] AS
@@ -349,7 +357,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_menuitem_summary]
+IF OBJECT_ID(N'[dbo].[v_menuitem_summary]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_menuitem_summary]
 GO
 
 CREATE VIEW [dbo].[v_menuitem_summary]
@@ -365,7 +374,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_invoice]
+IF OBJECT_ID(N'[dbo].[v_invoice]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_invoice]
 GO
 
 CREATE VIEW [dbo].[v_invoice]
@@ -379,7 +389,8 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-DROP VIEW IF EXISTS [dbo].[v_TenderReference]
+IF OBJECT_ID(N'[dbo].[v_TenderReference]', N'V') IS NOT NULL
+    DROP VIEW [dbo].[v_TenderReference]
 GO
 
 

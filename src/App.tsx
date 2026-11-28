@@ -30,7 +30,7 @@ import {
 import type {
   Page,
 } from './types/navigation'
-import type { AppUpdateStatus } from './types/electron'
+import type { AppUpdateProgress, AppUpdateStatus } from './types/electron'
 
 export type Theme = 'light' | 'dark'
 
@@ -80,14 +80,37 @@ function getInitialTheme(): Theme {
   return savedTheme === 'dark' ? 'dark' : 'light'
 }
 
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
+  const value = bytes / (1024 ** unitIndex)
+  return `${value >= 100 || unitIndex === 0 ? Math.round(value) : value.toFixed(1)} ${units[unitIndex]}`
+}
+
+function formatUpdateEta(progress: AppUpdateProgress | null): string {
+  if (!progress || progress.bytesPerSecond <= 0 || progress.total <= progress.transferred) {
+    return ''
+  }
+  const remainingSeconds = Math.ceil((progress.total - progress.transferred) / progress.bytesPerSecond)
+  if (remainingSeconds < 60) {
+    return `~${remainingSeconds}s left`
+  }
+  const minutes = Math.floor(remainingSeconds / 60)
+  const seconds = remainingSeconds % 60
+  return seconds > 0 ? `~${minutes}m ${seconds}s left` : `~${minutes}m left`
+}
+
 function RequiredUpdateScreen({
   status,
+  progress,
   actionError,
   actionInProgress,
   onInstall,
   onRetry,
 }: {
   status: Exclude<AppUpdateStatus, 'idle' | 'checking'>
+  progress: AppUpdateProgress | null
   actionError: string
   actionInProgress: boolean
   onInstall: () => void
@@ -95,18 +118,25 @@ function RequiredUpdateScreen({
 }) {
   const isReady = status === 'ready'
   const hasError = status === 'error'
+  const isPreparing = status === 'available'
+  const isDownloading = status === 'downloading'
+  const clampedPercent = isReady
+    ? 100
+    : Math.min(100, Math.max(0, Math.round(progress?.percent ?? 0)))
+  const hasByteTotals = (progress?.total ?? 0) > 0
+  const etaText = formatUpdateEta(progress)
 
   const statusMessage = hasError
     ? 'The required update could not be downloaded. Retry the download to continue.'
     : isReady
       ? 'The update is ready. Restart the application to install it before continuing.'
-      : status === 'available'
-        ? 'A new version is available. The required update is being prepared.'
+      : isPreparing
+        ? 'A new version is available. Preparing the update download...'
         : 'Downloading the required update. Please keep the application open.'
 
   return (
     <div
-      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-light p-4"
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center login-page-bootstrap p-4"
       style={{ zIndex: 2000 }}
       role="alertdialog"
       aria-modal="true"
@@ -115,15 +145,79 @@ function RequiredUpdateScreen({
     >
       <section className="bg-white border rounded-4 shadow-sm p-4 p-md-5 text-center w-100" style={{ maxWidth: 480 }}>
         {!isReady && !hasError && (
-          <div className="spinner-border text-primary mb-3" role="status" aria-label="Updating" />
+          <div className="first-run-loader-wrap mx-auto mb-3">
+            <div className="modern-orbital-loader" aria-label="Updating">
+              <span className="modern-orbital-ring modern-orbital-ring-outer" />
+              <span className="modern-orbital-ring modern-orbital-ring-inner" />
+              <span className="modern-orbital-core fw-bold small tabular-nums">
+                {isDownloading ? `${clampedPercent}%` : '···'}
+              </span>
+            </div>
+          </div>
         )}
 
-        <h1 id="required-update-title" className="h4 fw-bold mb-3">
+        <div className="text-uppercase fw-bold small mb-2 brand-text first-run-kicker">
+          Application Update
+        </div>
+        <h1 id="required-update-title" className="h4 fw-bold mb-2">
           Required update
         </h1>
-        <p id="required-update-message" className="text-secondary mb-4">
+        <p id="required-update-message" className="text-secondary small mb-4">
           {statusMessage}
         </p>
+
+        {!hasError && (
+          <div className="first-run-progress-panel rounded-3 border p-3 mb-4 text-start">
+            <div className="d-flex align-items-center justify-content-between gap-2 small mb-2">
+              <span className="fw-medium text-secondary">
+                {isReady
+                  ? 'Download complete'
+                  : isPreparing
+                    ? 'Preparing update...'
+                    : 'Downloading update...'}
+              </span>
+              <span className="fw-semibold brand-text tabular-nums">
+                {isPreparing && !progress ? 'Starting...' : `${clampedPercent}%`}
+              </span>
+            </div>
+
+            <div
+              className="modern-progress-track"
+              role="progressbar"
+              aria-valuenow={isPreparing && !progress ? undefined : clampedPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <div
+                className={`modern-progress-fill ${
+                  isReady
+                    ? 'is-complete'
+                    : isPreparing && !progress
+                      ? 'modern-progress-indeterminate'
+                      : 'is-animated'
+                }`}
+                style={{ width: `${isPreparing && !progress ? 42 : clampedPercent}%` }}
+              />
+            </div>
+
+            {(isDownloading || isReady) && (hasByteTotals || etaText) && (
+              <div className="d-flex align-items-center justify-content-between gap-2 text-secondary mt-2 tabular-nums" style={{ fontSize: '0.75rem' }}>
+                <span>
+                  {hasByteTotals && progress
+                    ? `${formatBytes(progress.transferred)} / ${formatBytes(progress.total)}`
+                    : ''}
+                </span>
+                <span>
+                  {progress && progress.bytesPerSecond > 0
+                    ? `${formatBytes(progress.bytesPerSecond)}/s${etaText ? ` · ${etaText}` : ''}`
+                    : isReady
+                      ? 'Ready to install'
+                      : ''}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {actionError && (
           <div className="alert alert-danger small text-start" role="alert">
@@ -132,11 +226,11 @@ function RequiredUpdateScreen({
         )}
 
         {isReady ? (
-          <button type="button" className="btn btn-primary px-4" onClick={onInstall} disabled={actionInProgress}>
+          <button type="button" className="btn btn-primary px-4 py-2 fw-semibold" onClick={onInstall} disabled={actionInProgress}>
             {actionInProgress ? 'Restarting to update…' : 'Restart and install update'}
           </button>
         ) : hasError ? (
-          <button type="button" className="btn btn-primary px-4" onClick={onRetry} disabled={actionInProgress}>
+          <button type="button" className="btn btn-primary px-4 py-2 fw-semibold" onClick={onRetry} disabled={actionInProgress}>
             {actionInProgress ? 'Retrying update…' : 'Retry update'}
           </button>
         ) : (
@@ -166,6 +260,7 @@ function App() {
   const [lastCheckedAt, setLastCheckedAt] = useState<Date | null>(null)
   const [maintenanceAutoLoadTrigger, setMaintenanceAutoLoadTrigger] = useState(0)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>('idle')
+  const [updateProgress, setUpdateProgress] = useState<AppUpdateProgress | null>(null)
   const [updateActionError, setUpdateActionError] = useState('')
   const [updateActionInProgress, setUpdateActionInProgress] = useState(false)
   const checkingRef = useRef(false)
@@ -179,10 +274,15 @@ function App() {
 
   useEffect(() => {
     let receivedStatusEvent = false
-    const unsubscribe = window.api.app.onUpdateStatus((status) => {
+    let receivedProgressEvent = false
+    const unsubscribeStatus = window.api.app.onUpdateStatus((status) => {
       receivedStatusEvent = true
       setUpdateStatus(status)
       setUpdateActionError('')
+    })
+    const unsubscribeProgress = window.api.app.onUpdateProgress((progress) => {
+      receivedProgressEvent = true
+      setUpdateProgress(progress)
     })
 
     void window.api.app.getUpdateStatus()
@@ -195,7 +295,20 @@ function App() {
         console.error('Unable to read application update status:', error)
       })
 
-    return unsubscribe
+    void window.api.app.getUpdateProgress()
+      .then((progress) => {
+        if (!receivedProgressEvent) {
+          setUpdateProgress(progress)
+        }
+      })
+      .catch((error: unknown) => {
+        console.error('Unable to read application update progress:', error)
+      })
+
+    return () => {
+      unsubscribeStatus()
+      unsubscribeProgress()
+    }
   }, [])
 
   async function installRequiredUpdate() {
@@ -348,6 +461,7 @@ function App() {
     return (
       <RequiredUpdateScreen
         status={updateStatus}
+        progress={updateProgress}
         actionError={updateActionError}
         actionInProgress={updateActionInProgress}
         onInstall={() => void installRequiredUpdate()}

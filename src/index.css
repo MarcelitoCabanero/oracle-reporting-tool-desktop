@@ -2025,6 +2025,175 @@ html[data-theme='dark'] .sidebar-collapsed-divider {
   border-radius: 50%;
 }
 
+/* Modern First-Run & Update Progress Loaders */
+
+.first-run-card {
+  max-width: 440px;
+}
+
+.first-run-kicker {
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+.first-run-loader-wrap {
+  width: 76px;
+  height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modern-orbital-loader {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modern-orbital-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+}
+
+.modern-orbital-ring-outer {
+  border-top-color: var(--brand-orange);
+  border-right-color: rgba(255, 107, 26, 0.25);
+  animation: orbital-spin 1.15s cubic-bezier(0.55, 0.2, 0.35, 0.85) infinite;
+}
+
+.modern-orbital-ring-inner {
+  inset: 9px;
+  border-bottom-color: var(--brand-orange-dark);
+  border-left-color: rgba(255, 107, 26, 0.18);
+  animation: orbital-spin-reverse 0.9s linear infinite;
+}
+
+.modern-orbital-core {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand-orange-soft);
+  color: var(--brand-orange);
+  box-shadow: 0 0 0 6px rgba(255, 107, 26, 0.08);
+  animation: orbital-pulse 1.8s ease-in-out infinite;
+}
+
+.first-run-state-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.first-run-state-icon-success {
+  background: #e8f7ee;
+  color: #198754;
+}
+
+.first-run-state-icon-error {
+  background: #fdecec;
+  color: #dc3545;
+}
+
+.first-run-progress-panel {
+  background: #fafafa;
+}
+
+.modern-progress-track {
+  position: relative;
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: #eceef2;
+  overflow: hidden;
+}
+
+.modern-progress-fill {
+  position: relative;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--brand-orange) 0%, #ff8a3d 100%);
+  transition: width 0.28s ease-out;
+  overflow: hidden;
+}
+
+.modern-progress-fill.is-complete {
+  background: linear-gradient(90deg, #198754 0%, #2fb375 100%);
+}
+
+.modern-progress-fill.is-animated::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.42) 50%,
+    transparent 100%
+  );
+  animation: progress-shimmer 1.4s ease-in-out infinite;
+}
+
+.modern-progress-indeterminate {
+  width: 42% !important;
+  animation: progress-indeterminate 1.35s ease-in-out infinite;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes orbital-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbital-spin-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes orbital-pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 4px rgba(255, 107, 26, 0.08);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 9px rgba(255, 107, 26, 0.02);
+  }
+}
+
+@keyframes progress-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}
+
 /* =========================================================
    DASHBOARD
    ========================================================= */
@@ -3459,6 +3628,25 @@ html[data-theme='dark'] .pos-journal-export-btn:hover:not(:disabled) {
 
 html[data-theme='dark'] .login-page-bootstrap {
   background: linear-gradient(135deg, #11171d 0%, #2c241f 100%);
+}
+
+html[data-theme='dark'] .first-run-progress-panel {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: var(--border-color) !important;
+}
+
+html[data-theme='dark'] .modern-progress-track {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+html[data-theme='dark'] .first-run-state-icon-success {
+  background: #1e3a2c;
+  color: #83d8a8;
+}
+
+html[data-theme='dark'] .first-run-state-icon-error {
+  background: #402326;
+  color: #ffaaa2;
 }
 
 html[data-theme='dark'] .dashboard-quick-action:hover,

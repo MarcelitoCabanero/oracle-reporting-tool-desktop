@@ -17,7 +17,7 @@ import type {
 } from '../types/navigation'
 import type { Theme } from '../App'
 import type { MissingMenuItem } from '../pages/MaintenancePage'
-import type { AppUpdateStatus } from '../types/electron'
+import type { AppUpdateProgress, AppUpdateStatus } from '../types/electron'
 
 import {
   useAuth,
@@ -101,6 +101,7 @@ function AppLayout({
 const { user, logout } = useAuth()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<AppUpdateStatus>('idle')
+  const [updateProgress, setUpdateProgress] = useState<AppUpdateProgress | null>(null)
   const [showLogoutDialog, setShowLogoutDialog] = useState(false)
 
   useEffect(() => {
@@ -130,14 +131,23 @@ const { user, logout } = useAuth()
   }, [])
 
   useEffect(() => {
-    const unsubscribe = window.api.app.onUpdateStatus(setUpdateStatus)
+    const unsubscribeStatus = window.api.app.onUpdateStatus(setUpdateStatus)
+    const unsubscribeProgress = window.api.app.onUpdateProgress(setUpdateProgress)
     void window.api.app.getUpdateStatus()
       .then(setUpdateStatus)
       .catch((error: unknown) => {
         console.error('Unable to read application update status:', error)
       })
+    void window.api.app.getUpdateProgress()
+      .then(setUpdateProgress)
+      .catch((error: unknown) => {
+        console.error('Unable to read application update progress:', error)
+      })
 
-    return unsubscribe
+    return () => {
+      unsubscribeStatus()
+      unsubscribeProgress()
+    }
   }, [])
 
   async function installUpdate() {
@@ -174,6 +184,7 @@ const { user, logout } = useAuth()
           setSidebarCollapsed((current) => !current)
         }
         updateStatus={updateStatus}
+        updateProgressPercent={updateProgress?.percent ?? null}
         onUpdateClick={updateStatus === 'ready' ? () => void installUpdate() : undefined}
         userName={user?.displayName}
         userRole={user?.role}

@@ -49,16 +49,29 @@ type AppUpdateStatus =
   | 'error'
   | 'idle'
 
+interface AppUpdateProgress {
+  percent: number
+  transferred: number
+  total: number
+  bytesPerSecond: number
+}
+
 contextBridge.exposeInMainWorld('api', {
   app: {
     getVersion: () => ipcRenderer.invoke('app:get-version'),
     getUpdateStatus: () => ipcRenderer.invoke('app:get-update-status') as Promise<AppUpdateStatus>,
+    getUpdateProgress: () => ipcRenderer.invoke('app:get-update-progress') as Promise<AppUpdateProgress | null>,
     installUpdate: () => ipcRenderer.invoke('app:install-update'),
     retryUpdate: () => ipcRenderer.invoke('app:retry-update'),
     onUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, status: AppUpdateStatus) => callback(status)
       ipcRenderer.on('app:update-status', listener)
       return () => ipcRenderer.removeListener('app:update-status', listener)
+    },
+    onUpdateProgress: (callback: (progress: AppUpdateProgress | null) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, progress: AppUpdateProgress | null) => callback(progress)
+      ipcRenderer.on('app:update-progress', listener)
+      return () => ipcRenderer.removeListener('app:update-progress', listener)
     },
   },
 
