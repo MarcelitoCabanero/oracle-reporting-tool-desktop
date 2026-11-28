@@ -4,7 +4,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { getLocalDbPool } from '../database/localdb.js'
 import { getHqDbPool } from '../database/hqdb.js'
-import { ensureLocalDatabaseTables, initializeLocalDatabase } from '../settings/settings.service.js'
+import { ensureLocalDatabaseTables, getConnectionSettings, initializeLocalDatabase } from '../settings/settings.service.js'
 
 export interface SystemHealthResult {
   ready: boolean
@@ -93,6 +93,8 @@ async function checkLocalDb(): Promise<{
       // applied with user-visible progress.
     }
 
+    const settings = await getConnectionSettings()
+
     let requiresStoreSelection = false
     if (locationTableExists) {
       const localSetup = await pool.request().query(`
@@ -101,15 +103,19 @@ async function checkLocalDb(): Promise<{
             SELECT 1 FROM dbo.dts_location
             WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'admin'
           ) THEN 1 ELSE 0 END AS hasAdmin,
-          CASE WHEN EXISTS (
-            SELECT 1 FROM dbo.dts_location
+          (
+            SELECT COUNT(*) FROM dbo.dts_location
+            WHERE LOWER(LTRIM(RTRIM(access))) = 'store'
+          ) AS storeAccountCount,
+          (
+            SELECT COUNT(*) FROM dbo.dts_location
             WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
-          ) THEN 1 ELSE 0 END AS hasStore
+          ) AS activeStoreCount
       `)
       const hasAdmin = Number(localSetup.recordset[0]?.hasAdmin) === 1
-      const hasStore = Number(localSetup.recordset[0]?.hasStore) === 1
+      const storeAccountCount = Number(localSetup.recordset[0]?.storeAccountCount ?? 0)
 
-      if (!hasStore) {
+      if (storeAccountCount === 0 || !hasAdmin) {
         await ensureLocalDatabaseTables(settings)
         if (!hasAdmin) {
           await initializeLocalDatabase(settings)
@@ -117,12 +123,15 @@ async function checkLocalDb(): Promise<{
       }
 
       const storeCheck = await pool.request().query(`
-        SELECT CASE WHEN EXISTS (
-          SELECT 1 FROM dbo.dts_location
-          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
-        ) THEN 1 ELSE 0 END AS hasStore
+        SELECT
+          COUNT(*) AS storeAccountCount,
+          COUNT(CASE WHEN IsActive = 1 THEN 1 END) AS activeStoreCount
+        FROM dbo.dts_location
+        WHERE LOWER(LTRIM(RTRIM(access))) = 'store'
       `)
-      requiresStoreSelection = Number(storeCheck.recordset[0]?.hasStore) !== 1
+      requiresStoreSelection =
+        Number(storeCheck.recordset[0]?.storeAccountCount ?? 0) !== 1
+        || Number(storeCheck.recordset[0]?.activeStoreCount ?? 0) !== 1
     }
 
     return {
@@ -139,13 +148,20 @@ async function checkLocalDb(): Promise<{
       const status = await pool.request().query(`
         SELECT
           CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists,
-          CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL AND EXISTS (
-            SELECT 1 FROM dbo.dts_location
+          CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL THEN (
+            SELECT COUNT(*) FROM dbo.dts_location
+            WHERE LOWER(LTRIM(RTRIM(access))) = 'store'
+          ) ELSE 0 END AS storeAccountCount,
+          CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL THEN (
+            SELECT COUNT(*) FROM dbo.dts_location
             WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
-          ) THEN 1 ELSE 0 END AS hasStore
+          ) ELSE 0 END AS activeStoreCount
       `)
       locationTableExists = Number(status.recordset[0]?.locationTableExists) === 1
-      requiresStoreSelection = locationTableExists && Number(status.recordset[0]?.hasStore) !== 1
+      requiresStoreSelection = locationTableExists && (
+        Number(status.recordset[0]?.storeAccountCount ?? 0) !== 1
+        || Number(status.recordset[0]?.activeStoreCount ?? 0) !== 1
+      )
     } catch (statusError) {
       console.error('Unable to inspect LocalDB setup state:', statusError)
     }
@@ -284,13 +300,6 @@ export async function runFirstRunSetup(): Promise<{ success: boolean; message: s
     const migrationFiles = ['dts_location.sql', 'create-required-table.sql']
 
     for (const file of migrationFiles) {
-      const alreadyApplied = await pool.request()
-        .input('migrationName', sql.NVarChar(255), file)
-        .query(`SELECT 1 AS applied FROM dbo.app_schema_migrations WHERE migration_name=@migrationName;`)
-      if (alreadyApplied.recordset.length) {
-        continue
-      }
-
       const directory = app.isPackaged
         ? path.join(process.resourcesPath, 'database-migrations', 'checkpostingdb')
         : path.join(app.getAppPath(), 'database-migrations', 'checkpostingdb')
@@ -309,12 +318,58 @@ export async function runFirstRunSetup(): Promise<{ success: boolean; message: s
       const transaction = new sql.Transaction(pool)
       await transaction.begin()
       try {
+        await new sql.Request(transaction)
+          .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:ensure-local-tables')
+          .query(`
+            DECLARE @lockResult INT;
+            EXEC @lockResult = sys.sp_getapplock
+              @Resource=@resource,
+              @LockMode='Exclusive',
+              @LockOwner='Transaction',
+              @LockTimeout=30000;
+            IF @lockResult < 0
+              THROW 51000, 'Unable to lock checkpostingdb table setup.', 1;
+          `)
+
+        if (file === 'dts_location.sql') {
+          await new sql.Request(transaction)
+            .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:location-schema')
+            .query(`
+              DECLARE @lockResult INT;
+              EXEC @lockResult = sys.sp_getapplock
+                @Resource=@resource,
+                @LockMode='Exclusive',
+                @LockOwner='Transaction',
+                @LockTimeout=15000;
+              IF @lockResult < 0
+                THROW 51000, 'Unable to lock checkpostingdb location schema.', 1;
+            `)
+        }
+
+        const alreadyApplied = await new sql.Request(transaction)
+          .input('migrationName', sql.NVarChar(255), file)
+          .query(`
+            SELECT 1 AS applied
+            FROM dbo.app_schema_migrations WITH (UPDLOCK, HOLDLOCK)
+            WHERE migration_name=@migrationName;
+          `)
+        if (alreadyApplied.recordset.length) {
+          await transaction.commit()
+          continue
+        }
+
         for (const batch of batches) {
           await new sql.Request(transaction).batch(batch)
         }
         await new sql.Request(transaction)
           .input('migrationName', sql.NVarChar(255), file)
-          .query(`INSERT INTO dbo.app_schema_migrations (migration_name) VALUES (@migrationName);`)
+          .query(`
+            IF NOT EXISTS (
+                SELECT 1 FROM dbo.app_schema_migrations WITH (UPDLOCK, HOLDLOCK)
+                WHERE migration_name=@migrationName
+            )
+                INSERT INTO dbo.app_schema_migrations (migration_name) VALUES (@migrationName);
+          `)
         await transaction.commit()
         console.info(`Applied first-run setup: ${file}`)
       } catch (error) {

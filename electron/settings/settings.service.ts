@@ -17,11 +17,34 @@ const databaseKeys: DatabaseKey[] = ['local', 'hq', 'hourly']
 
 function normalizeConnectionField(value: unknown): string {
   const raw = String(value ?? '')
-  const normalized = raw.replace(/[\u0000-\u001F\u007F]/g, '').trim()
+  let normalized = ''
+  for (let index = 0; index < raw.length; index += 1) {
+    const code = raw.charCodeAt(index)
+    if (code <= 0x1f || (code >= 0x7f && code <= 0x9f)) continue
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = raw.charCodeAt(index + 1)
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        normalized += raw[index] + raw[index + 1]
+        index += 1
+      }
+      continue
+    }
+    if (code >= 0xdc00 && code <= 0xdfff) continue
+    normalized += raw[index]
+  }
+  normalized = normalized.trim()
   if (normalized !== raw.trim()) {
-    console.warn('Removed invalid control characters from a saved SQL connection field.')
+    console.warn('Removed invalid control or Unicode characters from a saved connection field.')
   }
   return normalized
+}
+
+function sanitizeSqlConfigValue(value: string): string {
+  return normalizeConnectionField(value)
+}
+
+function sanitizeEnvValue(key: string, fallback: string): string {
+  return normalizeConnectionField(process.env[key] ?? fallback)
 }
 
 function settingsPath(): string {
@@ -29,38 +52,38 @@ function settingsPath(): string {
 }
 
 function environmentSettings(): ConnectionSettings {
-  const hqUser = process.env.HQ_DB_USER ?? ''
-  const hqPassword = process.env.HQ_DB_PASSWORD ?? ''
+  const hqUser = sanitizeEnvValue('HQ_DB_USER', '')
+  const hqPassword = sanitizeEnvValue('HQ_DB_PASSWORD', '')
   const port = Number(process.env.HQ_DB_PORT || 1433)
 
   return {
     databases: {
       local: {
-        server: normalizeConnectionField(process.env.LOCAL_DB_SERVER || 'POS2'),
-        database: normalizeConnectionField(process.env.LOCAL_DB_DATABASE || 'CheckPostingDB'),
-        username: normalizeConnectionField(process.env.LOCAL_DB_USER ?? ''),
-        password: process.env.LOCAL_DB_PASSWORD ?? '',
+        server: sanitizeEnvValue('LOCAL_DB_SERVER', 'POS2'),
+        database: sanitizeEnvValue('LOCAL_DB_DATABASE', 'checkpostingdb'),
+        username: sanitizeEnvValue('LOCAL_DB_USER', ''),
+        password: sanitizeEnvValue('LOCAL_DB_PASSWORD', ''),
         port: Number(process.env.LOCAL_DB_PORT || 1433),
       },
       hq: {
-        server: normalizeConnectionField(process.env.HQ_DB_SERVER || '209.141.7.222'),
-        database: normalizeConnectionField(process.env.HQ_DB_DATABASE || 'OracleDB'),
-        username: normalizeConnectionField(hqUser),
+        server: sanitizeEnvValue('HQ_DB_SERVER', '209.141.7.222'),
+        database: sanitizeEnvValue('HQ_DB_DATABASE', 'OracleDB'),
+        username: hqUser,
         password: hqPassword,
         port,
       },
       hourly: {
-        server: normalizeConnectionField(process.env.HQ_DB_SERVER || '209.141.7.222'),
-        database: normalizeConnectionField(process.env.HQ_DB_DATABASE || 'OracleDB'),
-        username: normalizeConnectionField(hqUser),
+        server: sanitizeEnvValue('HQ_DB_SERVER', '209.141.7.222'),
+        database: sanitizeEnvValue('HQ_DB_DATABASE', 'OracleDB'),
+        username: hqUser,
         password: hqPassword,
         port,
       },
     },
     ftp: {
-      host: normalizeConnectionField(process.env.FTP_HOST ?? ''),
-      username: normalizeConnectionField(process.env.FTP_USER ?? ''),
-      password: process.env.FTP_PASSWORD ?? '',
+      host: sanitizeEnvValue('FTP_HOST', ''),
+      username: sanitizeEnvValue('FTP_USER', ''),
+      password: sanitizeEnvValue('FTP_PASSWORD', ''),
       secure: process.env.FTP_SECURE === 'true',
     },
     encrypt: process.env.DB_ENCRYPT === 'true',
@@ -144,7 +167,7 @@ function mergeSettings(
       server: normalizeConnectionField(candidate.server),
       database: normalizeConnectionField(candidate.database),
       username: normalizeConnectionField(candidate.username),
-      password: String(candidate.password || current.databases[key].password),
+      password: normalizeConnectionField(candidate.password ?? current.databases[key].password),
       port: Number(candidate.port),
     }
     if (key === 'local' || key === 'hq') {
@@ -185,15 +208,20 @@ export async function saveConnectionSettings(input: ConnectionSettings): Promise
 
 function createSqlConfig(settings: ConnectionSettings, key: DatabaseKey): sql.config {
   const database = settings.databases[key]
-  if (!database.server || !database.database || !database.username || !database.password) {
+  const server = sanitizeSqlConfigValue(database.server)
+  const dbName = sanitizeSqlConfigValue(database.database)
+  const user = sanitizeSqlConfigValue(database.username)
+  const password = sanitizeSqlConfigValue(database.password)
+
+  if (!server || !dbName || !user || !password) {
     throw new Error(`Configure the ${key} database server, database, username, and password first.`)
   }
 
   return {
-    server: database.server,
-    database: database.database,
-    user: database.username,
-    password: database.password,
+    server,
+    database: dbName,
+    user,
+    password,
     port: database.port,
     options: {
       encrypt: settings.encrypt,
@@ -212,7 +240,8 @@ export async function testDatabaseConnection(
   settings: ConnectionSettings,
   key: DatabaseKey,
 ): Promise<void> {
-  const pool = new sql.ConnectionPool(createSqlConfig(settings, key))
+  const config = createSqlConfig(settings, key)
+  const pool = new sql.ConnectionPool(config)
   try {
     await pool.connect()
     await pool.request().query('SELECT 1 AS healthcheck')
@@ -271,24 +300,130 @@ export async function getLocationOptions(input: ConnectionSettings): Promise<Loc
 }
 
 export async function getFirstRunStoreOptions(): Promise<LocationOption[]> {
-  return getLocationOptions(await getConnectionSettings())
-}
-
-export async function setFirstRunStore(selectedLocationId: number): Promise<{ message: string; selectedCount: number }> {
   const settings = await getConnectionSettings()
   const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
 
   try {
     await localPool.connect()
-    const status = await localPool.request().query(`
-      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NOT NULL
-        AND EXISTS (
-          SELECT 1 FROM dbo.dts_location
-          WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
-        ) THEN 1 ELSE 0 END AS hasStore
+    const tableStatus = await localPool.request().query(`
+      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
     `)
-    if (Number(status.recordset[0]?.hasStore) === 1) {
-      throw new Error('This POS already has a store assigned. Sign in as admin to change it in Settings.')
+    if (Number(tableStatus.recordset[0]?.locationTableExists) === 1) {
+      const localStores = await localPool.request().query(`
+        SELECT LOCATIONID AS locationId, LOCATIONNAME AS locationName
+        FROM dbo.dts_location
+        WHERE IsActive = 1
+          AND LOWER(LTRIM(RTRIM(access))) = 'store'
+        ORDER BY LOCATIONNAME
+      `)
+      if (localStores.recordset.length > 0) {
+        return localStores.recordset.map((row) => ({
+          locationId: Number(row.locationId),
+          locationName: String(row.locationName ?? ''),
+        }))
+      }
+    }
+  } finally {
+    if (localPool.connected) await localPool.close()
+  }
+
+  return getLocationOptions(settings)
+}
+
+export async function setFirstRunStore(selectedLocationId: number): Promise<{ message: string; selectedCount: number }> {
+  const settings = await getConnectionSettings()
+  if (settings.databases.local.database.toLowerCase() !== 'checkpostingdb') {
+    throw new Error('Set the local POS database name to checkpostingdb before selecting a store.')
+  }
+  if (!Number.isInteger(selectedLocationId) || selectedLocationId < 1) {
+    throw new Error('Select one active Store location.')
+  }
+
+  const localPool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
+
+  try {
+    await localPool.connect()
+    const tableStatus = await localPool.request().query(`
+      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
+    `)
+
+    if (Number(tableStatus.recordset[0]?.locationTableExists) === 1) {
+      const transaction = new sql.Transaction(localPool)
+      await transaction.begin()
+      try {
+        await new sql.Request(transaction)
+          .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:location-schema')
+          .query(`
+            DECLARE @lockResult INT;
+            EXEC @lockResult = sys.sp_getapplock
+              @Resource=@resource,
+              @LockMode='Exclusive',
+              @LockOwner='Transaction',
+              @LockTimeout=15000;
+            IF @lockResult < 0
+              THROW 51000, 'Unable to lock checkpostingdb location schema.', 1;
+          `)
+
+        const status = await new sql.Request(transaction).query(`
+          SELECT
+            (
+              SELECT COUNT(*) FROM dbo.dts_location
+              WHERE LOWER(LTRIM(RTRIM(access))) = 'store'
+            ) AS storeAccountCount,
+            (
+              SELECT COUNT(*) FROM dbo.dts_location
+              WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'store'
+            ) AS activeStoreCount,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM dbo.dts_location
+              WHERE IsActive = 1 AND LOWER(LTRIM(RTRIM(access))) = 'admin'
+            ) THEN 1 ELSE 0 END AS hasAdmin
+        `)
+        const storeAccountCount = Number(status.recordset[0]?.storeAccountCount ?? 0)
+        const activeStoreCount = Number(status.recordset[0]?.activeStoreCount ?? 0)
+
+        if (storeAccountCount === 1 && activeStoreCount === 1) {
+          throw new Error('This POS already has one store assigned. Sign in as admin to change it in Settings.')
+        }
+
+        if (activeStoreCount > 0) {
+          if (Number(status.recordset[0]?.hasAdmin) !== 1) {
+            throw new Error('An active admin account is required before selecting this POS store.')
+          }
+
+          const selectedStore = await new sql.Request(transaction)
+            .input('locationId', sql.Int, selectedLocationId)
+            .query(`
+              SELECT LOCATIONNAME
+              FROM dbo.dts_location
+              WHERE LOCATIONID = @locationId
+                AND IsActive = 1
+                AND LOWER(LTRIM(RTRIM(access))) = 'store'
+            `)
+          if (selectedStore.recordset.length !== 1) {
+            throw new Error('The selected Store is no longer available in CheckPostingDB. Refresh the store list and select again.')
+          }
+
+          await new sql.Request(transaction)
+            .input('locationId', sql.Int, selectedLocationId)
+            .query(`
+              DELETE FROM dbo.dts_location
+              WHERE (access IS NULL OR LOWER(LTRIM(RTRIM(access))) <> 'admin')
+                AND LOCATIONID <> @locationId
+            `)
+          await transaction.commit()
+
+          return {
+            message: `Configured ${String(selectedStore.recordset[0].LOCATIONNAME)} as this POS store. The admin account was retained and other store accounts were removed.`,
+            selectedCount: 1,
+          }
+        }
+
+        await transaction.rollback()
+      } catch (error) {
+        await transaction.rollback().catch(() => undefined)
+        throw error
+      }
     }
   } finally {
     if (localPool.connected) await localPool.close()
@@ -478,7 +613,7 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
         SELECT @lockResult AS lockResult;
       `)
     if (Number(setupLock.recordset[0]?.lockResult) < 0) {
-      throw new Error('Unable to lock CheckPostingDB first-run setup. Try again shortly.')
+      throw new Error('Unable to lock checkpostingdb first-run setup. Try again shortly.')
     }
     setupLockAcquired = true
     await pool.request().query(firstRunSetupRegistrySql)
@@ -511,7 +646,7 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
             @LockOwner='Transaction',
             @LockTimeout=15000;
           IF @lockResult < 0
-            THROW 51000, 'Unable to lock CheckPostingDB first-run setup.', 1;
+            THROW 51000, 'Unable to lock checkpostingdb first-run setup.', 1;
         `)
       void setupLock
 
@@ -527,7 +662,7 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
         SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS tableExists
       `)
       if (Number(created.recordset[0]?.tableExists) !== 1) {
-        throw new Error('dbo.dts_location was not created in CheckPostingDB.')
+        throw new Error('dbo.dts_location was not created in checkpostingdb.')
       }
       if (isFresh) {
         await new sql.Request(locationTransaction)

@@ -41,6 +41,11 @@ export async function getLocalDbPool(): Promise<sql.ConnectionPool> {
 
       return connectedPool
     })
+    .catch((error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error(`[DB-DEBUG] LocalDB connection failed: ${msg}`)
+      throw error
+    })
     .finally(() => {
       connecting = null
     })
