@@ -44,7 +44,8 @@ function sanitizeSqlConfigValue(value: string): string {
 }
 
 function sanitizeEnvValue(key: string, fallback: string): string {
-  return normalizeConnectionField(process.env[key] ?? fallback)
+  const value = normalizeConnectionField(process.env[key])
+  return value || fallback
 }
 
 function settingsPath(): string {
@@ -52,8 +53,8 @@ function settingsPath(): string {
 }
 
 function environmentSettings(): ConnectionSettings {
-  const hqUser = sanitizeEnvValue('HQ_DB_USER', '')
-  const hqPassword = sanitizeEnvValue('HQ_DB_PASSWORD', '')
+  const hqUser = sanitizeEnvValue('HQ_DB_USER', 'sa')
+  const hqPassword = sanitizeEnvValue('HQ_DB_PASSWORD', 'Cfi05122011')
   const port = Number(process.env.HQ_DB_PORT || 1433)
 
   return {
@@ -61,8 +62,8 @@ function environmentSettings(): ConnectionSettings {
       local: {
         server: sanitizeEnvValue('LOCAL_DB_SERVER', 'POS2'),
         database: sanitizeEnvValue('LOCAL_DB_DATABASE', 'checkpostingdb'),
-        username: sanitizeEnvValue('LOCAL_DB_USER', ''),
-        password: sanitizeEnvValue('LOCAL_DB_PASSWORD', ''),
+        username: sanitizeEnvValue('LOCAL_DB_USER', 'sa'),
+        password: sanitizeEnvValue('LOCAL_DB_PASSWORD', '#1mymicros'),
         port: Number(process.env.LOCAL_DB_PORT || 1433),
       },
       hq: {
@@ -81,9 +82,9 @@ function environmentSettings(): ConnectionSettings {
       },
     },
     ftp: {
-      host: sanitizeEnvValue('FTP_HOST', ''),
-      username: sanitizeEnvValue('FTP_USER', ''),
-      password: sanitizeEnvValue('FTP_PASSWORD', ''),
+      host: sanitizeEnvValue('FTP_HOST', 'ftp.cfi.com.ph'),
+      username: sanitizeEnvValue('FTP_USER', 'cfiftp@cfi.com.ph'),
+      password: sanitizeEnvValue('FTP_PASSWORD', '9%%0ngTq;vYB@-_g'),
       secure: process.env.FTP_SECURE === 'true',
     },
     encrypt: process.env.DB_ENCRYPT === 'true',
@@ -115,15 +116,16 @@ export async function getConnectionSettings(): Promise<ConnectionSettings> {
 
   const databases = { ...defaults.databases }
   for (const key of databaseKeys) {
+    const fallback = defaults.databases[key]
     const saved = stored.databases?.[key]
     if (saved) {
-      databases[key] = { ...defaults.databases[key], ...saved }
-    }
-    databases[key] = {
-      ...databases[key],
-      server: normalizeConnectionField(databases[key].server),
-      database: normalizeConnectionField(databases[key].database),
-      username: normalizeConnectionField(databases[key].username),
+      databases[key] = {
+        server: normalizeConnectionField(saved.server) || fallback.server,
+        database: normalizeConnectionField(saved.database) || fallback.database,
+        username: normalizeConnectionField(saved.username) || fallback.username,
+        password: normalizeConnectionField(saved.password) || fallback.password,
+        port: Number(saved.port) || fallback.port,
+      }
     }
   }
 
@@ -134,7 +136,12 @@ export async function getConnectionSettings(): Promise<ConnectionSettings> {
     ...defaults,
     ...stored,
     databases,
-    ftp: { ...defaults.ftp, ...stored.ftp },
+    ftp: {
+      host: normalizeConnectionField(stored.ftp?.host) || defaults.ftp.host,
+      username: normalizeConnectionField(stored.ftp?.username) || defaults.ftp.username,
+      password: String(stored.ftp?.password || defaults.ftp.password),
+      secure: stored.ftp?.secure ?? defaults.ftp.secure,
+    },
   }
 }
 
@@ -163,11 +170,12 @@ function mergeSettings(
   const databases = { ...current.databases }
   for (const key of databaseKeys) {
     const candidate = input.databases[key]
+    const candidatePassword = normalizeConnectionField(candidate.password)
     databases[key] = {
       server: normalizeConnectionField(candidate.server),
       database: normalizeConnectionField(candidate.database),
       username: normalizeConnectionField(candidate.username),
-      password: normalizeConnectionField(candidate.password ?? current.databases[key].password),
+      password: candidatePassword || current.databases[key].password,
       port: Number(candidate.port),
     }
     if (key === 'local' || key === 'hq') {
