@@ -143,6 +143,57 @@ interface PendingHourlyEntry {
 
 async function ensureLocalHourlySyncColumns(pool: sql.ConnectionPool): Promise<void> {
   await runDatabaseMigrations(pool, 'checkpostingdb')
+
+  // Rename legacy mis-named columns created by older app versions.
+  // Each runs in its own round-trip so sp_rename warnings don't bleed
+  // into the next statement and so each rename is fully committed before
+  // the next one (and before any INSERT) compiles its column list.
+  await pool.request().query(`
+    IF EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry') AND name = N'category_var'
+    )
+      EXEC sp_rename N'dbo.dts_hourly_entry.category_var', N'category', N'COLUMN'
+  `)
+  await pool.request().query(`
+    IF EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry') AND name = N'shelly_id'
+    )
+      EXEC sp_rename N'dbo.dts_hourly_entry.shelly_id', N'shell_qty', N'COLUMN'
+  `)
+  await pool.request().query(`
+    IF EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry') AND name = N'jopps_qty'
+    )
+      EXEC sp_rename N'dbo.dts_hourly_entry.jopps_qty', N'jpops_qty', N'COLUMN'
+  `)
+
+  // Fix category column type from char(10) to varchar(10) if still on old type.
+  // Drops any check constraint on the column first (it gets recreated below).
+  await pool.request().query(`
+    IF EXISTS (
+      SELECT 1 FROM sys.columns
+      WHERE object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
+        AND name = N'category'
+        AND system_type_id = TYPE_ID(N'char')
+    )
+    BEGIN
+      DECLARE @ck NVARCHAR(255) = (
+        SELECT TOP (1) name FROM sys.check_constraints
+        WHERE parent_object_id = OBJECT_ID(N'dbo.dts_hourly_entry')
+          AND name LIKE N'%category%'
+      )
+      IF @ck IS NOT NULL
+      BEGIN
+        DECLARE @dropCk NVARCHAR(500) = N'ALTER TABLE dbo.dts_hourly_entry DROP CONSTRAINT ' + QUOTENAME(@ck)
+        EXEC sp_executesql @dropCk
+      END
+      ALTER TABLE dbo.dts_hourly_entry ALTER COLUMN category VARCHAR(10) NOT NULL
+    END
+  `)
+
   await pool.request().query(`
     IF OBJECT_ID(N'dbo.dts_hourly_entry', N'U') IS NULL
     BEGIN
