@@ -36,30 +36,30 @@ function environmentSettings(): ConnectionSettings {
   return {
     databases: {
       local: {
-        server: process.env.LOCAL_DB_SERVER || 'POS2',
-        database: process.env.LOCAL_DB_DATABASE || 'CheckPostingDB',
-        username: process.env.LOCAL_DB_USER ?? '',
+        server: normalizeConnectionField(process.env.LOCAL_DB_SERVER || 'POS2'),
+        database: normalizeConnectionField(process.env.LOCAL_DB_DATABASE || 'CheckPostingDB'),
+        username: normalizeConnectionField(process.env.LOCAL_DB_USER ?? ''),
         password: process.env.LOCAL_DB_PASSWORD ?? '',
         port: Number(process.env.LOCAL_DB_PORT || 1433),
       },
       hq: {
-        server: process.env.HQ_DB_SERVER || '209.141.7.222',
-        database: process.env.HQ_DB_DATABASE || 'OracleDB',
-        username: hqUser,
+        server: normalizeConnectionField(process.env.HQ_DB_SERVER || '209.141.7.222'),
+        database: normalizeConnectionField(process.env.HQ_DB_DATABASE || 'OracleDB'),
+        username: normalizeConnectionField(hqUser),
         password: hqPassword,
         port,
       },
       hourly: {
-        server: process.env.HQ_DB_SERVER || '209.141.7.222',
-        database: process.env.HQ_DB_DATABASE || 'OracleDB',
-        username: hqUser,
+        server: normalizeConnectionField(process.env.HQ_DB_SERVER || '209.141.7.222'),
+        database: normalizeConnectionField(process.env.HQ_DB_DATABASE || 'OracleDB'),
+        username: normalizeConnectionField(hqUser),
         password: hqPassword,
         port,
       },
     },
     ftp: {
-      host: process.env.FTP_HOST ?? '',
-      username: process.env.FTP_USER ?? '',
+      host: normalizeConnectionField(process.env.FTP_HOST ?? ''),
+      username: normalizeConnectionField(process.env.FTP_USER ?? ''),
       password: process.env.FTP_PASSWORD ?? '',
       secure: process.env.FTP_SECURE === 'true',
     },
@@ -463,8 +463,24 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
   }
 
   const pool = new sql.ConnectionPool(createSqlConfig(settings, 'local'))
+  let setupLockAcquired = false
   try {
     await pool.connect()
+    const setupLock = await pool.request()
+      .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:ensure-local-tables')
+      .query(`
+        DECLARE @lockResult INT;
+        EXEC @lockResult = sys.sp_getapplock
+          @Resource=@resource,
+          @LockMode='Exclusive',
+          @LockOwner='Session',
+          @LockTimeout=30000;
+        SELECT @lockResult AS lockResult;
+      `)
+    if (Number(setupLock.recordset[0]?.lockResult) < 0) {
+      throw new Error('Unable to lock CheckPostingDB first-run setup. Try again shortly.')
+    }
+    setupLockAcquired = true
     await pool.request().query(firstRunSetupRegistrySql)
     await pool.request().query(`
       IF OBJECT_ID(N'dbo.app_schema_migrations', N'U') IS NOT NULL
@@ -480,16 +496,32 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
       END;
     `)
 
-    const before = await pool.request().query(`
-      SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 1 ELSE 0 END AS isFresh
-    `)
-    const isFresh = Number(before.recordset[0]?.isFresh) === 1
-
     // Keep the required login/location table independent from optional
     // operational table/index creation so a later setup error cannot roll it back.
     const locationTransaction = new sql.Transaction(pool)
     await locationTransaction.begin()
     try {
+      const setupLock = await new sql.Request(locationTransaction)
+        .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:location-schema')
+        .query(`
+          DECLARE @lockResult INT;
+          EXEC @lockResult = sys.sp_getapplock
+            @Resource=@resource,
+            @LockMode='Exclusive',
+            @LockOwner='Transaction',
+            @LockTimeout=15000;
+          IF @lockResult < 0
+            THROW 51000, 'Unable to lock CheckPostingDB first-run setup.', 1;
+        `)
+      void setupLock
+
+      // Read freshness only after taking the database lock. Health checks and
+      // the first-run Store list can initialize this schema concurrently.
+      const before = await new sql.Request(locationTransaction).query(`
+        SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 1 ELSE 0 END AS isFresh
+      `)
+      const isFresh = Number(before.recordset[0]?.isFresh) === 1
+
       await new sql.Request(locationTransaction).batch(localLocationTableSql)
       const created = await new sql.Request(locationTransaction).query(`
         SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS tableExists
@@ -520,7 +552,15 @@ export async function ensureLocalDatabaseTables(input?: ConnectionSettings): Pro
     `)
     await createFirstRunViews(pool)
   } finally {
-    if (pool.connected) await pool.close()
+    if (pool.connected) {
+      if (setupLockAcquired) {
+        await pool.request()
+          .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:ensure-local-tables')
+          .query(`EXEC sys.sp_releaseapplock @Resource=@resource, @LockOwner='Session';`)
+          .catch(() => undefined)
+      }
+      await pool.close()
+    }
   }
 }
 

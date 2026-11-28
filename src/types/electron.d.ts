@@ -774,6 +774,7 @@ declare global {
     healthCheck: () => Promise<SystemHealthResult>
       checkVersion:
     () => Promise<VersionCheckResult>
+      runFirstRunSetup: () => Promise<{ success: boolean; message: string }>
   }
   loadSummary: (
   dateFrom: string,

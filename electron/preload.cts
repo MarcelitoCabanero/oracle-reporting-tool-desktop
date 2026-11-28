@@ -104,6 +104,9 @@ contextBridge.exposeInMainWorld('api', {
 
     checkVersion: () =>
       ipcRenderer.invoke('system:check-version'),
+
+    runFirstRunSetup: () =>
+      ipcRenderer.invoke('system:run-first-run-setup') as Promise<{ success: boolean; message: string }>,
   },
 
 rof: {

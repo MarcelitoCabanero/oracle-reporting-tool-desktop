@@ -10,6 +10,7 @@ import {
 
 import logo from '../assets/jco-logo.png'
 import ConnectionSettingsForm from '../components/settings/ConnectionSettingsForm'
+import FirstRunSetup from '../components/first-run/FirstRunSetup'
 import type { LocationOption } from '../../electron/settings/settings.types.js'
 
 import {
@@ -66,6 +67,7 @@ function LoginPage() {
   const [setupStoreId, setSetupStoreId] = useState<number | null>(null)
   const [setupError, setSetupError] = useState('')
   const [setupBusy, setSetupBusy] = useState(false)
+  const [showFirstRunSetup, setShowFirstRunSetup] = useState(false)
 
   useEffect(() => {
     void window.api.app.getVersion()
@@ -101,7 +103,7 @@ function LoginPage() {
           return
         }
 
-        if (!health.localDbConnected || !health.localLocationTableExists) {
+        if (!health.localDbConnected) {
           setSystemReady(
             false,
           )
@@ -110,6 +112,11 @@ function LoginPage() {
             health.message,
           )
 
+          return
+        }
+
+        if (!health.localLocationTableExists) {
+          setShowFirstRunSetup(true)
           return
         }
 
@@ -209,6 +216,29 @@ function LoginPage() {
     }
   }
 
+  async function handleFirstRunSetupComplete() {
+    setShowFirstRunSetup(false)
+    setCheckingSystem(true)
+    try {
+      const health = await window.api.system.healthCheck()
+      setRequiresStoreSelection(health.requiresStoreSelection)
+      setSystemReady(health.ready)
+      setSystemStatus(health.message)
+      if (health.requiresStoreSelection) {
+        try {
+          setSetupStores(await window.api.settings.getFirstRunStoreOptions())
+        } catch (storeError) {
+          setSetupError(storeError instanceof Error ? storeError.message : 'Unable to load available stores.')
+        }
+      }
+    } catch (healthError) {
+      setSystemReady(false)
+      setSystemStatus(healthError instanceof Error ? healthError.message : 'Unable to check database connections.')
+    } finally {
+      setCheckingSystem(false)
+    }
+  }
+
   async function handleSubmit(
     event:
       React.FormEvent<HTMLFormElement>,
@@ -258,6 +288,7 @@ function LoginPage() {
 
   return (
     <>
+      {showFirstRunSetup && <FirstRunSetup onComplete={handleFirstRunSetupComplete} />}
     <div
       className="
         min-vh-100

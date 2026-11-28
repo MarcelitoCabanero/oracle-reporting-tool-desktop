@@ -2,6 +2,7 @@ import { handleIpc } from './ipc-handler.js'
 
 import {
   checkSystemHealth,
+  runFirstRunSetup,
 } from '../system/system.service.js'
 
 import {
@@ -32,6 +33,17 @@ export function registerSystemIpc() {
       )
 
       return checkAppVersion()
+    },
+  )
+
+  handleIpc(
+    'system:run-first-run-setup',
+    async () => {
+      console.log(
+        'First-run database setup requested',
+      )
+
+      return runFirstRunSetup()
     },
   )
 }

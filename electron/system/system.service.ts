@@ -1,6 +1,10 @@
+import { app } from 'electron'
+import sql from 'mssql'
+import fs from 'node:fs/promises'
+import path from 'node:path'
 import { getLocalDbPool } from '../database/localdb.js'
 import { getHqDbPool } from '../database/hqdb.js'
-import { ensureLocalDatabaseTables, getConnectionSettings, initializeLocalDatabase } from '../settings/settings.service.js'
+import { ensureLocalDatabaseTables, initializeLocalDatabase } from '../settings/settings.service.js'
 
 export interface SystemHealthResult {
   ready: boolean
@@ -78,18 +82,15 @@ async function checkLocalDb(): Promise<{
   }
 
   try {
-    let result = await pool.request().query(`
+    const result = await pool.request().query(`
       SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
     `)
-    let locationTableExists = Number(result.recordset[0]?.locationTableExists) === 1
-    const settings = await getConnectionSettings()
+    const locationTableExists = Number(result.recordset[0]?.locationTableExists) === 1
 
     if (!locationTableExists) {
-      await ensureLocalDatabaseTables(settings)
-      result = await pool.request().query(`
-        SELECT CASE WHEN OBJECT_ID(N'dbo.dts_location', N'U') IS NULL THEN 0 ELSE 1 END AS locationTableExists
-      `)
-      locationTableExists = Number(result.recordset[0]?.locationTableExists) === 1
+      // Do not auto-create here. FirstRunSetup (runFirstRunSetup) owns initial
+      // schema creation so the setup animation can run and the SQL files can be
+      // applied with user-visible progress.
     }
 
     let requiresStoreSelection = false
@@ -247,5 +248,90 @@ export async function checkSystemHealth(): Promise<SystemHealthResult> {
     requiresStoreSelection: localDb.requiresStoreSelection,
     localSetupError: localDb.setupError,
     message: `Unable to connect to Local POS and HQ databases. ${localDb.setupError ?? ''} ${hqDb.guidance}`.trim(),
+  }
+}
+
+export async function runFirstRunSetup(): Promise<{ success: boolean; message: string }> {
+  const pool = await getLocalDbPool()
+  let lockAcquired = false
+  try {
+    const lock = await pool.request()
+      .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:first-run-setup')
+      .query(`
+        DECLARE @lockResult INT;
+        EXEC @lockResult = sys.sp_getapplock
+          @Resource=@resource,
+          @LockMode='Exclusive',
+          @LockOwner='Session',
+          @LockTimeout=30000;
+        SELECT @lockResult AS lockResult;
+      `)
+    if (Number(lock.recordset[0]?.lockResult) < 0) {
+      throw new Error('Unable to lock CheckPostingDB first-run setup. Try again shortly.')
+    }
+    lockAcquired = true
+
+    await pool.request().query(`
+      IF OBJECT_ID(N'dbo.app_schema_migrations', N'U') IS NULL
+      BEGIN
+        CREATE TABLE dbo.app_schema_migrations (
+          migration_name NVARCHAR(255) NOT NULL CONSTRAINT PK_app_schema_migrations PRIMARY KEY,
+          applied_at DATETIME2(7) NOT NULL CONSTRAINT DF_app_schema_migrations_applied_at DEFAULT (SYSUTCDATETIME())
+        );
+      END;
+    `)
+
+    const migrationFiles = ['dts_location.sql', 'create-required-table.sql']
+
+    for (const file of migrationFiles) {
+      const alreadyApplied = await pool.request()
+        .input('migrationName', sql.NVarChar(255), file)
+        .query(`SELECT 1 AS applied FROM dbo.app_schema_migrations WHERE migration_name=@migrationName;`)
+      if (alreadyApplied.recordset.length) {
+        continue
+      }
+
+      const directory = app.isPackaged
+        ? path.join(process.resourcesPath, 'database-migrations', 'checkpostingdb')
+        : path.join(app.getAppPath(), 'database-migrations', 'checkpostingdb')
+      const filePath = path.join(directory, file)
+      const script = (await fs.readFile(filePath, 'utf8'))
+        .replace(/^\uFEFF/, '')
+        .replace(/^\s*USE\s+\[[^\]]+\]\s*;?\s*$/gim, '')
+
+      const batches = script
+        .split(/^\s*GO(?:\s+\d+)?\s*$/gim)
+        .map((batch) => batch.trim())
+        .filter(Boolean)
+
+      if (batches.length === 0) continue
+
+      const transaction = new sql.Transaction(pool)
+      await transaction.begin()
+      try {
+        for (const batch of batches) {
+          await new sql.Request(transaction).batch(batch)
+        }
+        await new sql.Request(transaction)
+          .input('migrationName', sql.NVarChar(255), file)
+          .query(`INSERT INTO dbo.app_schema_migrations (migration_name) VALUES (@migrationName);`)
+        await transaction.commit()
+        console.info(`Applied first-run setup: ${file}`)
+      } catch (error) {
+        await transaction.rollback().catch(() => undefined)
+        throw error
+      }
+    }
+
+    return { success: true, message: 'First-run database setup completed.' }
+  } catch (error) {
+    return { success: false, message: error instanceof Error ? error.message : String(error) }
+  } finally {
+    if (pool.connected && lockAcquired) {
+      await pool.request()
+        .input('resource', sql.NVarChar(255), 'bootstrap:checkpostingdb:first-run-setup')
+        .query(`EXEC sys.sp_releaseapplock @Resource=@resource, @LockOwner='Session';`)
+        .catch(() => undefined)
+    }
   }
 }
